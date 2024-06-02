@@ -1,17 +1,21 @@
 <script>
 import { invoke } from "@tauri-apps/api/tauri";
 
-// biome-ignore lint/style/useConst: <explanation>
-let name = "";
-let greetMsg = "";
+const intervalSec = 1;
 
-async function getCpu() {
-	greetMsg = await invoke("get_cpu", { name });
+let cpuUsage = 0;
+
+const getCpu = async () => {
+	return await invoke("get_cpu");
 }
+
+setInterval(async () => {
+  cpuUsage = await getCpu();
+}, intervalSec * 1000);
+
+
 </script>
 
 <div>
-  <input id="greet-input" placeholder="Enter a name..." bind:value="{name}" />
-  <button on:click="{getCpu}">Greet</button>
-  <p>{greetMsg}</p>
+  <p>CPU: {cpuUsage}%</p>
 </div>
