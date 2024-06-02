@@ -1,9 +1,9 @@
-import { fail } from '@sveltejs/kit';
-import { Game } from './game';
-import type { PageServerLoad, Actions } from './$types';
+import { fail } from "@sveltejs/kit";
+import type { Actions, PageServerLoad } from "./$types";
+import { Game } from "./game";
 
 export const load = (({ cookies }) => {
-	const game = new Game(cookies.get('sverdle'));
+	const game = new Game(cookies.get("sverdle"));
 
 	return {
 		/**
@@ -20,7 +20,7 @@ export const load = (({ cookies }) => {
 		/**
 		 * The correct answer, revealed if the game is over
 		 */
-		answer: game.answers.length >= 6 ? game.answer : null
+		answer: game.answers.length >= 6 ? game.answer : null,
 	};
 }) satisfies PageServerLoad;
 
@@ -30,20 +30,20 @@ export const actions = {
 	 * is available, this will happen in the browser instead of here
 	 */
 	update: async ({ request, cookies }) => {
-		const game = new Game(cookies.get('sverdle'));
+		const game = new Game(cookies.get("sverdle"));
 
 		const data = await request.formData();
-		const key = data.get('key');
+		const key = data.get("key");
 
 		const i = game.answers.length;
 
-		if (key === 'backspace') {
+		if (key === "backspace") {
 			game.guesses[i] = game.guesses[i].slice(0, -1);
 		} else {
 			game.guesses[i] += key;
 		}
 
-		cookies.set('sverdle', game.toString(), { path: '/' });
+		cookies.set("sverdle", game.toString(), { path: "/" });
 	},
 
 	/**
@@ -51,19 +51,19 @@ export const actions = {
 	 * the server, so that people can't cheat by peeking at the JavaScript
 	 */
 	enter: async ({ request, cookies }) => {
-		const game = new Game(cookies.get('sverdle'));
+		const game = new Game(cookies.get("sverdle"));
 
 		const data = await request.formData();
-		const guess = data.getAll('guess') as string[];
+		const guess = data.getAll("guess") as string[];
 
 		if (!game.enter(guess)) {
 			return fail(400, { badGuess: true });
 		}
 
-		cookies.set('sverdle', game.toString(), { path: '/' });
+		cookies.set("sverdle", game.toString(), { path: "/" });
 	},
 
 	restart: async ({ cookies }) => {
-		cookies.delete('sverdle', { path: '/' });
-	}
+		cookies.delete("sverdle", { path: "/" });
+	},
 } satisfies Actions;

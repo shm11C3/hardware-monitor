@@ -1,4 +1,4 @@
-import { words, allowed } from './words.server';
+import { allowed, words } from "./words.server";
 
 export class Game {
 	index: number;
@@ -11,14 +11,14 @@ export class Game {
 	 */
 	constructor(serialized: string | undefined = undefined) {
 		if (serialized) {
-			const [index, guesses, answers] = serialized.split('-');
+			const [index, guesses, answers] = serialized.split("-");
 
 			this.index = +index;
-			this.guesses = guesses ? guesses.split(' ') : [];
-			this.answers = answers ? answers.split(' ') : [];
+			this.guesses = guesses ? guesses.split(" ") : [];
+			this.answers = answers ? answers.split(" ") : [];
 		} else {
 			this.index = Math.floor(Math.random() * words.length);
-			this.guesses = ['', '', '', '', '', ''];
+			this.guesses = ["", "", "", "", "", ""];
 			this.answers = [];
 		}
 
@@ -30,7 +30,7 @@ export class Game {
 	 * true if the guess was valid, false otherwise
 	 */
 	enter(letters: string[]) {
-		const word = letters.join('');
+		const word = letters.join("");
 		const valid = allowed.has(word);
 
 		if (!valid) return false;
@@ -38,13 +38,13 @@ export class Game {
 		this.guesses[this.answers.length] = word;
 
 		const available = Array.from(this.answer);
-		const answer = Array(5).fill('_');
+		const answer = Array(5).fill("_");
 
 		// first, find exact matches
 		for (let i = 0; i < 5; i += 1) {
 			if (letters[i] === available[i]) {
-				answer[i] = 'x';
-				available[i] = ' ';
+				answer[i] = "x";
+				available[i] = " ";
 			}
 		}
 
@@ -52,16 +52,16 @@ export class Game {
 		// in a second step, otherwise an early close
 		// match can prevent a later exact match)
 		for (let i = 0; i < 5; i += 1) {
-			if (answer[i] === '_') {
+			if (answer[i] === "_") {
 				const index = available.indexOf(letters[i]);
 				if (index !== -1) {
-					answer[i] = 'c';
-					available[index] = ' ';
+					answer[i] = "c";
+					available[index] = " ";
 				}
 			}
 		}
 
-		this.answers.push(answer.join(''));
+		this.answers.push(answer.join(""));
 
 		return true;
 	}
@@ -70,6 +70,6 @@ export class Game {
 	 * Serialize game state so it can be set as a cookie
 	 */
 	toString() {
-		return `${this.index}-${this.guesses.join(' ')}-${this.answers.join(' ')}`;
+		return `${this.index}-${this.guesses.join(" ")}-${this.answers.join(" ")}`;
 	}
 }

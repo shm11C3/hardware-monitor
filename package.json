@@ -8,9 +8,13 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test": "vitest",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "lint": "biome lint ./src && biome check ./src && biome format --write ./src",
+    "format": "biome format --write ./src && biome check --apply ./src",
+    "lint:ci": "biome ci ./src"
   },
   "devDependencies": {
+    "@biomejs/biome": "1.7.3",
     "@fontsource/fira-mono": "^4.5.10",
     "@neoconfetti/svelte": "^1.0.0",
     "@sveltejs/adapter-auto": "^3.0.0",
@@ -25,5 +29,8 @@
     "vite": "^5.0.3",
     "vitest": "^1.2.0"
   },
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@tauri-apps/api": "^1.5.6"
+  }
 }
