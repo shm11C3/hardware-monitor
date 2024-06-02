@@ -29,7 +29,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.tauri.dev",
+      "identifier": "com.hardware-monitor",
       "longDescription": "",
       "macOS": {
         "entitlements": null,
@@ -44,7 +44,10 @@
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
-        "timestampUrl": ""
+        "timestampUrl": "",
+        "webviewInstallMode": {
+          "type": "downloadBootstrapper"
+        }
       }
     },
     "security": {
