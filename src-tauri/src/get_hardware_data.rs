@@ -3,7 +3,7 @@
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-use sysinfo::System;
+use sysinfo::{Components, System};
 use tauri::command;
 
 pub struct AppState {
@@ -13,13 +13,22 @@ pub struct AppState {
 const SYSTEM_INFO_INIT_INTERVAL: u64 = 1;
 
 #[command]
-pub fn get_cpu(state: tauri::State<'_, AppState>) -> i32 {
+pub fn get_cpu_usage(state: tauri::State<'_, AppState>) -> i32 {
   let system = state.system.lock().unwrap();
   let cpus = system.cpus();
   let total_usage: f32 = cpus.iter().map(|cpu| cpu.cpu_usage()).sum();
 
   let usage = total_usage / cpus.len() as f32;
   usage.round() as i32
+}
+
+#[command]
+pub fn get_memory_usage(state: tauri::State<'_, AppState>) -> i32 {
+  let system = state.system.lock().unwrap();
+  let used_memory = system.used_memory() as f64;
+  let total_memory = system.total_memory() as f64;
+
+  ((used_memory / total_memory) * 100.0 as f64).round() as i32
 }
 
 pub fn initialize_system(system: Arc<Mutex<System>>) {
