@@ -1,5 +1,6 @@
 <script lang="ts">
-import { getCpuMemoryHistory, getCpuUsage, getCpuUsageHistory, getMemoryUsage } from '../../services/hardwareService';
+import { getCpuMemoryHistory, getCpuUsage, getCpuUsageHistory, getMemoryUsage } from '@/services/hardwareService';
+import { onMount } from 'svelte';
 
 const intervalSec = 1;
 
@@ -9,7 +10,8 @@ let memoryUsage = 0;
 let cpuHistory: number[] = [];
 let memoryHistory: number[] = [];
 
-setInterval(async () => {
+onMount(async () => {
+  setInterval(async () => {
   cpuUsage = await getCpuUsage();
   memoryUsage = await getMemoryUsage();
 
@@ -17,6 +19,8 @@ setInterval(async () => {
   memoryHistory = await getCpuMemoryHistory(30);
 
 }, intervalSec * 1000);
+});
+
 
 
 </script>
@@ -27,11 +31,14 @@ setInterval(async () => {
 
   <div>
     <h3>CPU History</h3>
+    <p>Count: {cpuHistory.length}</p>
     <ul>
       {#each cpuHistory as item}
         <li>{item}</li>
       {/each}
     </ul>
+    <h3>MEMORY History</h3>
+    <p>Count: {memoryHistory.length}</p>
     <ul>
       {#each memoryHistory as item}
         <li>{item}</li>
