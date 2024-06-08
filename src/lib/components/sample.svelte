@@ -1,6 +1,6 @@
 <script lang="ts">
-import { getCpuMemoryHistory, getCpuUsage, getCpuUsageHistory, getMemoryUsage } from '@/services/hardwareService';
 import { onMount } from 'svelte';
+import { getCpuMemoryHistory, getCpuUsage, getCpuUsageHistory, getMemoryUsage } from '../../services/hardwareService';
 
 const intervalSec = 1;
 
