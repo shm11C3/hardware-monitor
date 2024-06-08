@@ -1,22 +1,21 @@
 <script>
-import { invoke } from "@tauri-apps/api/tauri";
+import { getCpuMemoryHistory, getCpuUsage, getCpuUsageHistory, getMemoryUsage } from '../../services/hardwareService';
 
 const intervalSec = 1;
 
 let cpuUsage = 0;
 let memoryUsage = 0;
 
-const getCpuUsage = async () => {
-	return await invoke("get_cpu_usage");
-}
-
-const getMemoryUsage = async () => {
-  return await invoke("get_memory_usage");
-}
+let cpuHistory = [];
+let memoryHistory = [];
 
 setInterval(async () => {
   cpuUsage = await getCpuUsage();
   memoryUsage = await getMemoryUsage();
+
+  cpuHistory= await getCpuUsageHistory(30);
+  memoryHistory = await getCpuMemoryHistory(30);
+
 }, intervalSec * 1000);
 
 
@@ -25,4 +24,17 @@ setInterval(async () => {
 <div>
   <p>CPU: {cpuUsage}%</p>
   <p>MEMORY: {memoryUsage}%</p>
+
+  <div>
+    <h3>CPU History</h3>
+    <ul>
+      {#each cpuHistory as item}
+        <li>{item}</li>
+      {/each}
+    </ul>
+    <ul>
+      {#each memoryHistory as item}
+        <li>{item}</li>
+      {/each}
+  </div>
 </div>
