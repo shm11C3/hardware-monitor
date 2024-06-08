@@ -1,5 +1,5 @@
 <script lang="ts">
-import Chart from "../lib/components/barChart.svelte";
+import Chart from "../lib/components/lineChart.svelte";
 import TestTemplate from "../lib/components/sample.svelte";
 
 type ButtonState = 'chart' | 'raw'
