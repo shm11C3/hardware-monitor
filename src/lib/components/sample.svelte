@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 import { getCpuMemoryHistory, getCpuUsage, getCpuUsageHistory, getMemoryUsage } from '../../services/hardwareService';
 
 const intervalSec = 1;
@@ -6,8 +6,8 @@ const intervalSec = 1;
 let cpuUsage = 0;
 let memoryUsage = 0;
 
-let cpuHistory = [];
-let memoryHistory = [];
+let cpuHistory: number[] = [];
+let memoryHistory: number[] = [];
 
 setInterval(async () => {
   cpuUsage = await getCpuUsage();
