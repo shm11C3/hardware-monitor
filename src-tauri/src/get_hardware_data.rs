@@ -99,13 +99,13 @@ pub fn initialize_system(system: Arc<Mutex<System>>, cpu_history: Arc<Mutex<VecD
       let cpu_usage = {
         let cpus = sys.cpus();
         let total_usage: f32 = cpus.iter().map(|cpu| cpu.cpu_usage()).sum();
-        total_usage / cpus.len() as f32
+        (total_usage / cpus.len() as f32).round() as f32
       };
 
       let memory_usage = {
         let used_memory = sys.used_memory() as f64;
         let total_memory = sys.total_memory() as f64;
-        (used_memory / total_memory * 100.0) as f32
+        (used_memory / total_memory * 100.0).round() as f32
       };
 
       {
