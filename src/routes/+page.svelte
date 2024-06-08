@@ -13,7 +13,7 @@ const handleShowData = () => {
 </script>
 
 <div>
-  <h1>Hardware Monitor Prot</h1>
+  <h1>Hardware Monitor Proto</h1>
   <div>
     <button on:click={handleShowData}>{buttonState === "chart" ? "Show Raw Data" : "Show Char Sample"}</button>
   </div>
