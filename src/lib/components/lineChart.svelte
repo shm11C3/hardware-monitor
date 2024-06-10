@@ -5,28 +5,32 @@
   import { onMount } from 'svelte';
   import { Line } from 'svelte-chartjs';
   import { writable } from 'svelte/store';
-  import { getCpuMemoryHistory, getCpuUsageHistory } from '../../services/hardwareService';
+  import { getCpuMemoryHistory, getCpuUsageHistory, getGpuUsageHistory } from '../../services/hardwareService';
 
   Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
   let cpuData: number[]  = [];
   let memoryData: number[]  = [];
+  let gpuData: number[]  = [];
   let labels: string[] = [];
 
   async function fetchData() {
     const seconds = 60; // 過去60秒のデータを取得
     const newCpuData  = await getCpuUsageHistory(seconds);
     const newMemoryData  = await getCpuMemoryHistory(seconds);
+    const newGpuData = await getGpuUsageHistory(seconds);
 
     if (cpuData.length < seconds) {
       // 初期データを順次追加
       cpuData = [...cpuData, newCpuData[newCpuData.length - 1]];
       memoryData = [...memoryData, newMemoryData[newMemoryData.length - 1]];
+      gpuData = [...gpuData, newGpuData[newGpuData.length - 1]];
       labels = [...labels, ""];
     } else {
       // 最大データ数に達したらシフト
       cpuData = [...cpuData.slice(1), newCpuData[newCpuData.length - 1]];
       memoryData = [...memoryData.slice(1), newMemoryData[newMemoryData.length - 1]];
+      gpuData = [...gpuData.slice(1), newGpuData[newGpuData.length - 1]];
       labels = [...labels.slice(1), ""];
     }
   }
@@ -82,6 +86,7 @@
   // グラデーションの設定
   let cpuGradient: CanvasGradient;
   let memoryGradient: CanvasGradient;
+  let gpuGradient: CanvasGradient;
 
   function setGradients(ctx: CanvasRenderingContext2D) {
     const gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
@@ -93,11 +98,17 @@
     gradient2.addColorStop(0, 'rgba(255, 99, 132, 1)');
     gradient2.addColorStop(1, 'rgba(255, 99, 132, 0.3)');
     memoryGradient = gradient2;
+
+    const gradient3 = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
+    gradient3.addColorStop(0, 'rgba(255, 206, 86, 1)');
+    gradient3.addColorStop(1, 'rgba(255, 206, 86, 0.3)');
+    gpuGradient = gradient3;
   }
 
   // Svelteのストアを使用して参照を保持
   const cpuChartRef = writable<ChartJS<'line'> | null>(null);
   const memoryChartRef = writable<ChartJS<'line'> | null>(null);
+  const gpuChartRef = writable<ChartJS<'line'> | null>(null);
 
   // ストアの値が変わるたびにグラデーションを設定
   cpuChartRef.subscribe(chart => {
@@ -107,6 +118,12 @@
   });
 
   memoryChartRef.subscribe(chart => {
+    if (chart) {
+      setGradients(chart.ctx);
+    }
+  });
+
+  gpuChartRef.subscribe(chart => {
     if (chart) {
       setGradients(chart.ctx);
     }
@@ -141,6 +158,21 @@
       },
     ],
   };
+
+  $: gpuChartData = {
+    labels,
+    datasets: [
+      {
+        label: 'GPU Usage (%)',
+        data: gpuData,
+        borderColor: 'rgb(255, 206, 86)',
+        backgroundColor: gpuGradient,
+        fill: true, // グラデーションを有効にする
+        pointRadius: 0, // 点の半径を0にする
+        pointHoverRadius: 0, // ホバー時の点の半径を0にする
+      },
+    ],
+  };
 </script>
 
 <style>
@@ -158,4 +190,5 @@
 <div class="chart-container">
   <Line data={cpuChartData} {options} />
   <Line data={memoryChartData} {options} />
+  <Line data={gpuChartData} {options} />
 </div>

@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), target_os = "windows")]
 
 use std::collections::VecDeque;
+use std::process;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -11,6 +12,8 @@ pub struct AppState {
   pub system: Arc<Mutex<System>>,
   pub cpu_history: Arc<Mutex<VecDeque<f32>>>,
   pub memory_history: Arc<Mutex<VecDeque<f32>>>,
+  pub gpu_history: Arc<Mutex<VecDeque<f32>>>,
+  pub gpu_usage: Arc<Mutex<f32>>,
 }
 
 ///
@@ -55,6 +58,18 @@ pub fn get_memory_usage(state: tauri::State<'_, AppState>) -> i32 {
 }
 
 ///
+/// ## GPU使用率（%）を取得（Nvidia 限定）
+///
+/// - param state: `tauri::State<AppState>` アプリケーションの状態
+/// - return: `i32` GPU使用率（%）
+///
+#[command]
+pub fn get_gpu_usage(state: tauri::State<'_, AppState>) -> i32 {
+  let gpu_usage = state.gpu_usage.lock().unwrap();
+  *gpu_usage as i32
+}
+
+///
 /// ## CPU使用率の履歴を取得
 ///
 /// - param state: `tauri::State<AppState>` アプリケーションの状態
@@ -78,6 +93,19 @@ pub fn get_memory_usage_history(state: tauri::State<'_, AppState>, seconds: usiz
   history.iter().rev().take(seconds).cloned().collect()
 }
 
+
+///
+/// ## GPU使用率の履歴を取得
+///
+/// - param state: `tauri::State<AppState>` アプリケーションの状態
+/// - param seconds: `usize` 取得する秒数
+///
+#[command]
+pub fn get_gpu_usage_history(state: tauri::State<'_, AppState>, seconds: usize) -> Vec<f32> {
+  let history = state.gpu_history.lock().unwrap();
+  history.iter().rev().take(seconds).cloned().collect()
+}
+
 ///
 /// ## システム情報の初期化
 ///
@@ -85,7 +113,7 @@ pub fn get_memory_usage_history(state: tauri::State<'_, AppState>, seconds: usiz
 ///
 /// - `SYSTEM_INFO_INIT_INTERVAL` 秒ごとにCPU使用率とメモリ使用率を更新
 ///
-pub fn initialize_system(system: Arc<Mutex<System>>, cpu_history: Arc<Mutex<VecDeque<f32>>>, memory_history: Arc<Mutex<VecDeque<f32>>>) {
+pub fn initialize_system(system: Arc<Mutex<System>>, cpu_history: Arc<Mutex<VecDeque<f32>>>, memory_history: Arc<Mutex<VecDeque<f32>>>, gpu_usage: Arc<Mutex<f32>>, gpu_history: Arc<Mutex<VecDeque<f32>>>) {
   thread::spawn(move || loop {
     {
       let mut sys = match system.lock() {
@@ -108,6 +136,22 @@ pub fn initialize_system(system: Arc<Mutex<System>>, cpu_history: Arc<Mutex<VecD
         (used_memory / total_memory * 100.0).round() as f32
       };
 
+      let gpu_usage_value = {
+        let output = process::Command::new("nvidia-smi")
+            .arg("--query-gpu=utilization.gpu")
+            .arg("--format=csv,noheader,nounits")
+            .output()
+            .expect("failed to execute process");
+
+        let usage_str = String::from_utf8_lossy(&output.stdout);
+        usage_str.trim().parse().unwrap_or(0.0)
+    };
+
+    {
+        let mut gpu = gpu_usage.lock().unwrap();
+        *gpu = gpu_usage_value;
+    }
+
       {
         let mut cpu_hist = cpu_history.lock().unwrap();
         if cpu_hist.len() >= HISTORY_CAPACITY {
@@ -123,6 +167,14 @@ pub fn initialize_system(system: Arc<Mutex<System>>, cpu_history: Arc<Mutex<VecD
         }
         memory_hist.push_back(memory_usage);
       }
+
+      {
+        let mut gpu_hist = gpu_history.lock().unwrap();
+        if gpu_hist.len() >= HISTORY_CAPACITY {
+            gpu_hist.pop_front();
+        }
+        gpu_hist.push_back(gpu_usage_value);
+    }
     }
 
     thread::sleep(Duration::from_secs(SYSTEM_INFO_INIT_INTERVAL));
