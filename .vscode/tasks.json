@@ -12,14 +12,14 @@
       "isBackground": true,
       // change this to your `beforeDevCommand`:
       "command": "npm",
-      "args": ["run", "tauri", "dev"]
+      "args": ["run", "dev"]
     },
     {
       "label": "ui:build",
       "type": "shell",
       // change this to your `beforeBuildCommand`:
       "command": "npm",
-      "args": ["run", "tauri", "build"]
+      "args": ["run", "build"]
     }
   ]
 }
