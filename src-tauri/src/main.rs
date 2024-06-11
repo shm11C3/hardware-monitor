@@ -6,7 +6,8 @@ mod get_setting_data;
 mod windows_service;
 
 use get_hardware_data::{
-  get_cpu_usage, get_cpu_usage_history, get_gpu_usage, get_gpu_usage_history, get_memory_usage, get_memory_usage_history, initialize_system, AppState,
+  get_cpu_usage, get_cpu_usage_history, get_gpu_usage, get_gpu_usage_history,
+  get_memory_usage, get_memory_usage_history, initialize_system, AppState,
 };
 
 use get_setting_data::get_windows_theme_mode;
