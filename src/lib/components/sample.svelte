@@ -1,4 +1,5 @@
 <script lang="ts">
+import { getColorTheme } from '$@/services/settingService';
 import { onMount } from 'svelte';
 import { getCpuMemoryHistory, getCpuUsage, getCpuUsageHistory, getGpuUsage, getGpuUsageHistory, getMemoryUsage } from '../../services/hardwareService';
 
@@ -12,6 +13,8 @@ let cpuHistory: number[] = [];
 let memoryHistory: number[] = [];
 let gpuHistory: number[] = [];
 
+const theme: Record<'value', string> = { value: '' };
+
 onMount(async () => {
   setInterval(async () => {
   cpuUsage = await getCpuUsage();
@@ -22,6 +25,8 @@ onMount(async () => {
 
   gpuUsage = await getGpuUsage();
   gpuHistory = await getGpuUsageHistory(30);
+
+  theme.value = await getColorTheme();
 
 }, intervalSec * 1000);
 });
@@ -34,6 +39,7 @@ onMount(async () => {
   <p>CPU: {cpuUsage}%</p>
   <p>MEMORY: {memoryUsage}%</p>
   <p>GPU: {gpuUsage}%</p>
+  <p>{theme.value}</p>
 
   <div>
     <h3>CPU History</h3>

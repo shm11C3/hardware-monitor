@@ -8,7 +8,7 @@ use std::time::Duration;
 use sysinfo::{Components, System};
 use tauri::command;
 
-pub struct AppState {
+pub struct AppState { 
   pub system: Arc<Mutex<System>>,
   pub cpu_history: Arc<Mutex<VecDeque<f32>>>,
   pub memory_history: Arc<Mutex<VecDeque<f32>>>,
