@@ -3,8 +3,8 @@
   "build": {
     "beforeBuildCommand": "npm run build",
     "beforeDevCommand": "npm run dev",
-    "devPath": "http://localhost:5173",
-    "distDir": "../build"
+    "devPath": "http://localhost:1520",
+    "distDir": "../dist"
   },
   "package": {
     "productName": "hardware-monitor",
