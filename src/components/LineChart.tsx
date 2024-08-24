@@ -1,3 +1,4 @@
+import { Cpu, GraphicsCard, Memory } from "@phosphor-icons/react";
 import {
 	CategoryScale,
 	Chart as ChartJS,
@@ -9,9 +10,11 @@ import {
 	Title,
 	Tooltip,
 } from "chart.js";
-import type { ChartData } from "chart.js";
+import type { Chart, ChartData } from "chart.js";
+import { useRef } from "react";
 import { Line } from "react-chartjs-2";
 import type { ChartDataType } from "../types/chartType";
+import CustomLegend, { type LegendItem } from "./CustomLegend";
 
 ChartJS.register(
 	CategoryScale,
@@ -32,6 +35,8 @@ const LineChart = ({
 	chartData: number[];
 	dataType: ChartDataType;
 }) => {
+	const chartRef = useRef<Chart<"line">>(null);
+
 	const options: ChartOptions<"line"> = {
 		responsive: true,
 		animation: false,
@@ -50,7 +55,7 @@ const LineChart = ({
 			line: { tension: 0.4 },
 		},
 		plugins: {
-			legend: { display: true, labels: { color: "#fff" } },
+			legend: { display: false },
 			tooltip: {
 				backgroundColor: "rgba(0, 0, 0, 0.7)",
 				titleColor: "#fff",
@@ -98,9 +103,28 @@ const LineChart = ({
 		},
 	};
 
+	const legendItems: Record<ChartDataType, LegendItem> = {
+		cpu: {
+			label: "CPU Usage",
+			icon: <Cpu size={16} color="rgb(75, 192, 192)" />,
+			datasetIndex: 0,
+		},
+		memory: {
+			label: "Memory Usage",
+			icon: <Memory size={16} color="rgb(255, 99, 132)" />,
+			datasetIndex: 1,
+		},
+		gpu: {
+			label: "GPU Usage",
+			icon: <GraphicsCard size={16} color="rgb(255, 206, 86)" />,
+			datasetIndex: 2,
+		},
+	};
+
 	return (
 		<div className="chart-container">
-			<Line data={data[dataType]} options={options} />
+			<Line ref={chartRef} data={data[dataType]} options={options} />
+			<CustomLegend item={legendItems[dataType]} />
 		</div>
 	);
 };
