@@ -8,6 +8,8 @@ use std::time::Duration;
 use sysinfo::System;
 use tauri::command;
 
+//pub mod hardware_data;
+
 pub struct AppState {
   pub system: Arc<Mutex<System>>,
   pub cpu_history: Arc<Mutex<VecDeque<f32>>>,
