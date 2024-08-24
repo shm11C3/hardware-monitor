@@ -7,7 +7,6 @@ import {
 	getGpuUsageHistory,
 	getMemoryUsage,
 } from "../services/hardwareService";
-import { getColorTheme } from "../services/settingService";
 
 const Sample = () => {
 	const [cpuUsage, setCpuUsage] = useState(0);
@@ -17,7 +16,6 @@ const Sample = () => {
 	const [cpuHistory, setCpuHistory] = useState<number[]>([]);
 	const [memoryHistory, setMemoryHistory] = useState<number[]>([]);
 	const [gpuHistory, setGpuHistory] = useState<number[]>([]);
-	const [theme, setTheme] = useState("");
 
 	useEffect(() => {
 		const interval = setInterval(async () => {
@@ -27,7 +25,6 @@ const Sample = () => {
 			setMemoryHistory(await getCpuMemoryHistory(30));
 			setGpuUsage(await getGpuUsage());
 			setGpuHistory(await getGpuUsageHistory(30));
-			setTheme(await getColorTheme());
 		}, 1000);
 
 		return () => clearInterval(interval);
@@ -38,7 +35,6 @@ const Sample = () => {
 			<p>CPU: {cpuUsage}%</p>
 			<p>MEMORY: {memoryUsage}%</p>
 			<p>GPU: {gpuUsage}%</p>
-			<p>{theme}</p>
 
 			<div>
 				<h3>CPU History</h3>

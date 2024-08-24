@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import TestTemplate from "./components/Sample";
 import ChartTemplate from "./template/Chart";
 import "./index.css";
+import { getSettings } from "./services/settingService";
 
 type ButtonState = "chart" | "raw";
 
@@ -11,6 +12,13 @@ const Page = () => {
 	const handleShowData = () => {
 		setButtonState(buttonState === "raw" ? "chart" : "raw");
 	};
+
+	useEffect(() => {
+		(async () => {
+			const setting = await getSettings();
+			console.log(setting);
+		})();
+	}, []);
 
 	return (
 		<div>

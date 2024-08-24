@@ -29,7 +29,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.hardware-monitor",
+      "identifier": "shm11C3.HardwareMonitor",
       "longDescription": "",
       "macOS": {
         "entitlements": null,
