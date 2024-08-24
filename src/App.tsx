@@ -1,6 +1,7 @@
 import { useState } from "react";
 import TestTemplate from "./components/Sample";
 import ChartTemplate from "./template/Chart";
+import "./index.css";
 
 type ButtonState = "chart" | "raw";
 
