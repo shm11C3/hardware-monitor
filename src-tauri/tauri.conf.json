@@ -58,11 +58,9 @@
     },
     "windows": [
       {
-        "fullscreen": false,
-        "height": 600,
         "resizable": true,
         "title": "hardware-monitor",
-        "width": 800
+        "decorations": true
       }
     ]
   }

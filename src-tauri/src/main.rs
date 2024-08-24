@@ -34,6 +34,7 @@ fn main() {
   initialize_system(system, cpu_history, memory_history, gpu_usage, gpu_history);
 
   tauri::Builder::default()
+    .plugin(tauri_plugin_window_state::Builder::default().build())
     .manage(state)
     .invoke_handler(tauri::generate_handler![
       get_cpu_usage,

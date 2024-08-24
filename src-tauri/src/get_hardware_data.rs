@@ -135,7 +135,7 @@ pub fn initialize_system(
         Err(_) => continue, // エラーハンドリング：ロックが破損している場合はスキップ
       };
 
-      sys.refresh_cpu();
+      sys.refresh_cpu_all();
       sys.refresh_memory();
 
       let cpu_usage = {
