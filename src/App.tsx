@@ -1,6 +1,6 @@
 import { useState } from "react";
-import Chart from "./components/LineChart";
 import TestTemplate from "./components/Sample";
+import ChartTemplate from "./template/Chart";
 
 type ButtonState = "chart" | "raw";
 
@@ -19,7 +19,7 @@ const Page = () => {
 					{buttonState === "chart" ? "Show Raw Data" : "Show Chart Sample"}
 				</button>
 			</div>
-			{buttonState === "raw" ? <TestTemplate /> : <Chart />}
+			{buttonState === "raw" ? <TestTemplate /> : <ChartTemplate />}
 		</div>
 	);
 };

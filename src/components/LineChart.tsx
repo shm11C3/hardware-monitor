@@ -9,13 +9,9 @@ import {
 	Title,
 	Tooltip,
 } from "chart.js";
-import { useEffect, useState } from "react";
+import type { ChartData } from "chart.js";
 import { Line } from "react-chartjs-2";
-import {
-	getCpuMemoryHistory,
-	getCpuUsageHistory,
-	getGpuUsageHistory,
-} from "../services/hardwareService";
+import type { ChartDataType } from "../types/chartType";
 
 ChartJS.register(
 	CategoryScale,
@@ -27,39 +23,15 @@ ChartJS.register(
 	Legend,
 );
 
-const LineChart = () => {
-	const [cpuData, setCpuData] = useState<number[]>([]);
-	const [memoryData, setMemoryData] = useState<number[]>([]);
-	const [gpuData, setGpuData] = useState<number[]>([]);
-	const [labels, setLabels] = useState<string[]>([]);
-
-	useEffect(() => {
-		const fetchData = async () => {
-			const seconds = 60;
-			const newCpuData = await getCpuUsageHistory(seconds);
-			const newMemoryData = await getCpuMemoryHistory(seconds);
-			const newGpuData = await getGpuUsageHistory(seconds);
-
-			if (cpuData.length < seconds) {
-				setCpuData([...cpuData, newCpuData[newCpuData.length - 1]]);
-				setMemoryData([...memoryData, newMemoryData[newMemoryData.length - 1]]);
-				setGpuData([...gpuData, newGpuData[newGpuData.length - 1]]);
-				setLabels([...labels, ""]);
-			} else {
-				setCpuData([...cpuData.slice(1), newCpuData[newCpuData.length - 1]]);
-				setMemoryData([
-					...memoryData.slice(1),
-					newMemoryData[newMemoryData.length - 1],
-				]);
-				setGpuData([...gpuData.slice(1), newGpuData[newGpuData.length - 1]]);
-				setLabels([...labels.slice(1), ""]);
-			}
-		};
-
-		const interval = setInterval(fetchData, 1000);
-		return () => clearInterval(interval);
-	}, [cpuData, memoryData, gpuData, labels]);
-
+const LineChart = ({
+	labels,
+	chartData,
+	dataType,
+}: {
+	labels: string[];
+	chartData: number[];
+	dataType: ChartDataType;
+}) => {
 	const options: ChartOptions<"line"> = {
 		responsive: true,
 		animation: false,
@@ -87,50 +59,48 @@ const LineChart = () => {
 		},
 	};
 
-	const cpuChartData = {
-		labels,
-		datasets: [
-			{
-				label: "CPU Usage (%)",
-				data: cpuData,
-				borderColor: "rgb(75, 192, 192)",
-				backgroundColor: "rgba(75, 192, 192, 0.3)",
-				fill: true,
-			},
-		],
-	};
-
-	const memoryChartData = {
-		labels,
-		datasets: [
-			{
-				label: "Memory Usage (%)",
-				data: memoryData,
-				borderColor: "rgb(255, 99, 132)",
-				backgroundColor: "rgba(255, 99, 132, 0.3)",
-				fill: true,
-			},
-		],
-	};
-
-	const gpuChartData = {
-		labels,
-		datasets: [
-			{
-				label: "GPU Usage (%)",
-				data: gpuData,
-				borderColor: "rgb(255, 206, 86)",
-				backgroundColor: "rgba(255, 206, 86, 0.3)",
-				fill: true,
-			},
-		],
+	const data: Record<ChartDataType, ChartData<"line", number[], string>> = {
+		cpu: {
+			labels,
+			datasets: [
+				{
+					label: "CPU Usage (%)",
+					data: chartData,
+					borderColor: "rgb(75, 192, 192)",
+					backgroundColor: "rgba(75, 192, 192, 0.3)",
+					fill: true,
+				},
+			],
+		},
+		memory: {
+			labels,
+			datasets: [
+				{
+					label: "Memory Usage (%)",
+					data: chartData,
+					borderColor: "rgb(255, 99, 132)",
+					backgroundColor: "rgba(255, 99, 132, 0.3)",
+					fill: true,
+				},
+			],
+		},
+		gpu: {
+			labels,
+			datasets: [
+				{
+					label: "GPU Usage (%)",
+					data: chartData,
+					borderColor: "rgb(255, 206, 86)",
+					backgroundColor: "rgba(255, 206, 86, 0.3)",
+					fill: true,
+				},
+			],
+		},
 	};
 
 	return (
 		<div className="chart-container">
-			<Line data={cpuChartData} options={options} />
-			<Line data={memoryChartData} options={options} />
-			<Line data={gpuChartData} options={options} />
+			<Line data={data[dataType]} options={options} />
 		</div>
 	);
 };
