@@ -3,8 +3,8 @@
   "build": {
     "beforeBuildCommand": "npm run build",
     "beforeDevCommand": "npm run dev",
-    "devPath": "http://localhost:5173",
-    "distDir": "../build"
+    "devPath": "http://localhost:1520",
+    "distDir": "../dist"
   },
   "package": {
     "productName": "hardware-monitor",
@@ -29,7 +29,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.hardware-monitor",
+      "identifier": "shm11C3.HardwareMonitor",
       "longDescription": "",
       "macOS": {
         "entitlements": null,
@@ -58,11 +58,9 @@
     },
     "windows": [
       {
-        "fullscreen": false,
-        "height": 600,
         "resizable": true,
         "title": "hardware-monitor",
-        "width": 800
+        "decorations": true
       }
     ]
   }

@@ -1,3 +1,15 @@
+[profile.dev]
+opt-level = 0
+debug = true
+overflow-checks = true
+lto = false
+
+[profile.release]
+opt-level = 3
+debug = false
+overflow-checks = true
+lto = true
+
 [package]
 name = "app"
 version = "0.1.0"
@@ -18,10 +30,26 @@ tauri-build = { version = "1.5.2", features = [] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 tauri = { version = "1.6.5", features = [] }
-sysinfo = "0.30.12"
+sysinfo = "0.31.3"
+tauri-plugin-window-state = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
+nvapi = "=0.1.4"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = true, features = ["env-filter"]  }
+chrono = "0.4"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.
 # If you use cargo directly instead of tauri's cli you can use this feature flag to switch between tauri's `dev` and `build` modes.
 # DO NOT REMOVE!!
 custom-protocol = [ "tauri/custom-protocol" ]
+
+[dependencies.windows]
+version = "0.58.0"
+features = [
+    "Data_Xml_Dom",
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+]
