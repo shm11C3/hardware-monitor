@@ -2,14 +2,12 @@ import { useEffect, useState } from "react";
 import TestTemplate from "./components/Sample";
 import ChartTemplate from "./template/Chart";
 import "./index.css";
-import { atom, useAtom } from "jotai";
+import { useAtom } from "jotai";
+import { settingsAtom } from "./atom/main";
 import { useDarkMode } from "./hooks/useDarkMode";
 import { getSettings } from "./services/settingService";
-import type { Settings } from "./types/settingsType";
 
 type ButtonState = "chart" | "raw";
-
-const settingsAtom = atom<Settings | null>(null);
 
 const useLoadSettings = () => {
 	const [, setSettings] = useAtom(settingsAtom);
