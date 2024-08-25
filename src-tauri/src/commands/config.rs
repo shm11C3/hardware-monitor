@@ -33,11 +33,7 @@ impl Default for Settings {
     Self {
       language: "en".to_string(),
       theme: "dark".to_string(),
-      display_targets: vec![
-        hardware::HardwareType::CPU,
-        hardware::HardwareType::Memory,
-        hardware::HardwareType::GPU,
-      ],
+      display_targets: vec![hardware::HardwareType::CPU, hardware::HardwareType::Memory],
     }
   }
 }

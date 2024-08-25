@@ -1,14 +1,13 @@
 #![cfg_attr(not(debug_assertions), target_os = "windows")]
 
+use nvapi;
+use nvapi::UtilizationDomain;
 use std::collections::VecDeque;
-use std::process;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use sysinfo::System;
 use tauri::command;
-
-//pub mod hardware_data;
 
 pub struct AppState {
   pub system: Arc<Mutex<System>>,
@@ -152,21 +151,15 @@ pub fn initialize_system(
         (used_memory / total_memory * 100.0).round() as f32
       };
 
-      let gpu_usage_value = {
-        let output = process::Command::new("nvidia-smi")
-          .arg("--query-gpu=utilization.gpu")
-          .arg("--format=csv,noheader,nounits")
-          .output()
-          .expect("failed to execute process");
+      //let gpu_usage_value = match get_gpu_usage() {
+      //  Ok(usage) => usage,
+      //  Err(_) => 0.0, // エラーが発生した場合はデフォルト値として0.0を使用
+      //};
 
-        let usage_str = String::from_utf8_lossy(&output.stdout);
-        usage_str.trim().parse().unwrap_or(0.0)
-      };
-
-      {
-        let mut gpu = gpu_usage.lock().unwrap();
-        *gpu = gpu_usage_value;
-      }
+      //{
+      //  let mut gpu = gpu_usage.lock().unwrap();
+      //  *gpu = gpu_usage_value;
+      //}
 
       {
         let mut cpu_hist = cpu_history.lock().unwrap();
@@ -184,15 +177,50 @@ pub fn initialize_system(
         memory_hist.push_back(memory_usage);
       }
 
-      {
-        let mut gpu_hist = gpu_history.lock().unwrap();
-        if gpu_hist.len() >= HISTORY_CAPACITY {
-          gpu_hist.pop_front();
-        }
-        gpu_hist.push_back(gpu_usage_value);
-      }
+      //{
+      //  let mut gpu_hist = gpu_history.lock().unwrap();
+      //  if gpu_hist.len() >= HISTORY_CAPACITY {
+      //    gpu_hist.pop_front();
+      //  }
+      //  gpu_hist.push_back(gpu_usage_value);
+      //}
     }
 
     thread::sleep(Duration::from_secs(SYSTEM_INFO_INIT_INTERVAL));
   });
+
+  ///
+  /// TODO GPU使用率を取得する
+  ///
+  #[allow(dead_code)]
+  fn get_gpu_usage() -> Result<f32, nvapi::Status> {
+    let gpus = nvapi::PhysicalGpu::enumerate()?;
+
+    print!("{:?}", gpus);
+
+    if gpus.is_empty() {
+      // TODO ログを吐く
+      return Err(nvapi::Status::Error); // GPUが見つからない場合はエラーを返す
+    }
+
+    let mut total_usage = 0.0;
+    let mut gpu_count = 0;
+
+    for gpu in gpus.iter() {
+      let usage = gpu.usages()?;
+
+      if let Some(gpu_usage) = usage.get(&UtilizationDomain::Graphics) {
+        let usage_f32 = gpu_usage.0 as f32 / 100.0; // Percentage を f32 に変換
+        total_usage += usage_f32;
+        gpu_count += 1;
+      }
+    }
+
+    if gpu_count == 0 {
+      return Err(nvapi::Status::Error); // 使用率が取得できなかった場合のエラーハンドリング
+    }
+
+    let average_usage = total_usage / gpu_count as f32;
+    Ok(average_usage)
+  }
 }
