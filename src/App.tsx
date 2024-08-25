@@ -2,40 +2,43 @@ import { useEffect, useState } from "react";
 import TestTemplate from "./components/Sample";
 import ChartTemplate from "./template/Chart";
 import "./index.css";
+import { atom, useAtom } from "jotai";
 import { useDarkMode } from "./hooks/useDarkMode";
 import { getSettings } from "./services/settingService";
 import type { Settings } from "./types/settingsType";
 
 type ButtonState = "chart" | "raw";
 
+const settingsAtom = atom<Settings | null>(null);
+
 const useLoadSettings = () => {
-	const [settingState, setSettingState] = useState<Settings | null>(null);
+	const [, setSettings] = useAtom(settingsAtom);
 
 	useEffect(() => {
 		const loadSettings = async () => {
 			const setting = await getSettings();
-			setSettingState(setting);
+			setSettings(setting);
 		};
 		loadSettings();
-	}, []);
-
-	return settingState;
+	}, [setSettings]);
 };
 
 const Page = () => {
 	const [buttonState, setButtonState] = useState<ButtonState>("chart");
-	const settingState = useLoadSettings();
+	const [settings] = useAtom(settingsAtom);
 	const { toggle } = useDarkMode();
+
+	useLoadSettings();
 
 	const handleShowData = () => {
 		setButtonState(buttonState === "raw" ? "chart" : "raw");
 	};
 
 	useEffect(() => {
-		if (settingState?.theme) {
-			toggle(settingState.theme === "dark");
+		if (settings?.theme) {
+			toggle(settings.theme === "dark");
 		}
-	}, [settingState?.theme, toggle]);
+	}, [settings?.theme, toggle]);
 
 	return (
 		<div className="bg-slate-200 dark:bg-gray-900 text-gray-900 dark:text-white">
