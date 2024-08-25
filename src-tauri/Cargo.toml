@@ -1,3 +1,15 @@
+[profile.dev]
+opt-level = 0
+debug = true
+overflow-checks = true
+lto = false
+
+[profile.release]
+opt-level = 3
+debug = false
+overflow-checks = true
+lto = true
+
 [package]
 name = "app"
 version = "0.1.0"
@@ -22,6 +34,9 @@ sysinfo = "0.31.3"
 tauri-plugin-window-state = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
 nvapi = "=0.1.4"
 tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = true, features = ["env-filter"]  }
+chrono = "0.4"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.

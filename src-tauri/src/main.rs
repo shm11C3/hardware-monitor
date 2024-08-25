@@ -1,8 +1,10 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#[macro_use]
 
 mod commands;
 mod enums;
+mod utils;
 
 use commands::config;
 use commands::hardware;
@@ -12,6 +14,8 @@ use std::sync::{Arc, Mutex};
 use sysinfo::System;
 
 fn main() {
+  utils::logger::init();
+
   let app_state = config::AppState::new();
 
   let system = Arc::new(Mutex::new(System::new_all()));

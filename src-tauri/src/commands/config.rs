@@ -1,20 +1,13 @@
-//use crate::enums::hardware::HardwareType;
 use crate::enums::hardware;
+use crate::utils::file::get_app_data_dir;
+use crate::{log_debug, log_error, log_info, log_internal, log_warn};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
 use std::mem;
-use std::path::PathBuf;
 use std::sync::Mutex;
-//use tauri::api::path::resolve_path;
 
 const SETTINGS_FILENAME: &str = "settings.json";
-
-#[cfg(target_os = "windows")]
-fn get_config_root() -> PathBuf {
-  let appdata = PathBuf::from(std::env::var("APPDATA").unwrap());
-  appdata.join("shm11C3.HardwareMonitor")
-}
 
 trait Config {
   fn write_file(&self) {}
@@ -40,7 +33,7 @@ impl Default for Settings {
 
 impl Config for Settings {
   fn write_file(&self) {
-    let config_file = get_config_root().join(SETTINGS_FILENAME);
+    let config_file = get_app_data_dir(SETTINGS_FILENAME);
     if !config_file.parent().unwrap().exists() {
       fs::create_dir_all(config_file.parent().unwrap()).unwrap();
     }
@@ -50,7 +43,7 @@ impl Config for Settings {
   }
 
   fn read_file(&mut self) {
-    let config_file = get_config_root().join(SETTINGS_FILENAME);
+    let config_file = get_app_data_dir(SETTINGS_FILENAME);
     let input = fs::read_to_string(config_file).unwrap();
     let deserialized: Self = serde_json::from_str(&input).unwrap();
     let _ = mem::replace(self, deserialized);
@@ -59,7 +52,7 @@ impl Config for Settings {
 
 impl Settings {
   pub fn new() -> Self {
-    let config_file = get_config_root().join(SETTINGS_FILENAME);
+    let config_file = get_app_data_dir(SETTINGS_FILENAME);
     if !config_file.exists() {
       Self::default()
     } else {
