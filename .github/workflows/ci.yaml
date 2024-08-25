@@ -30,7 +30,7 @@ jobs:
       - name: install frontend dependencies
         run: npm ci
 
-      - name check front end Lint
+      - name: check front end Lint
         run: npm run lint:ci
 
       - uses: tauri-apps/tauri-action@v0
