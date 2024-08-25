@@ -1,5 +1,3 @@
-#![cfg_attr(not(debug_assertions), target_os = "windows")]
-
 use crate::{log_debug, log_error, log_internal, log_warn};
 use nvapi;
 use nvapi::UtilizationDomain;
