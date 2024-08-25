@@ -17,6 +17,11 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
       - uses: actions/checkout@v4
 
       - name: setup node
@@ -30,7 +35,7 @@ jobs:
       - name: install frontend dependencies
         run: npm ci
 
-      - name check front end Lint
+      - name: check front end Lint
         run: npm run lint:ci
 
       - uses: tauri-apps/tauri-action@v0
