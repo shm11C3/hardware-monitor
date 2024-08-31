@@ -1,5 +1,7 @@
+import type { ChartDataType } from "./chartType";
+
 export type Settings = {
 	language: string;
 	theme: "light" | "dark";
-	display_targets: "cpu" | "memory" | "gpu";
+	display_targets: Array<ChartDataType>;
 };
