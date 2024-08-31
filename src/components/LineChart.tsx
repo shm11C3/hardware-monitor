@@ -1,3 +1,4 @@
+import type { ChartDataType } from "@/types/chartType";
 import { Cpu, GraphicsCard, Memory } from "@phosphor-icons/react";
 import {
 	CategoryScale,
@@ -13,7 +14,6 @@ import {
 import type { Chart, ChartData } from "chart.js";
 import { useRef } from "react";
 import { Line } from "react-chartjs-2";
-import type { ChartDataType } from "../types/chartType";
 import CustomLegend, { type LegendItem } from "./CustomLegend";
 
 ChartJS.register(

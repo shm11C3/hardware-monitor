@@ -1,12 +1,12 @@
-import { useAtom } from "jotai";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { settingsAtom } from "../atom/main";
-import LineChart from "../components/LineChart";
+import { settingsAtom } from "@/atom/main";
+import LineChart from "@/components/LineChart";
 import {
 	getCpuMemoryHistory,
 	getCpuUsageHistory,
 	getGpuUsageHistory,
-} from "../services/hardwareService";
+} from "@/services/hardwareService";
+import { useAtom } from "jotai";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const ChartTemplate = () => {
 	const [cpuData, setCpuData] = useState<number[]>([]);

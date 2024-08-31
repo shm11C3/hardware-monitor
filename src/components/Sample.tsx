@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import {
 	getCpuMemoryHistory,
 	getCpuUsage,
@@ -6,7 +5,8 @@ import {
 	getGpuUsage,
 	getGpuUsageHistory,
 	getMemoryUsage,
-} from "../services/hardwareService";
+} from "@/services/hardwareService";
+import { useEffect, useState } from "react";
 
 const Sample = () => {
 	const [cpuUsage, setCpuUsage] = useState(0);
