@@ -4,6 +4,7 @@
 
 mod commands;
 mod enums;
+mod services;
 mod utils;
 
 use commands::config;
