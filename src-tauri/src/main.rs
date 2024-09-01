@@ -9,6 +9,7 @@ mod utils;
 
 use commands::config;
 use commands::hardware;
+use services::window_menu_service;
 
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
@@ -33,6 +34,8 @@ fn main() {
     gpu_history: Arc::clone(&gpu_history),
   };
 
+  let menu = window_menu_service::create_setting();
+
   hardware::initialize_system(
     system,
     cpu_history,
@@ -45,6 +48,7 @@ fn main() {
     .plugin(tauri_plugin_window_state::Builder::default().build())
     .manage(state)
     .manage(app_state)
+    .menu(menu)
     .invoke_handler(tauri::generate_handler![
       hardware::get_cpu_usage,
       hardware::get_memory_usage,
@@ -56,6 +60,9 @@ fn main() {
       config::commands::set_theme,
       config::commands::get_settings
     ])
+    .on_menu_event(|event| {
+      window_menu_service::handle_menu_event(event);
+    })
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }
