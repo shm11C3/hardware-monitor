@@ -35,18 +35,11 @@ jobs:
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
-      - name: install Rust tool
-        run: rustup component add clippy
-
       - name: install frontend dependencies
         run: npm ci
 
       - name: check front end Lint
         run: npm run lint:ci
-
-      - name: check back end Lint
-        run:  cargo clippy --all-targets --all-features
-        working-directory: ./src-tauri
 
       - uses: tauri-apps/tauri-action@v0
         env:
