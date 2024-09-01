@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import TestTemplate from "./components/Sample";
 import ChartTemplate from "./template/Chart";
 import "./index.css";
+import { useSettingsModalListener } from "@/hooks/useTauriEventListener";
 import { useAtom } from "jotai";
 import { settingsAtom } from "./atom/main";
+
+import SettingsSheet from "./components/modals/SettingsSheet";
 import { useDarkMode } from "./hooks/useDarkMode";
 import { getSettings } from "./services/settingService";
 
@@ -26,6 +29,8 @@ const Page = () => {
 	const [settings] = useAtom(settingsAtom);
 	const { toggle } = useDarkMode();
 
+	useSettingsModalListener();
+
 	useLoadSettings();
 
 	const handleShowData = () => {
@@ -47,6 +52,7 @@ const Page = () => {
 				</button>
 			</div>
 			{buttonState === "raw" ? <TestTemplate /> : <ChartTemplate />}
+			<SettingsSheet />
 		</div>
 	);
 };
