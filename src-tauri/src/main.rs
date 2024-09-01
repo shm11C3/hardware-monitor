@@ -58,6 +58,7 @@ fn main() {
       hardware::get_gpu_usage_history,
       config::commands::set_language,
       config::commands::set_theme,
+      config::commands::set_display_targets,
       config::commands::get_settings
     ])
     .on_menu_event(|event| {

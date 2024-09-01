@@ -3,7 +3,7 @@ import {
 	graphicUsageHistoryAtom,
 	memoryUsageHistoryAtom,
 } from "@/atom/chart";
-import { settingsAtom } from "@/atom/main";
+import { useSettingsAtom } from "@/atom/useSettingsAtom";
 import LineChart from "@/components/charts/LineChart";
 import { chartConfig } from "@/consts/chart";
 import { useUsageUpdater } from "@/hooks/useHardwareData";
@@ -45,7 +45,7 @@ const GpuUsageChart = () => {
 };
 
 const ChartTemplate = () => {
-	const [settings] = useAtom(settingsAtom);
+	const { settings } = useSettingsAtom();
 
 	const renderedCharts = useMemo(() => {
 		return (

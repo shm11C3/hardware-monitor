@@ -1,13 +1,11 @@
-import { settingsAtom } from "@/atom/main";
 import { modalAtoms } from "@/atom/ui";
+import { useSettingsAtom } from "@/atom/useSettingsAtom";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
 	Sheet,
-	SheetClose,
 	SheetContent,
 	SheetDescription,
-	SheetFooter,
 	SheetHeader,
 	SheetTitle,
 } from "@/components/ui/sheet";
@@ -16,11 +14,11 @@ import type { ChartDataType } from "@/types/chartType";
 import { useAtom } from "jotai";
 
 const SettingGraphType = () => {
-	const [settings] = useAtom(settingsAtom);
+	const { settings, toggleDisplayTarget } = useSettingsAtom();
 	const selectedGraphTypes = settings.display_targets;
 
-	const toggleGraphType = (type: ChartDataType) => {
-		console.log(type);
+	const toggleGraphType = async (type: ChartDataType) => {
+		await toggleDisplayTarget(type);
 	};
 
 	return (
@@ -35,7 +33,7 @@ const SettingGraphType = () => {
 						checked={selectedGraphTypes.includes("cpu")}
 						onChange={() => toggleGraphType("cpu")}
 					/>
-					<span>Line Graph</span>
+					<span>CPU</span>
 				</label>
 				<label className="flex items-center space-x-2">
 					<input
@@ -43,7 +41,7 @@ const SettingGraphType = () => {
 						checked={selectedGraphTypes.includes("memory")}
 						onChange={() => toggleGraphType("memory")}
 					/>
-					<span>Bar Graph</span>
+					<span>Memory</span>
 				</label>
 				<label className="flex items-center space-x-2">
 					<input
@@ -51,7 +49,7 @@ const SettingGraphType = () => {
 						checked={selectedGraphTypes.includes("gpu")}
 						onChange={() => toggleGraphType("gpu")}
 					/>
-					<span>Pie Chart</span>
+					<span>GPU</span>
 				</label>
 			</div>
 		</div>
@@ -59,10 +57,10 @@ const SettingGraphType = () => {
 };
 
 const SettingColorMode = () => {
-	const [settings] = useAtom(settingsAtom);
+	const { settings, toggleTheme } = useSettingsAtom();
 
-	const toggleDarkMode = (mode: "light" | "dark") => {
-		console.log(mode);
+	const toggleDarkMode = async (mode: "light" | "dark") => {
+		await toggleTheme(mode);
 	};
 
 	return (
@@ -105,11 +103,6 @@ const SettingsSheet = () => {
 					<SettingColorMode />
 					<SettingGraphType />
 				</div>
-				<SheetFooter>
-					<SheetClose asChild>
-						<Button type="submit">Save changes</Button>
-					</SheetClose>
-				</SheetFooter>
 			</SheetContent>
 		</Sheet>
 	);

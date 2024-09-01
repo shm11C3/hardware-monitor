@@ -77,6 +77,12 @@ impl Settings {
     self.write_file();
     println!("{:?}", self);
   }
+
+  pub fn set_display_targets(&mut self, new_targets: Vec<hardware::HardwareType>) {
+    self.display_targets = new_targets;
+    self.write_file();
+    println!("{:?}", self);
+  }
 }
 
 #[derive(Debug)]
@@ -121,5 +127,15 @@ pub mod commands {
   ) -> Result<Settings, String> {
     let settings = state.settings.lock().unwrap().clone();
     Ok(settings)
+  }
+
+  #[tauri::command]
+  pub async fn set_display_targets(
+    state: tauri::State<'_, AppState>,
+    new_targets: Vec<hardware::HardwareType>,
+  ) -> Result<(), String> {
+    let mut settings = state.settings.lock().unwrap();
+    settings.set_display_targets(new_targets);
+    Ok(())
   }
 }
