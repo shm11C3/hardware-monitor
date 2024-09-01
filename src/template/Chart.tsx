@@ -4,7 +4,7 @@ import {
 	memoryUsageHistoryAtom,
 } from "@/atom/chart";
 import { settingsAtom } from "@/atom/main";
-import LineChart from "@/components/LineChart";
+import LineChart from "@/components/charts/LineChart";
 import { chartConfig } from "@/consts/chart";
 import { useUsageUpdater } from "@/hooks/useHardwareData";
 
