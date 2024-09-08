@@ -15,7 +15,7 @@ pub fn create_setting() -> Menu {
 pub fn handle_menu_event(event: WindowMenuEvent) {
   match event.menu_item_id() {
     "preference" => {
-      log_info!("preference", "preference", None::<&str>);
+      log_debug!("preference", "preference", None::<&str>);
 
       let window = event.window();
       window.emit("open_settings", {}).unwrap();

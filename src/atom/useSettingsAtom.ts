@@ -29,13 +29,22 @@ export const useSettingsAtom = () => {
 			? settings.display_targets.filter((t) => t !== target)
 			: [...settings.display_targets, target];
 
-		setSettings((prev) => ({ ...prev, display_targets: newTargets }));
-		await setDisplayTargets(settings.display_targets);
+		try {
+			// [TODO] Result型を作りたい
+			await setDisplayTargets(settings.display_targets);
+			setSettings((prev) => ({ ...prev, display_targets: newTargets }));
+		} catch (e) {
+			console.error(e);
+		}
 	};
 
 	const toggleTheme = async (theme: "light" | "dark") => {
-		setSettings((prev) => ({ ...prev, theme }));
-		await setTheme(theme);
+		try {
+			await setTheme(theme);
+			setSettings((prev) => ({ ...prev, theme }));
+		} catch (e) {
+			console.error(e);
+		}
 	};
 
 	return { settings, toggleDisplayTarget, toggleTheme };

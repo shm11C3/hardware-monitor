@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import TestTemplate from "./components/Sample";
 import ChartTemplate from "./template/Chart";
 import "./index.css";
-import { useSettingsModalListener } from "@/hooks/useTauriEventListener";
+import {
+	useErrorModalListener,
+	useSettingsModalListener,
+} from "@/hooks/useTauriEventListener";
 import { useSettingsAtom } from "./atom/useSettingsAtom";
 
 import SettingsSheet from "@/template/SettingsSheet";
@@ -16,6 +19,7 @@ const Page = () => {
 	const { toggle } = useDarkMode();
 
 	useSettingsModalListener();
+	useErrorModalListener();
 
 	const handleShowData = () => {
 		setButtonState(buttonState === "raw" ? "chart" : "raw");

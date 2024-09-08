@@ -1,3 +1,4 @@
+import { message } from "@tauri-apps/api/dialog";
 import { listen } from "@tauri-apps/api/event";
 import { useSetAtom } from "jotai";
 import { useEffect } from "react";
@@ -13,6 +14,11 @@ const useTauriEventListener = (event: string, callback: () => void) => {
 	}, [event, callback]);
 };
 
+/**
+ * モーダルを開くイベントをリッスンして、モーダルを表示する
+ *
+ * @returns closeModal
+ */
 export const useSettingsModalListener = () => {
 	const setShowSettingsModal = useSetAtom(modalAtoms.showSettingsModal);
 
@@ -24,4 +30,27 @@ export const useSettingsModalListener = () => {
 	const closeModal = () => setShowSettingsModal(false);
 
 	return { closeModal };
+};
+
+/**
+ * バックエンド側のエラーイベントをリッスンして、エラーダイヤログを表示する
+ */
+export const useErrorModalListener = () => {
+	useEffect(() => {
+		const unListen = listen("error_event", (event) => {
+			const { title, message: errorMessage } = event.payload as {
+				title: string;
+				message: string;
+			};
+
+			message(errorMessage, {
+				title: title,
+				type: "error",
+			});
+		});
+
+		return () => {
+			unListen.then((off) => off());
+		};
+	}, []);
 };
