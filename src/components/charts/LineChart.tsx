@@ -4,6 +4,7 @@ import {
 	CategoryScale,
 	Chart as ChartJS,
 	type ChartOptions,
+	Filler,
 	Legend,
 	LineElement,
 	LinearScale,
@@ -24,6 +25,7 @@ ChartJS.register(
 	Title,
 	Tooltip,
 	Legend,
+	Filler,
 );
 
 const LineChart = ({
