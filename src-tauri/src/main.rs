@@ -51,6 +51,7 @@ fn main() {
     .menu(menu)
     .invoke_handler(tauri::generate_handler![
       hardware::get_cpu_usage,
+      hardware::get_hardware_info,
       hardware::get_memory_usage,
       hardware::get_gpu_usage,
       hardware::get_cpu_usage_history,

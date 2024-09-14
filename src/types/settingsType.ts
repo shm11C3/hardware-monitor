@@ -1,4 +1,4 @@
-import type { ChartDataType } from "./chartType";
+import type { ChartDataType } from "./hardwareDataType";
 
 export type Settings = {
 	language: string;

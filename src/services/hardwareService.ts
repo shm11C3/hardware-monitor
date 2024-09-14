@@ -1,7 +1,12 @@
+import type { HardwareInfo } from "@/types/hardwareDataType";
 import { invoke } from "@tauri-apps/api/tauri";
 
 export const getCpuUsage = async (): Promise<number> => {
 	return await invoke("get_cpu_usage");
+};
+
+export const getHardwareInfo = async (): Promise<HardwareInfo> => {
+	return await invoke("get_hardware_info");
 };
 
 export const getMemoryUsage = async (): Promise<number> => {

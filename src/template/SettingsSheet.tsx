@@ -10,7 +10,7 @@ import {
 	SheetTitle,
 } from "@/components/ui/sheet";
 import { useSettingsModalListener } from "@/hooks/useTauriEventListener";
-import type { ChartDataType } from "@/types/chartType";
+import type { ChartDataType } from "@/types/hardwareDataType";
 import { useAtom } from "jotai";
 
 const SettingGraphType = () => {

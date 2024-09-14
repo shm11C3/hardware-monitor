@@ -6,9 +6,9 @@ import {
 	useErrorModalListener,
 	useSettingsModalListener,
 } from "@/hooks/useTauriEventListener";
-import { useSettingsAtom } from "./atom/useSettingsAtom";
-
 import SettingsSheet from "@/template/SettingsSheet";
+import { useHardwareInfoAtom } from "./atom/useHardwareInfoAtom";
+import { useSettingsAtom } from "./atom/useSettingsAtom";
 import { useDarkMode } from "./hooks/useDarkMode";
 
 type ButtonState = "chart" | "raw";
@@ -20,6 +20,7 @@ const Page = () => {
 
 	useSettingsModalListener();
 	useErrorModalListener();
+	useHardwareInfoAtom();
 
 	const handleShowData = () => {
 		setButtonState(buttonState === "raw" ? "chart" : "raw");
