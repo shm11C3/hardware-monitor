@@ -1,5 +1,7 @@
 use crate::services::graphic_service;
+use crate::services::system_info_service;
 use crate::{log_debug, log_error, log_internal, log_warn};
+use serde::Serialize;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -39,6 +41,38 @@ pub fn get_cpu_usage(state: tauri::State<'_, AppState>) -> i32 {
 
   let usage = total_usage / cpus.len() as f32;
   usage.round() as i32
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SysInfo {
+  pub cpu: system_info_service::CpuInfo,
+  pub memory: system_info_service::MemoryInfo,
+  //pub gpu: GpuInfo,
+}
+
+///
+/// ## システム情報を取得
+///
+#[command]
+pub fn get_hardware_info(state: tauri::State<'_, AppState>) -> Result<SysInfo, String> {
+  let cpu = system_info_service::get_cpu_info(state.system.lock().unwrap());
+  let memory = system_info_service::get_memory_info();
+
+  match (cpu, memory) {
+    (Ok(cpu_info), Ok(memory_info)) => Ok(SysInfo {
+      cpu: cpu_info,
+      memory: memory_info,
+    }),
+    (Err(e), _) | (_, Err(e)) => {
+      log_error!(
+        "get_sys_info_failed",
+        "get_hardware_info",
+        Some(e.to_string())
+      );
+      Err(format!("Failed to get hardware info: {}", e))
+    }
+  }
 }
 
 ///
