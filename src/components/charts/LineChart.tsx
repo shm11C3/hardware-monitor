@@ -1,4 +1,4 @@
-import type { ChartDataType } from "@/types/chartType";
+import type { ChartDataType } from "@/types/hardwareDataType";
 import { Cpu, GraphicsCard, Memory } from "@phosphor-icons/react";
 import {
 	CategoryScale,

@@ -9,7 +9,7 @@ import {
 	getGpuUsage,
 	getMemoryUsage,
 } from "@/services/hardwareService";
-import type { ChartDataType } from "@/types/chartType";
+import type { ChartDataType } from "@/types/hardwareDataType";
 import { type PrimitiveAtom, useSetAtom } from "jotai";
 import { useEffect } from "react";
 

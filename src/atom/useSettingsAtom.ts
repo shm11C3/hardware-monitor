@@ -3,7 +3,7 @@ import {
 	setDisplayTargets,
 	setTheme,
 } from "@/services/settingService";
-import type { ChartDataType } from "@/types/chartType";
+import type { ChartDataType } from "@/types/hardwareDataType";
 import type { Settings } from "@/types/settingsType";
 import { atom, useAtom } from "jotai";
 import { useEffect } from "react";
