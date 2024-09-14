@@ -14,7 +14,7 @@ pub struct CpuInfo {
   name: String,
   vendor: String,
   core_count: usize,
-  frequency: u64,
+  clock: u64,
   cpu_name: String,
 }
 
@@ -33,7 +33,7 @@ pub fn get_cpu_info(system: MutexGuard<'_, System>) -> Result<CpuInfo, String> {
     name: cpus[0].brand().to_string(),
     vendor: cpus[0].vendor_id().to_string(),
     core_count: cpus.len(),
-    frequency: cpus[0].frequency(),
+    clock: cpus[0].frequency(),
     cpu_name: cpus[0].name().to_string(),
   };
 

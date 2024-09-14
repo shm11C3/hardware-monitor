@@ -6,7 +6,6 @@ export type CpuInfo = {
   clockUnit: string;
   vendor: string;
   coreCount: number;
-  frequency: number;
   cpuName: string;
 };
 
@@ -18,7 +17,16 @@ export type MemoryInfo = {
   memoryType: string;
 };
 
+export type GraphicInfo = {
+  clock: number;
+  name: string;
+  vendorName: string;
+  memorySize: string;
+  memorySizeDedicated: string;
+};
+
 export type HardwareInfo = {
   cpu: CpuInfo;
   memory: MemoryInfo;
+  gpus: GraphicInfo[];
 };

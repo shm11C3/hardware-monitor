@@ -20,7 +20,8 @@ const Page = () => {
 
   useSettingsModalListener();
   useErrorModalListener();
-  useHardwareInfoAtom();
+  const { hardwareInfo } = useHardwareInfoAtom();
+  console.log(hardwareInfo);
 
   const handleShowData = () => {
     setButtonState(buttonState === "raw" ? "chart" : "raw");
