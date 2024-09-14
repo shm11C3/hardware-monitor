@@ -48,23 +48,27 @@ pub fn get_cpu_usage(state: tauri::State<'_, AppState>) -> i32 {
 pub struct SysInfo {
   pub cpu: system_info_service::CpuInfo,
   pub memory: system_info_service::MemoryInfo,
-  //pub gpu: GpuInfo,
+  pub gpus: Vec<graphic_service::GraphicInfo>,
 }
 
 ///
 /// ## システム情報を取得
 ///
 #[command]
-pub fn get_hardware_info(state: tauri::State<'_, AppState>) -> Result<SysInfo, String> {
+pub async fn get_hardware_info(
+  state: tauri::State<'_, AppState>,
+) -> Result<SysInfo, String> {
   let cpu = system_info_service::get_cpu_info(state.system.lock().unwrap());
   let memory = system_info_service::get_memory_info();
+  let gpus = graphic_service::get_nvidia_gpu_info().await;
 
-  match (cpu, memory) {
-    (Ok(cpu_info), Ok(memory_info)) => Ok(SysInfo {
+  match (cpu, memory, gpus) {
+    (Ok(cpu_info), Ok(memory_info), Ok(gpu_info)) => Ok(SysInfo {
       cpu: cpu_info,
       memory: memory_info,
+      gpus: gpu_info,
     }),
-    (Err(e), _) | (_, Err(e)) => {
+    (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => {
       log_error!(
         "get_sys_info_failed",
         "get_hardware_info",

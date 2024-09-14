@@ -6,7 +6,7 @@ import { useEffect } from "react";
 const hardInfoAtom = atom<HardwareInfo | null>();
 
 export const useHardwareInfoAtom = () => {
-  const [hardware, setHardInfo] = useAtom(hardInfoAtom);
+  const [hardwareInfo, setHardInfo] = useAtom(hardInfoAtom);
 
   useEffect(() => {
     const init = async () => {
@@ -19,12 +19,10 @@ export const useHardwareInfoAtom = () => {
     };
 
     // データがなければ取得して更新
-    if (!hardware) {
+    if (!hardwareInfo) {
       init();
     }
+  }, [setHardInfo, hardwareInfo]);
 
-    console.log(hardware);
-  }, [setHardInfo, hardware]);
-
-  return { hardware };
+  return { hardwareInfo };
 };
