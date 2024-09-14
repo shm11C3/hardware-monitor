@@ -6,25 +6,25 @@ import { useEffect } from "react";
 const hardInfoAtom = atom<HardwareInfo | null>();
 
 export const useHardwareInfoAtom = () => {
-	const [hardware, setHardInfo] = useAtom(hardInfoAtom);
+  const [hardware, setHardInfo] = useAtom(hardInfoAtom);
 
-	useEffect(() => {
-		const init = async () => {
-			try {
-				const hardwareInfo = await getHardwareInfo();
-				setHardInfo(hardwareInfo);
-			} catch (e) {
-				console.error(e);
-			}
-		};
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const hardwareInfo = await getHardwareInfo();
+        setHardInfo(hardwareInfo);
+      } catch (e) {
+        console.error(e);
+      }
+    };
 
-		// データがなければ取得して更新
-		if (!hardware) {
-			init();
-		}
+    // データがなければ取得して更新
+    if (!hardware) {
+      init();
+    }
 
-		console.log(hardware);
-	}, [setHardInfo, hardware]);
+    console.log(hardware);
+  }, [setHardInfo, hardware]);
 
-	return { hardware };
+  return { hardware };
 };

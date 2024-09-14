@@ -1,5 +1,5 @@
 import { atom } from "jotai";
 
 export const modalAtoms = {
-	showSettingsModal: atom<boolean>(false),
+  showSettingsModal: atom<boolean>(false),
 };

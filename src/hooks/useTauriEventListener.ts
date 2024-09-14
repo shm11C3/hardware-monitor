@@ -5,13 +5,13 @@ import { useEffect } from "react";
 import { modalAtoms } from "../atom/ui";
 
 const useTauriEventListener = (event: string, callback: () => void) => {
-	useEffect(() => {
-		const unListen = listen(event, callback);
+  useEffect(() => {
+    const unListen = listen(event, callback);
 
-		return () => {
-			unListen.then((unListen) => unListen());
-		};
-	}, [event, callback]);
+    return () => {
+      unListen.then((unListen) => unListen());
+    };
+  }, [event, callback]);
 };
 
 /**
@@ -20,37 +20,37 @@ const useTauriEventListener = (event: string, callback: () => void) => {
  * @returns closeModal
  */
 export const useSettingsModalListener = () => {
-	const setShowSettingsModal = useSetAtom(modalAtoms.showSettingsModal);
+  const setShowSettingsModal = useSetAtom(modalAtoms.showSettingsModal);
 
-	// モーダルを開くイベントをリッスン
-	useTauriEventListener("open_settings", () => {
-		setShowSettingsModal(true);
-	});
+  // モーダルを開くイベントをリッスン
+  useTauriEventListener("open_settings", () => {
+    setShowSettingsModal(true);
+  });
 
-	const closeModal = () => setShowSettingsModal(false);
+  const closeModal = () => setShowSettingsModal(false);
 
-	return { closeModal };
+  return { closeModal };
 };
 
 /**
  * バックエンド側のエラーイベントをリッスンして、エラーダイヤログを表示する
  */
 export const useErrorModalListener = () => {
-	useEffect(() => {
-		const unListen = listen("error_event", (event) => {
-			const { title, message: errorMessage } = event.payload as {
-				title: string;
-				message: string;
-			};
+  useEffect(() => {
+    const unListen = listen("error_event", (event) => {
+      const { title, message: errorMessage } = event.payload as {
+        title: string;
+        message: string;
+      };
 
-			message(errorMessage, {
-				title: title,
-				type: "error",
-			});
-		});
+      message(errorMessage, {
+        title: title,
+        type: "error",
+      });
+    });
 
-		return () => {
-			unListen.then((off) => off());
-		};
-	}, []);
+    return () => {
+      unListen.then((off) => off());
+    };
+  }, []);
 };

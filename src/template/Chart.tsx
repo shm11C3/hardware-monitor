@@ -1,7 +1,7 @@
 import {
-	cpuUsageHistoryAtom,
-	graphicUsageHistoryAtom,
-	memoryUsageHistoryAtom,
+  cpuUsageHistoryAtom,
+  graphicUsageHistoryAtom,
+  memoryUsageHistoryAtom,
 } from "@/atom/chart";
 import { useSettingsAtom } from "@/atom/useSettingsAtom";
 import LineChart from "@/components/charts/LineChart";
@@ -14,50 +14,50 @@ import { useMemo } from "react";
 const labels = Array(chartConfig.historyLengthSec).fill("");
 
 const CpuUsageChart = () => {
-	const [cpuUsageHistory] = useAtom(cpuUsageHistoryAtom);
-	useUsageUpdater("cpu");
+  const [cpuUsageHistory] = useAtom(cpuUsageHistoryAtom);
+  useUsageUpdater("cpu");
 
-	return (
-		<LineChart labels={labels} chartData={cpuUsageHistory} dataType="cpu" />
-	);
+  return (
+    <LineChart labels={labels} chartData={cpuUsageHistory} dataType="cpu" />
+  );
 };
 
 const MemoryUsageChart = () => {
-	const [memoryUsageHistory] = useAtom(memoryUsageHistoryAtom);
-	useUsageUpdater("memory");
+  const [memoryUsageHistory] = useAtom(memoryUsageHistoryAtom);
+  useUsageUpdater("memory");
 
-	return (
-		<LineChart
-			labels={labels}
-			chartData={memoryUsageHistory}
-			dataType="memory"
-		/>
-	);
+  return (
+    <LineChart
+      labels={labels}
+      chartData={memoryUsageHistory}
+      dataType="memory"
+    />
+  );
 };
 
 const GpuUsageChart = () => {
-	const [graphicUsageHistory] = useAtom(graphicUsageHistoryAtom);
-	useUsageUpdater("gpu");
+  const [graphicUsageHistory] = useAtom(graphicUsageHistoryAtom);
+  useUsageUpdater("gpu");
 
-	return (
-		<LineChart labels={labels} chartData={graphicUsageHistory} dataType="gpu" />
-	);
+  return (
+    <LineChart labels={labels} chartData={graphicUsageHistory} dataType="gpu" />
+  );
 };
 
 const ChartTemplate = () => {
-	const { settings } = useSettingsAtom();
+  const { settings } = useSettingsAtom();
 
-	const renderedCharts = useMemo(() => {
-		return (
-			<>
-				{settings?.display_targets.includes("cpu") && <CpuUsageChart />}
-				{settings?.display_targets.includes("memory") && <MemoryUsageChart />}
-				{settings?.display_targets.includes("gpu") && <GpuUsageChart />}
-			</>
-		);
-	}, [settings]);
+  const renderedCharts = useMemo(() => {
+    return (
+      <>
+        {settings?.display_targets.includes("cpu") && <CpuUsageChart />}
+        {settings?.display_targets.includes("memory") && <MemoryUsageChart />}
+        {settings?.display_targets.includes("gpu") && <GpuUsageChart />}
+      </>
+    );
+  }, [settings]);
 
-	return <div className="chart-container">{renderedCharts}</div>;
+  return <div className="chart-container">{renderedCharts}</div>;
 };
 
 export default ChartTemplate;
