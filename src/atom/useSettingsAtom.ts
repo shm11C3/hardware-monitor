@@ -31,7 +31,7 @@ export const useSettingsAtom = () => {
 
 		try {
 			// [TODO] Result型を作りたい
-			await setDisplayTargets(settings.display_targets);
+			await setDisplayTargets(newTargets);
 			setSettings((prev) => ({ ...prev, display_targets: newTargets }));
 		} catch (e) {
 			console.error(e);
