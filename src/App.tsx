@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import ChartTemplate from "./template/Chart";
 import "./index.css";
 import {
