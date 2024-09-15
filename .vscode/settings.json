@@ -13,9 +13,6 @@
   "[typescriptreact]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
-  "[svelte]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
   "editor.codeActionsOnSave": {
     "quickfix.biome": "explicit",
     "source.organizeImports.biome": "explicit"
@@ -25,9 +22,5 @@
     "editor.formatOnSave": true,
     "editor.inlayHints.enabled": "off"
   },
-  "cSpell.words": [
-    "consts",
-    "nvapi",
-    "tauri"
-  ]
+  "cSpell.words": ["consts", "nvapi", "tauri"]
 }
