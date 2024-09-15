@@ -31,13 +31,13 @@ const menuItemClasses = tv({
   variants: {
     selected: {
       true: "text-white font-bold",
-      false: "text-slate-500 hover:text-slate-200",
+      false: "text-slate-400 hover:text-slate-100",
     },
   },
 });
 
 const menuTitles: Record<SelectedMenuType, string> = {
-  dashboard: "PC Monitor",
+  dashboard: "Dashboard",
   usage: "Usage",
   settings: "Settings",
 };

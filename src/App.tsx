@@ -33,7 +33,7 @@ const Page = () => {
   const displayTargets: Record<SelectedMenuType, JSX.Element> = {
     dashboard: <div>TODO</div>,
     usage: <ChartTemplate />,
-    settings: <SettingsSheet />,
+    settings: <div>TODO</div>,
   };
 
   return (
