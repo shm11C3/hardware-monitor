@@ -6,12 +6,17 @@ import {
   useSettingsModalListener,
 } from "@/hooks/useTauriEventListener";
 import SettingsSheet from "@/template/SettingsSheet";
+import { useAtom } from "jotai";
+import { selectedMenuAtom } from "./atom/ui";
 import { useHardwareInfoAtom } from "./atom/useHardwareInfoAtom";
 import { useSettingsAtom } from "./atom/useSettingsAtom";
 import { useDarkMode } from "./hooks/useDarkMode";
+import SideMenu from "./template/SideMenu";
+import type { SelectedMenuType } from "./types/ui";
 
 const Page = () => {
   const { settings } = useSettingsAtom();
+  const [selectedMenu] = useAtom(selectedMenuAtom);
   const { toggle } = useDarkMode();
 
   useSettingsModalListener();
@@ -25,10 +30,16 @@ const Page = () => {
     }
   }, [settings?.theme, toggle]);
 
+  const displayTargets: Record<SelectedMenuType, JSX.Element> = {
+    dashboard: <div>TODO</div>,
+    usage: <ChartTemplate />,
+    settings: <SettingsSheet />,
+  };
+
   return (
     <div className="bg-slate-200 dark:bg-gray-900 text-gray-900 dark:text-white">
-      <h1>Hardware Monitor Proto</h1>
-      <ChartTemplate />
+      <SideMenu />
+      {displayTargets[selectedMenu]}
       <SettingsSheet />
     </div>
   );
