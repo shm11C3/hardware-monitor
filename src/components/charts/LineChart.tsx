@@ -45,7 +45,7 @@ const LineChart = ({
     scales: {
       x: { display: false },
       y: {
-        display: true,
+        display: false,
         suggestedMin: 0,
         suggestedMax: 100,
         grid: { color: "rgba(255, 255, 255, 0.2)" },
@@ -107,21 +107,21 @@ const LineChart = ({
 
   const legendItems: Record<ChartDataType, LegendItem> = {
     cpu: {
-      label: "CPU Usage",
+      label: "CPU",
       icon: (
         <Cpu size={20} color="rgb(75, 192, 192)" className="text-teal-400" />
       ),
       datasetIndex: 0,
     },
     memory: {
-      label: "Memory Usage",
+      label: "Memory",
       icon: (
         <Memory size={20} color="rgb(255, 99, 132)" className="text-pink-400" />
       ),
       datasetIndex: 1,
     },
     gpu: {
-      label: "GPU Usage",
+      label: "GPU",
       icon: (
         <GraphicsCard
           size={20}
@@ -134,9 +134,9 @@ const LineChart = ({
   };
 
   return (
-    <div className="chart-container">
+    <div className="border-2 rounded-xl border-slate-400 dark:border-zinc-600 border-ra mt-5 max-w-screen-xl mx-auto">
       <Line ref={chartRef} data={data[dataType]} options={options} />
-      <div className="flex justify-center mt-4">
+      <div className="flex justify-center mt-4 mb-2">
         <CustomLegend item={legendItems[dataType]} />
       </div>
     </div>

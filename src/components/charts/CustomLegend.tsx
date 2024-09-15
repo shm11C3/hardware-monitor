@@ -11,12 +11,9 @@ const CustomLegend = ({
 }) => {
   return (
     <div className="custom-legend">
-      <div
-        className="legend-item"
-        style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
-      >
+      <div className="cursor-default flex items-center">
         {item.icon}
-        <span style={{ marginLeft: "8px" }}>{item.label}</span>
+        <span className="ml-2">{item.label}</span>
       </div>
     </div>
   );

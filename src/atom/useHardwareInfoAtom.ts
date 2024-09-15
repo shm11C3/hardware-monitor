@@ -3,7 +3,7 @@ import type { HardwareInfo } from "@/types/hardwareDataType";
 import { atom, useAtom } from "jotai";
 import { useEffect } from "react";
 
-const hardInfoAtom = atom<HardwareInfo | null>();
+const hardInfoAtom = atom<HardwareInfo>();
 
 export const useHardwareInfoAtom = () => {
   const [hardwareInfo, setHardInfo] = useAtom(hardInfoAtom);

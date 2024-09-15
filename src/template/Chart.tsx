@@ -57,7 +57,7 @@ const ChartTemplate = () => {
     );
   }, [settings]);
 
-  return <div className="chart-container">{renderedCharts}</div>;
+  return <div className="p-8">{renderedCharts}</div>;
 };
 
 export default ChartTemplate;
