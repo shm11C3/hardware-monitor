@@ -134,8 +134,13 @@ const LineChart = ({
   };
 
   return (
-    <div className="border-2 rounded-xl border-slate-400 dark:border-zinc-600 border-ra mt-5 max-w-screen-xl mx-auto">
-      <Line ref={chartRef} data={data[dataType]} options={options} />
+    <div className="mt-5 max-w-screen-xl mx-auto">
+      <Line
+        className="border-2 rounded-xl border-slate-400 dark:border-zinc-600 border-ra "
+        ref={chartRef}
+        data={data[dataType]}
+        options={options}
+      />
       <div className="flex justify-center mt-4 mb-2">
         <CustomLegend item={legendItems[dataType]} />
       </div>
