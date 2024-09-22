@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import ChartTemplate from "./template/Chart";
+import ChartTemplate from "./template/Usage";
 import "./index.css";
 import {
   useErrorModalListener,
