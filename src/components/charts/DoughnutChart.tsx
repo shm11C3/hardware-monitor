@@ -38,7 +38,7 @@ const DoughnutChart = ({
   };
 
   return (
-    <div className="p-2 w-36 mx-auto relative">
+    <div className="p-2 w-36 relative">
       <h3 className="text-lg font-bold">{displayHardType[hardType]}</h3>
       <Doughnut data={data} options={options} />
       <div className="absolute inset-0 flex flex-col items-center justify-center">

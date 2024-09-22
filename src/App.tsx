@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import Dashboard from "./template/Dashboard";
 import ChartTemplate from "./template/Usage";
 import "./index.css";
+import { useUsageUpdater } from "@/hooks/useHardwareData";
 import {
   useErrorModalListener,
   useSettingsModalListener,
@@ -9,7 +10,6 @@ import {
 import SettingsSheet from "@/template/SettingsSheet";
 import { useAtom } from "jotai";
 import { selectedMenuAtom } from "./atom/ui";
-import { useHardwareInfoAtom } from "./atom/useHardwareInfoAtom";
 import { useSettingsAtom } from "./atom/useSettingsAtom";
 import { useDarkMode } from "./hooks/useDarkMode";
 import SideMenu from "./template/SideMenu";
@@ -22,8 +22,9 @@ const Page = () => {
 
   useSettingsModalListener();
   useErrorModalListener();
-  const { hardwareInfo } = useHardwareInfoAtom();
-  console.log(hardwareInfo);
+  useUsageUpdater("cpu");
+  useUsageUpdater("memory");
+  useUsageUpdater("gpu");
 
   useEffect(() => {
     if (settings?.theme) {
@@ -38,7 +39,7 @@ const Page = () => {
   };
 
   return (
-    <div className="bg-slate-200 dark:bg-gray-900 text-gray-900 dark:text-white">
+    <div className="bg-slate-200 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen">
       <SideMenu />
       {displayTargets[selectedMenu]}
       <SettingsSheet />

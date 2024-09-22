@@ -74,7 +74,7 @@ const SideMenu = () => {
   });
 
   return (
-    <div>
+    <div className="fixed inset-0 z-50">
       <button
         type="button"
         className={buttonClasses({ open: isOpen })}

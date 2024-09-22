@@ -28,7 +28,8 @@ export type GraphicInfo = {
 };
 
 export type HardwareInfo = {
-  cpu: CpuInfo;
-  memory: MemoryInfo;
-  gpus: GraphicInfo[];
+  cpu?: CpuInfo;
+  memory?: MemoryInfo;
+  gpus?: GraphicInfo[];
+  isFetched: boolean;
 };
