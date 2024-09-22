@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import Dashboard from "./template/Dashboard";
 import ChartTemplate from "./template/Usage";
 import "./index.css";
 import {
@@ -31,7 +32,7 @@ const Page = () => {
   }, [settings?.theme, toggle]);
 
   const displayTargets: Record<SelectedMenuType, JSX.Element> = {
-    dashboard: <div>TODO</div>,
+    dashboard: <Dashboard />,
     usage: <ChartTemplate />,
     settings: <div>TODO</div>,
   };

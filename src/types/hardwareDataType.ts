@@ -1,5 +1,7 @@
 export type ChartDataType = "cpu" | "memory" | "gpu";
 
+export type HardwareDataType = "temp" | "usage" | "clock";
+
 export type CpuInfo = {
   name: string;
   clock: number;
