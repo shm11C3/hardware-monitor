@@ -38,6 +38,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = true, features = ["env-filter"]  }
 chrono = "0.4"
 wmi = "0.14"
+rust_decimal = "1.23.0"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.

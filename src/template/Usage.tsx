@@ -6,8 +6,6 @@ import {
 import { useSettingsAtom } from "@/atom/useSettingsAtom";
 import LineChart from "@/components/charts/LineChart";
 import { chartConfig } from "@/consts/chart";
-import { useUsageUpdater } from "@/hooks/useHardwareData";
-
 import { useAtom } from "jotai";
 import { useMemo } from "react";
 
@@ -15,7 +13,6 @@ const labels = Array(chartConfig.historyLengthSec).fill("");
 
 const CpuUsageChart = () => {
   const [cpuUsageHistory] = useAtom(cpuUsageHistoryAtom);
-  useUsageUpdater("cpu");
 
   return (
     <LineChart labels={labels} chartData={cpuUsageHistory} dataType="cpu" />
@@ -24,7 +21,6 @@ const CpuUsageChart = () => {
 
 const MemoryUsageChart = () => {
   const [memoryUsageHistory] = useAtom(memoryUsageHistoryAtom);
-  useUsageUpdater("memory");
 
   return (
     <LineChart
@@ -37,7 +33,6 @@ const MemoryUsageChart = () => {
 
 const GpuUsageChart = () => {
   const [graphicUsageHistory] = useAtom(graphicUsageHistoryAtom);
-  useUsageUpdater("gpu");
 
   return (
     <LineChart labels={labels} chartData={graphicUsageHistory} dataType="gpu" />

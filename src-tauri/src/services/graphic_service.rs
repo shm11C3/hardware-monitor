@@ -1,4 +1,4 @@
-use crate::utils::{self, unit};
+use crate::utils::{self, formatter};
 use crate::{log_debug, log_error, log_info, log_internal, log_warn};
 use nvapi;
 use nvapi::UtilizationDomain;
@@ -152,8 +152,16 @@ pub async fn get_nvidia_gpu_info() -> Result<Vec<GraphicInfo>, String> {
         name,
         vendor_name: "NVIDIA".to_string(),
         clock: frequency,
-        memory_size: memory_info.shared.to_string(),
-        memory_size_dedicated: memory_info.dedicated.to_string(),
+        memory_size: utils::formatter::RoundedKibibytes {
+          kibibytes: memory_info.shared,
+          precision: 1,
+        }
+        .to_string(),
+        memory_size_dedicated: utils::formatter::RoundedKibibytes {
+          kibibytes: memory_info.dedicated,
+          precision: 1,
+        }
+        .to_string(),
       };
 
       gpu_info_list.push(gpu_info);

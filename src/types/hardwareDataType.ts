@@ -1,5 +1,7 @@
 export type ChartDataType = "cpu" | "memory" | "gpu";
 
+export type HardwareDataType = "temp" | "usage" | "clock";
+
 export type CpuInfo = {
   name: string;
   clock: number;
@@ -26,7 +28,8 @@ export type GraphicInfo = {
 };
 
 export type HardwareInfo = {
-  cpu: CpuInfo;
-  memory: MemoryInfo;
-  gpus: GraphicInfo[];
+  cpu?: CpuInfo;
+  memory?: MemoryInfo;
+  gpus?: GraphicInfo[];
+  isFetched: boolean;
 };

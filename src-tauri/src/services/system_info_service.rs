@@ -1,4 +1,4 @@
-use crate::utils::unit;
+use crate::utils::{self, formatter};
 use crate::{log_debug, log_error, log_info, log_internal};
 
 use serde::{Deserialize, Serialize};
@@ -15,6 +15,7 @@ pub struct CpuInfo {
   vendor: String,
   core_count: usize,
   clock: u64,
+  clock_unit: String,
   cpu_name: String,
 }
 
@@ -31,9 +32,10 @@ pub fn get_cpu_info(system: MutexGuard<'_, System>) -> Result<CpuInfo, String> {
   // CPU情報を収集
   let cpu_info = CpuInfo {
     name: cpus[0].brand().to_string(),
-    vendor: cpus[0].vendor_id().to_string(),
+    vendor: utils::formatter::format_vendor_name(cpus[0].vendor_id()),
     core_count: cpus.len(),
     clock: cpus[0].frequency(),
+    clock_unit: "MHz".to_string(),
     cpu_name: cpus[0].name().to_string(),
   };
 
@@ -71,7 +73,7 @@ pub fn get_memory_info() -> Result<MemoryInfo, String> {
   );
 
   let memory_info = MemoryInfo {
-    size: unit::format_size(results.iter().map(|mem| mem.capacity).sum()),
+    size: formatter::format_size(results.iter().map(|mem| mem.capacity).sum(), 1),
     clock: results[0].speed as u64,
     clock_unit: "MHz".to_string(),
     memory_count: results.len(),

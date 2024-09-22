@@ -3,7 +3,9 @@ import type { HardwareInfo } from "@/types/hardwareDataType";
 import { atom, useAtom } from "jotai";
 import { useEffect } from "react";
 
-const hardInfoAtom = atom<HardwareInfo>();
+const hardInfoAtom = atom<HardwareInfo>({
+  isFetched: false,
+});
 
 export const useHardwareInfoAtom = () => {
   const [hardwareInfo, setHardInfo] = useAtom(hardInfoAtom);
@@ -13,13 +15,16 @@ export const useHardwareInfoAtom = () => {
       try {
         const hardwareInfo = await getHardwareInfo();
         setHardInfo(hardwareInfo);
+
+        hardwareInfo.isFetched = true;
       } catch (e) {
         console.error(e);
+        hardwareInfo.isFetched = false;
       }
     };
 
     // データがなければ取得して更新
-    if (!hardwareInfo) {
+    if (!hardwareInfo.isFetched) {
       init();
     }
   }, [setHardInfo, hardwareInfo]);
