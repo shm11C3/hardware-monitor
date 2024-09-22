@@ -152,8 +152,16 @@ pub async fn get_nvidia_gpu_info() -> Result<Vec<GraphicInfo>, String> {
         name,
         vendor_name: "NVIDIA".to_string(),
         clock: frequency,
-        memory_size: memory_info.shared.to_string(),
-        memory_size_dedicated: memory_info.dedicated.to_string(),
+        memory_size: utils::num::RoundedKibibytes {
+          kibibytes: memory_info.shared,
+          precision: 1,
+        }
+        .to_string(),
+        memory_size_dedicated: utils::num::RoundedKibibytes {
+          kibibytes: memory_info.dedicated,
+          precision: 1,
+        }
+        .to_string(),
       };
 
       gpu_info_list.push(gpu_info);

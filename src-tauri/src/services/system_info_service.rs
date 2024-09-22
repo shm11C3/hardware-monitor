@@ -73,7 +73,7 @@ pub fn get_memory_info() -> Result<MemoryInfo, String> {
   );
 
   let memory_info = MemoryInfo {
-    size: unit::format_size(results.iter().map(|mem| mem.capacity).sum()),
+    size: unit::format_size(results.iter().map(|mem| mem.capacity).sum(), 1),
     clock: results[0].speed as u64,
     clock_unit: "MHz".to_string(),
     memory_count: results.len(),
