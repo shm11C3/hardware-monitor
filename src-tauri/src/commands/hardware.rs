@@ -46,9 +46,9 @@ pub fn get_cpu_usage(state: tauri::State<'_, AppState>) -> i32 {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SysInfo {
-  pub cpu: system_info_service::CpuInfo,
-  pub memory: system_info_service::MemoryInfo,
-  pub gpus: Vec<graphic_service::GraphicInfo>,
+  pub cpu: Option<system_info_service::CpuInfo>,
+  pub memory: Option<system_info_service::MemoryInfo>,
+  pub gpus: Option<Vec<graphic_service::GraphicInfo>>,
 }
 
 ///
@@ -58,24 +58,21 @@ pub struct SysInfo {
 pub async fn get_hardware_info(
   state: tauri::State<'_, AppState>,
 ) -> Result<SysInfo, String> {
-  let cpu = system_info_service::get_cpu_info(state.system.lock().unwrap());
-  let memory = system_info_service::get_memory_info();
-  let gpus = graphic_service::get_nvidia_gpu_info().await;
+  let cpu_result = system_info_service::get_cpu_info(state.system.lock().unwrap());
+  let memory_result = system_info_service::get_memory_info();
+  let gpus_result = graphic_service::get_nvidia_gpu_info().await;
 
-  match (cpu, memory, gpus) {
-    (Ok(cpu_info), Ok(memory_info), Ok(gpu_info)) => Ok(SysInfo {
-      cpu: cpu_info,
-      memory: memory_info,
-      gpus: gpu_info,
-    }),
-    (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => {
-      log_error!(
-        "get_sys_info_failed",
-        "get_hardware_info",
-        Some(e.to_string())
-      );
-      Err(format!("Failed to get hardware info: {}", e))
-    }
+  let sys_info = SysInfo {
+    cpu: cpu_result.ok(),
+    memory: memory_result.ok(),
+    gpus: gpus_result.ok(),
+  };
+
+  // すべての情報が失敗した場合にのみエラーメッセージを返す
+  if sys_info.cpu.is_none() && sys_info.memory.is_none() && sys_info.gpus.is_none() {
+    Err("Failed to get any hardware info".to_string())
+  } else {
+    Ok(sys_info)
   }
 }
 
