@@ -1,6 +1,5 @@
 import { getHardwareInfo } from "@/services/hardwareService";
 import type { HardwareInfo } from "@/types/hardwareDataType";
-import { CopySimple } from "@phosphor-icons/react";
 import { atom, useAtom } from "jotai";
 import { useEffect } from "react";
 
