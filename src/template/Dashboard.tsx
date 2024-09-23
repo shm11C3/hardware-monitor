@@ -1,5 +1,6 @@
 import {
   cpuUsageHistoryAtom,
+  gpuTempAtom,
   graphicUsageHistoryAtom,
   memoryUsageHistoryAtom,
 } from "@/atom/chart";
@@ -52,6 +53,7 @@ const CPUInfo = () => {
           chartData={cpuUsageHistory[cpuUsageHistory.length - 1]}
           dataType={"usage"}
           hardType="cpu"
+          showTitle={true}
         />
         <InfoTable
           data={{
@@ -68,16 +70,33 @@ const CPUInfo = () => {
 
 const GPUInfo = () => {
   const [graphicUsageHistory] = useAtom(graphicUsageHistoryAtom);
+  const [gpuTemp] = useAtom(gpuTempAtom);
   const { hardwareInfo } = useHardwareInfoAtom();
+
+  const targetTemperature = gpuTemp.find(
+    (x) => x.name === hardwareInfo.gpus[0].name,
+  )?.value;
 
   return (
     hardwareInfo.gpus && (
       <>
-        <DoughnutChart
-          chartData={graphicUsageHistory[graphicUsageHistory.length - 1]}
-          dataType={"usage"}
-          hardType="gpu"
-        />
+        <div className="flex justify-around">
+          <DoughnutChart
+            chartData={graphicUsageHistory[graphicUsageHistory.length - 1]}
+            dataType={"usage"}
+            hardType="gpu"
+            showTitle={true}
+          />
+          {targetTemperature && (
+            <DoughnutChart
+              chartData={targetTemperature}
+              dataType={"temp"}
+              hardType="gpu"
+              showTitle={false}
+            />
+          )}
+        </div>
+
         <InfoTable
           data={{
             Name: hardwareInfo.gpus[0].name,
@@ -102,6 +121,7 @@ const MemoryInfo = () => {
           chartData={memoryUsageHistory[memoryUsageHistory.length - 1]}
           dataType={"usage"}
           hardType="memory"
+          showTitle={true}
         />
         <InfoTable
           data={{

@@ -106,6 +106,18 @@ pub async fn get_gpu_usage() -> Result<i32, String> {
 }
 
 ///
+/// ## GPU温度を取得
+///
+#[command]
+pub async fn get_gpu_temperature() -> Result<Vec<graphic_service::GpuTemperature>, String>
+{
+  match graphic_service::get_nvidia_gpu_temperature().await {
+    Ok(temps) => Ok(temps),
+    Err(e) => Err(format!("Failed to get GPU temperature: {:?}", e)),
+  }
+}
+
+///
 /// ## CPU使用率の履歴を取得
 ///
 /// - param state: `tauri::State<AppState>` アプリケーションの状態

@@ -72,6 +72,64 @@ pub async fn get_nvidia_gpu_usage() -> Result<f32, nvapi::Status> {
   })?
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GpuTemperature {
+  name: String,
+  value: f64, // 摂氏温度
+}
+
+///
+/// ## GPU温度を取得する（NVAPI を使用）
+///
+pub async fn get_nvidia_gpu_temperature() -> Result<Vec<GpuTemperature>, nvapi::Status> {
+  let handle = spawn_blocking(|| {
+    log_debug!("start", "get_nvidia_gpu_temperature", None::<&str>);
+
+    let gpus = nvapi::PhysicalGpu::enumerate()?;
+
+    if gpus.is_empty() {
+      log_warn!(
+        "not found",
+        "get_nvidia_gpu_temperature",
+        Some("gpu is not found")
+      );
+      tracing::warn!("gpu is not found");
+      return Err(nvapi::Status::Error); // GPUが見つからない場合はエラーを返す
+    }
+
+    let mut temperatures = Vec::new();
+
+    for gpu in gpus.iter() {
+      // 温度情報を取得
+      let thermal_settings = gpu.thermal_settings(None).map_err(|e| {
+        log_warn!(
+          "thermal_settings_failed",
+          "get_nvidia_gpu_temperature",
+          Some(&format!("{:?}", e))
+        );
+        nvapi::Status::Error
+      })?;
+
+      temperatures.push(GpuTemperature {
+        name: gpu.full_name().unwrap_or("Unknown".to_string()),
+        value: thermal_settings[0].current_temperature.0 as f64, // thermal_settings の0番目の温度を f64 に変換
+      });
+    }
+
+    Ok(temperatures)
+  });
+
+  handle.await.map_err(|e: JoinError| {
+    log_error!(
+      "join_error",
+      "get_nvidia_gpu_temperature",
+      Some(e.to_string())
+    );
+    nvapi::Status::Error
+  })?
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GraphicInfo {

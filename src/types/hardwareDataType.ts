@@ -31,6 +31,11 @@ export type GraphicInfo = {
 export type HardwareInfo = {
   cpu?: CpuInfo;
   memory?: MemoryInfo;
-  gpus?: GraphicInfo[];
+  gpus: GraphicInfo[];
   isFetched: boolean;
 };
+
+export type Temperatures = Array<{
+  name: string;
+  value: number;
+}>;
