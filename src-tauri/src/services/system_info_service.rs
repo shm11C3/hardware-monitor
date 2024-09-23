@@ -191,13 +191,13 @@ where
 
       // WMIクエリを実行してメモリ情報を取得
       let results: Vec<T> = wmi_con
-        .raw_query(query)
+        .raw_query(query.clone())
         .map_err(|e| format!("Failed to execute query: {:?}", e))?;
 
       log_info!(
         &format!("mem info: {:?}", results),
         "get_memory_info_in_thread",
-        &format!("query: {}", query)
+        Some(&format!("query: {}", query))
       );
 
       Ok(results)
