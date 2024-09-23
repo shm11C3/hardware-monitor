@@ -5,6 +5,7 @@ import { useEffect } from "react";
 
 const hardInfoAtom = atom<HardwareInfo>({
   isFetched: false,
+  gpus: [],
 });
 
 export const useHardwareInfoAtom = () => {
