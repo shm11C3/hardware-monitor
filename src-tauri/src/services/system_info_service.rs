@@ -1,6 +1,7 @@
 use crate::utils::{self, formatter};
 use crate::{log_debug, log_error, log_info, log_internal};
 
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::MutexGuard;
@@ -49,6 +50,7 @@ pub struct MemoryInfo {
   clock: u64,
   clock_unit: String,
   memory_count: usize,
+  total_slots: usize,
   memory_type: String,
 }
 
@@ -61,26 +63,40 @@ struct Win32PhysicalMemory {
   smbios_memory_type: Option<u16>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct Win32PhysicalMemoryArray {
+  memory_devices: Option<u32>,
+}
+
 ///
 /// ## メモリ情報を取得
 ///
 pub fn get_memory_info() -> Result<MemoryInfo, String> {
-  let results = get_memory_info_in_thread()?;
+  let physical_memory: Vec<Win32PhysicalMemory> = get_memory_info_in_thread(
+    "SELECT Capacity, Speed, MemoryType, SMBIOSMemoryType FROM Win32_PhysicalMemory"
+      .to_string(),
+  )?;
+
+  let physical_memory_array: Vec<Win32PhysicalMemoryArray> = get_memory_info_in_thread(
+    "SELECT MemoryDevices FROM Win32_PhysicalMemoryArray".to_string(),
+  )?;
 
   log_info!(
-    &format!("mem info: {:?}", results),
+    &format!("mem info: {:?}", physical_memory),
     "get_memory_info",
     None::<&str>
   );
 
   let memory_info = MemoryInfo {
-    size: formatter::format_size(results.iter().map(|mem| mem.capacity).sum(), 1),
-    clock: results[0].speed as u64,
+    size: formatter::format_size(physical_memory.iter().map(|mem| mem.capacity).sum(), 1),
+    clock: physical_memory[0].speed as u64,
     clock_unit: "MHz".to_string(),
-    memory_count: results.len(),
+    memory_count: physical_memory.len(),
+    total_slots: physical_memory_array[0].memory_devices.unwrap_or(0) as usize,
     memory_type: get_memory_type_with_fallback(
-      results[0].memory_type,
-      results[0].smbios_memory_type,
+      physical_memory[0].memory_type,
+      physical_memory[0].smbios_memory_type,
     ),
   };
 
@@ -156,10 +172,13 @@ fn get_memory_type_with_fallback(
 ///
 /// ## メモリ情報を別スレッドで取得する（WMIを使用）
 ///
-fn get_memory_info_in_thread() -> Result<Vec<Win32PhysicalMemory>, String> {
+fn get_memory_info_in_thread<T>(query: String) -> Result<Vec<T>, String>
+where
+  T: DeserializeOwned + std::fmt::Debug + Send + 'static,
+{
   let (tx, rx): (
-    Sender<Result<Vec<Win32PhysicalMemory>, String>>,
-    Receiver<Result<Vec<Win32PhysicalMemory>, String>>,
+    Sender<Result<Vec<T>, String>>,
+    Receiver<Result<Vec<T>, String>>,
   ) = channel();
 
   // 別スレッドを起動してWMIクエリを実行
@@ -171,14 +190,14 @@ fn get_memory_info_in_thread() -> Result<Vec<Win32PhysicalMemory>, String> {
         .map_err(|e| format!("Failed to create WMI connection: {:?}", e))?;
 
       // WMIクエリを実行してメモリ情報を取得
-      let results: Vec<Win32PhysicalMemory> = wmi_con
-        .raw_query("SELECT Capacity, Speed, MemoryType, SMBIOSMemoryType FROM Win32_PhysicalMemory")
+      let results: Vec<T> = wmi_con
+        .raw_query(query)
         .map_err(|e| format!("Failed to execute query: {:?}", e))?;
 
       log_info!(
         &format!("mem info: {:?}", results),
         "get_memory_info_in_thread",
-        None::<&str>
+        &format!("query: {}", query)
       );
 
       Ok(results)

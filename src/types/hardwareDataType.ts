@@ -16,6 +16,7 @@ export type MemoryInfo = {
   clock: number;
   clockUnit: string;
   memoryCount: number;
+  totalSlots: number;
   memoryType: string;
 };
 

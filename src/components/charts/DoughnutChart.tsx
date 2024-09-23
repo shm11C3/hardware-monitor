@@ -1,5 +1,6 @@
 import { displayDataType, displayHardType } from "@/consts/chart";
 import type { ChartDataType, HardwareDataType } from "@/types/hardwareDataType";
+import { Lightning, Speedometer, Thermometer } from "@phosphor-icons/react";
 import {
   ArcElement,
   Chart as ChartJS,
@@ -37,6 +38,12 @@ const DoughnutChart = ({
     },
   };
 
+  const dataTypeIcons: Record<HardwareDataType, JSX.Element> = {
+    usage: <Lightning className="mr-1" size={18} weight="duotone" />,
+    temp: <Thermometer className="mr-1" size={18} weight="duotone" />,
+    clock: <Speedometer className="mr-1" size={18} weight="duotone" />,
+  };
+
   return (
     <div className="p-2 w-36 relative">
       <h3 className="text-lg font-bold">{displayHardType[hardType]}</h3>
@@ -45,6 +52,7 @@ const DoughnutChart = ({
         <span className="text-white text-xl font-semibold">{chartData}%</span>
       </div>
       <span className="flex justify-center mt-4 text-gray-400">
+        {dataTypeIcons[dataType]}
         {displayDataType[dataType]}
       </span>
     </div>

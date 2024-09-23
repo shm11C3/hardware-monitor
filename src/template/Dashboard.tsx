@@ -107,7 +107,8 @@ const MemoryInfo = () => {
           data={{
             "Memory Type": hardwareInfo.memory.memoryType,
             "Total Memory": hardwareInfo.memory.size,
-            "Memory Count": hardwareInfo.memory.memoryCount,
+            "Memory Count": `${hardwareInfo.memory.memoryCount}/${hardwareInfo.memory.totalSlots}`,
+            "Memory Clock": `${hardwareInfo.memory.clock} ${hardwareInfo.memory.clockUnit}`,
           }}
         />
       </>
