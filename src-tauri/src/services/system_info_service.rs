@@ -58,6 +58,7 @@ struct Win32PhysicalMemory {
   capacity: u64,
   speed: u32,
   memory_type: Option<u16>,
+  smbios_memory_type: Option<u16>,
 }
 
 ///
@@ -77,7 +78,10 @@ pub fn get_memory_info() -> Result<MemoryInfo, String> {
     clock: results[0].speed as u64,
     clock_unit: "MHz".to_string(),
     memory_count: results.len(),
-    memory_type: get_memory_type_description(results[0].memory_type),
+    memory_type: get_memory_type_with_fallback(
+      results[0].memory_type,
+      results[0].smbios_memory_type,
+    ),
   };
 
   Ok(memory_info)
@@ -128,7 +132,7 @@ fn get_memory_type_description(memory_type: Option<u16>) -> String {
 }
 
 ///
-/// TODO
+/// ## MemoryType もしくは SMBIOSMemoryType からメモリの種類を取得
 ///
 fn get_memory_type_with_fallback(
   memory_type: Option<u16>,
@@ -140,7 +144,7 @@ fn get_memory_type_with_fallback(
       Some(21) => "DDR2".to_string(),
       Some(24) => "DDR3".to_string(),
       Some(26) => "DDR4".to_string(),
-      Some(31) => "DDR5".to_string(),
+      Some(34) => "DDR5".to_string(),
       Some(mt) => format!("Other SMBIOS Memory Type ({})", mt),
       None => "Unknown".to_string(),
     },
@@ -168,7 +172,7 @@ fn get_memory_info_in_thread() -> Result<Vec<Win32PhysicalMemory>, String> {
 
       // WMIクエリを実行してメモリ情報を取得
       let results: Vec<Win32PhysicalMemory> = wmi_con
-        .raw_query("SELECT Capacity, Speed, MemoryType FROM Win32_PhysicalMemory")
+        .raw_query("SELECT Capacity, Speed, MemoryType, SMBIOSMemoryType FROM Win32_PhysicalMemory")
         .map_err(|e| format!("Failed to execute query: {:?}", e))?;
 
       log_info!(
