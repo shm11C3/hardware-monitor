@@ -1,5 +1,11 @@
 # hardware-monitor
 
+![GitHub branch status](https://img.shields.io/github/checks-status/shm11C3/hardware-monitor/develop)
+
+![GitHub commits since tagged version](https://img.shields.io/github/commits-since/shm11C3/hardware-monitor/0.1.0)
+
+
+
 ## Dashboard
 
 ![image](https://github.com/user-attachments/assets/9a2bf54f-d6e5-4c20-b0e4-f249fd5b8433)
