@@ -1,8 +1,8 @@
 # hardware-monitor
 
-![GitHub branch status](https://img.shields.io/github/checks-status/shm11C3/hardware-monitor/develop)
+![GitHub branch status](https://img.shields.io/github/checks-status/shm11C3/hardware-monitor/master)
 
-![GitHub commits since tagged version](https://img.shields.io/github/commits-since/shm11C3/hardware-monitor/0.1.0)
+![GitHub commits since tagged version](https://img.shields.io/github/commits-since/shm11C3/hardware-monitor/app-v0.1.0)
 
 
 
