@@ -1,11 +1,13 @@
-import type { HardwareInfo } from "@/types/hardwareDataType";
+import type { HardwareInfo, NameValues } from "@/types/hardwareDataType";
 import { invoke } from "@tauri-apps/api/tauri";
 
 export const getCpuUsage = async (): Promise<number> => {
   return await invoke("get_cpu_usage");
 };
 
-export const getHardwareInfo = async (): Promise<HardwareInfo> => {
+export const getHardwareInfo = async (): Promise<
+  Exclude<HardwareInfo, "isFetched">
+> => {
   return await invoke("get_hardware_info");
 };
 
@@ -27,4 +29,12 @@ export const getGpuUsage = async (): Promise<number> => {
 
 export const getGpuUsageHistory = (seconds: number): Promise<number[]> => {
   return invoke("get_gpu_usage_history", { seconds: seconds });
+};
+
+export const getGpuTemperature = async (): Promise<NameValues> => {
+  return await invoke("get_gpu_temperature");
+};
+
+export const getGpuFanSpeed = async (): Promise<NameValues> => {
+  return await invoke("get_nvidia_gpu_cooler");
 };

@@ -34,3 +34,8 @@ export type HardwareInfo = {
   gpus?: GraphicInfo[];
   isFetched: boolean;
 };
+
+export type NameValues = Array<{
+  name: string;
+  value: number;
+}>;

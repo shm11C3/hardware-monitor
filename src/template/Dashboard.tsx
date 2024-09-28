@@ -1,10 +1,13 @@
 import {
   cpuUsageHistoryAtom,
+  gpuFanSpeedAtom,
+  gpuTempAtom,
   graphicUsageHistoryAtom,
   memoryUsageHistoryAtom,
 } from "@/atom/chart";
 import { useHardwareInfoAtom } from "@/atom/useHardwareInfoAtom";
 import DoughnutChart from "@/components/charts/DoughnutChart";
+import type { NameValues } from "@/types/hardwareDataType";
 import { useAtom } from "jotai";
 
 const InfoTable = ({
@@ -52,6 +55,7 @@ const CPUInfo = () => {
           chartData={cpuUsageHistory[cpuUsageHistory.length - 1]}
           dataType={"usage"}
           hardType="cpu"
+          showTitle={true}
         />
         <InfoTable
           data={{
@@ -68,16 +72,49 @@ const CPUInfo = () => {
 
 const GPUInfo = () => {
   const [graphicUsageHistory] = useAtom(graphicUsageHistoryAtom);
+  const [gpuTemp] = useAtom(gpuTempAtom);
+  const [gpuFan] = useAtom(gpuFanSpeedAtom);
   const { hardwareInfo } = useHardwareInfoAtom();
+
+  const getTargetInfo = (data: NameValues) => {
+    return data.find(
+      (x) => hardwareInfo.gpus && x.name === hardwareInfo.gpus[0].name,
+    )?.value;
+  };
+
+  const targetTemperature = getTargetInfo(gpuTemp);
+  const targetFanSpeed = getTargetInfo(gpuFan);
+
+  console.log(gpuFan);
 
   return (
     hardwareInfo.gpus && (
       <>
-        <DoughnutChart
-          chartData={graphicUsageHistory[graphicUsageHistory.length - 1]}
-          dataType={"usage"}
-          hardType="gpu"
-        />
+        <div className="flex justify-around">
+          <DoughnutChart
+            chartData={graphicUsageHistory[graphicUsageHistory.length - 1]}
+            dataType={"usage"}
+            hardType="gpu"
+            showTitle={true}
+          />
+          {targetTemperature && (
+            <DoughnutChart
+              chartData={targetTemperature}
+              dataType={"temp"}
+              hardType="gpu"
+              showTitle={false}
+            />
+          )}
+          {targetFanSpeed && (
+            <DoughnutChart
+              chartData={targetFanSpeed}
+              dataType={"clock"}
+              hardType="gpu"
+              showTitle={false}
+            />
+          )}
+        </div>
+
         <InfoTable
           data={{
             Name: hardwareInfo.gpus[0].name,
@@ -102,6 +139,7 @@ const MemoryInfo = () => {
           chartData={memoryUsageHistory[memoryUsageHistory.length - 1]}
           dataType={"usage"}
           hardType="memory"
+          showTitle={true}
         />
         <InfoTable
           data={{

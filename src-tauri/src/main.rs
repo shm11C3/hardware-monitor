@@ -54,6 +54,8 @@ fn main() {
       hardware::get_hardware_info,
       hardware::get_memory_usage,
       hardware::get_gpu_usage,
+      hardware::get_gpu_temperature,
+      hardware::get_nvidia_gpu_cooler,
       hardware::get_cpu_usage_history,
       hardware::get_memory_usage_history,
       hardware::get_gpu_usage_history,

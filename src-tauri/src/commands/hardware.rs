@@ -106,6 +106,28 @@ pub async fn get_gpu_usage() -> Result<i32, String> {
 }
 
 ///
+/// ## GPU温度を取得
+///
+#[command]
+pub async fn get_gpu_temperature() -> Result<Vec<graphic_service::NameValue>, String> {
+  match graphic_service::get_nvidia_gpu_temperature().await {
+    Ok(temps) => Ok(temps),
+    Err(e) => Err(format!("Failed to get GPU temperature: {:?}", e)),
+  }
+}
+
+///
+/// ## GPUのファン回転数を取得
+///
+#[command]
+pub async fn get_nvidia_gpu_cooler() -> Result<Vec<graphic_service::NameValue>, String> {
+  match graphic_service::get_nvidia_gpu_cooler_stat().await {
+    Ok(temps) => Ok(temps),
+    Err(e) => Err(format!("Failed to get GPU cooler status: {:?}", e)),
+  }
+}
+
+///
 /// ## CPU使用率の履歴を取得
 ///
 /// - param state: `tauri::State<AppState>` アプリケーションの状態

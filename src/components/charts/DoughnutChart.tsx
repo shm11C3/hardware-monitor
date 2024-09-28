@@ -16,10 +16,12 @@ const DoughnutChart = ({
   chartData,
   hardType,
   dataType,
+  showTitle,
 }: {
   chartData: number;
   hardType: ChartDataType;
   dataType: HardwareDataType;
+  showTitle: boolean;
 }) => {
   const data = {
     datasets: [
@@ -44,12 +46,27 @@ const DoughnutChart = ({
     clock: <Speedometer className="mr-1" size={18} weight="duotone" />,
   };
 
+  const dataTypeUnits: Record<HardwareDataType, string> = {
+    usage: "%",
+    temp: "℃",
+    clock: "MHz",
+  };
+
   return (
     <div className="p-2 w-36 relative">
-      <h3 className="text-lg font-bold">{displayHardType[hardType]}</h3>
+      <h3 className="text-lg font-bold">
+        {
+          showTitle
+            ? displayHardType[hardType]
+            : "　" /** [TODO] タイトルはコンポーネント外のほうが使いやすそう */
+        }
+      </h3>
       <Doughnut data={data} options={options} />
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-white text-xl font-semibold">{chartData}%</span>
+        <span className="text-white text-xl font-semibold">
+          {chartData}
+          {dataTypeUnits[dataType]}
+        </span>
       </div>
       <span className="flex justify-center mt-4 text-gray-400">
         {dataTypeIcons[dataType]}
