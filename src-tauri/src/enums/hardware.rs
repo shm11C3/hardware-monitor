@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum HardwareType {
   CPU,
   Memory,
@@ -18,5 +18,23 @@ impl Serialize for HardwareType {
       HardwareType::GPU => "gpu",
     };
     serializer.serialize_str(s)
+  }
+}
+
+impl<'de> Deserialize<'de> for HardwareType {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let s = String::deserialize(deserializer)?.to_lowercase();
+    match s.as_str() {
+      "cpu" => Ok(HardwareType::CPU),
+      "memory" => Ok(HardwareType::Memory),
+      "gpu" => Ok(HardwareType::GPU),
+      _ => Err(serde::de::Error::unknown_variant(
+        &s,
+        &["cpu", "memory", "gpu"],
+      )),
+    }
   }
 }

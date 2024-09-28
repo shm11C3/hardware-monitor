@@ -1,54 +1,52 @@
-import { useEffect, useState } from "react";
-import TestTemplate from "./components/Sample";
-import ChartTemplate from "./template/Chart";
+import { useEffect } from "react";
+import Dashboard from "./template/Dashboard";
+import ChartTemplate from "./template/Usage";
 import "./index.css";
+import { useHardwareUpdater, useUsageUpdater } from "@/hooks/useHardwareData";
+import {
+  useErrorModalListener,
+  useSettingsModalListener,
+} from "@/hooks/useTauriEventListener";
+import SettingsSheet from "@/template/SettingsSheet";
 import { useAtom } from "jotai";
-import { settingsAtom } from "./atom/main";
+import { selectedMenuAtom } from "./atom/ui";
+import { useSettingsAtom } from "./atom/useSettingsAtom";
 import { useDarkMode } from "./hooks/useDarkMode";
-import { getSettings } from "./services/settingService";
-
-type ButtonState = "chart" | "raw";
-
-const useLoadSettings = () => {
-	const [, setSettings] = useAtom(settingsAtom);
-
-	useEffect(() => {
-		const loadSettings = async () => {
-			const setting = await getSettings();
-			setSettings(setting);
-		};
-		loadSettings();
-	}, [setSettings]);
-};
+import SideMenu from "./template/SideMenu";
+import type { SelectedMenuType } from "./types/ui";
 
 const Page = () => {
-	const [buttonState, setButtonState] = useState<ButtonState>("chart");
-	const [settings] = useAtom(settingsAtom);
-	const { toggle } = useDarkMode();
+  const { settings } = useSettingsAtom();
+  const [selectedMenu] = useAtom(selectedMenuAtom);
+  const { toggle } = useDarkMode();
 
-	useLoadSettings();
+  useSettingsModalListener();
+  useErrorModalListener();
+  useUsageUpdater("cpu");
+  useUsageUpdater("memory");
+  useUsageUpdater("gpu");
+  useHardwareUpdater("gpu", "temp");
+  useHardwareUpdater("gpu", "fan");
 
-	const handleShowData = () => {
-		setButtonState(buttonState === "raw" ? "chart" : "raw");
-	};
+  useEffect(() => {
+    if (settings?.theme) {
+      toggle(settings.theme === "dark");
+    }
+  }, [settings?.theme, toggle]);
 
-	useEffect(() => {
-		if (settings?.theme) {
-			toggle(settings.theme === "dark");
-		}
-	}, [settings?.theme, toggle]);
+  const displayTargets: Record<SelectedMenuType, JSX.Element> = {
+    dashboard: <Dashboard />,
+    usage: <ChartTemplate />,
+    settings: <div>TODO</div>,
+  };
 
-	return (
-		<div className="bg-slate-200 dark:bg-gray-900 text-gray-900 dark:text-white">
-			<h1>Hardware Monitor Proto</h1>
-			<div>
-				<button type="button" onClick={handleShowData}>
-					{buttonState === "chart" ? "Show Raw Data" : "Show Chart Sample"}
-				</button>
-			</div>
-			{buttonState === "raw" ? <TestTemplate /> : <ChartTemplate />}
-		</div>
-	);
+  return (
+    <div className="bg-slate-200 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen">
+      <SideMenu />
+      {displayTargets[selectedMenu]}
+      <SettingsSheet />
+    </div>
+  );
 };
 
 export default Page;

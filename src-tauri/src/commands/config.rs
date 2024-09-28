@@ -10,8 +10,8 @@ use std::sync::Mutex;
 const SETTINGS_FILENAME: &str = "settings.json";
 
 trait Config {
-  fn write_file(&self) {}
-  fn read_file(&mut self) {}
+  fn write_file(&self) -> Result<(), String>;
+  fn read_file(&mut self) -> Result<(), String>;
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -26,52 +26,112 @@ impl Default for Settings {
     Self {
       language: "en".to_string(),
       theme: "dark".to_string(),
-      display_targets: vec![hardware::HardwareType::CPU, hardware::HardwareType::Memory],
+      display_targets: vec![
+        hardware::HardwareType::CPU,
+        hardware::HardwareType::Memory,
+        hardware::HardwareType::GPU,
+      ],
     }
   }
 }
 
 impl Config for Settings {
-  fn write_file(&self) {
+  fn write_file(&self) -> Result<(), String> {
     let config_file = get_app_data_dir(SETTINGS_FILENAME);
     if !config_file.parent().unwrap().exists() {
       fs::create_dir_all(config_file.parent().unwrap()).unwrap();
     }
-    let serialized = serde_json::to_string(self).unwrap();
-    let mut file = fs::File::create(config_file).unwrap();
-    file.write_all(&serialized.as_bytes()).unwrap();
+
+    match serde_json::to_string(self) {
+      Ok(serialized) => {
+        if let Err(e) = fs::File::create(config_file)
+          .and_then(|mut file| file.write_all(&serialized.as_bytes()))
+        {
+          // [TODO] ログの定数化
+          log_error!(
+            "Failed to serialize settings",
+            "write_file",
+            Some(e.to_string())
+          );
+          return Err(format!("Failed to write to settings file: {}", e));
+        }
+      }
+      Err(e) => {
+        log_error!(
+          "Failed to serialize settings",
+          "write_file",
+          Some(e.to_string())
+        );
+        return Err(format!("Failed to serialize settings: {}", e));
+      }
+    }
+
+    Ok(())
   }
 
-  fn read_file(&mut self) {
+  fn read_file(&mut self) -> Result<(), String> {
     let config_file = get_app_data_dir(SETTINGS_FILENAME);
-    let input = fs::read_to_string(config_file).unwrap();
-    let deserialized: Self = serde_json::from_str(&input).unwrap();
-    let _ = mem::replace(self, deserialized);
+
+    match fs::read_to_string(config_file) {
+      Ok(input) => match serde_json::from_str::<Self>(&input) {
+        Ok(deserialized) => {
+          *self = deserialized;
+          Ok(())
+        }
+        Err(e) => {
+          log_error!(
+            "Failed to deserialize settings",
+            "read_file",
+            Some(e.to_string())
+          );
+          Err(format!("Failed to deserialize settings: {}", e))
+        }
+      },
+      Err(e) => {
+        log_error!(
+          "Failed to deserialize settings",
+          "read_file",
+          Some(e.to_string())
+        );
+        Err(format!("Failed to read settings file: {}", e))
+      }
+    }
   }
 }
 
 impl Settings {
   pub fn new() -> Self {
     let config_file = get_app_data_dir(SETTINGS_FILENAME);
+
+    let mut settings = Self::default();
+
     if !config_file.exists() {
-      Self::default()
-    } else {
-      let mut settings = Self::default();
-      settings.read_file();
-      settings
+      return settings;
     }
+
+    if let Err(e) = settings.read_file() {
+      log_error!("read_config_failed", "read_file", Some(e.to_string()));
+    }
+
+    settings
   }
 
-  pub fn set_language(&mut self, new_lang: String) {
+  pub fn set_language(&mut self, new_lang: String) -> Result<(), String> {
     self.language = new_lang;
-    self.write_file();
-    println!("{:?}", self);
+    self.write_file()
   }
 
-  pub fn set_theme(&mut self, new_theme: String) {
+  pub fn set_theme(&mut self, new_theme: String) -> Result<(), String> {
     self.theme = new_theme;
-    self.write_file();
-    println!("{:?}", self);
+    self.write_file()
+  }
+
+  pub fn set_display_targets(
+    &mut self,
+    new_targets: Vec<hardware::HardwareType>,
+  ) -> Result<(), String> {
+    self.display_targets = new_targets;
+    self.write_file()
   }
 }
 
@@ -90,24 +150,23 @@ impl AppState {
 
 pub mod commands {
   use super::*;
+  use serde_json::json;
+  use tauri::Window;
 
-  #[tauri::command]
-  pub async fn set_language(
-    state: tauri::State<'_, AppState>,
-    new_language: String,
-  ) -> Result<(), String> {
-    let mut settings = state.settings.lock().unwrap();
-    settings.set_language(new_language);
-    Ok(())
-  }
+  const ERROR_TITLE: &str = "設定の更新に失敗しました";
+  const ERROR_MESSAGE: &str = "何度も発生する場合は settings.json を削除してください";
 
-  #[tauri::command]
-  pub async fn set_theme(
-    state: tauri::State<'_, AppState>,
-    new_theme: String,
-  ) -> Result<(), String> {
-    let mut settings = state.settings.lock().unwrap();
-    settings.set_theme(new_theme);
+  fn emit_error(window: &Window) -> Result<(), String> {
+    window
+      .emit(
+        "error_event",
+        json!({
+            "title": ERROR_TITLE,
+            "message": ERROR_MESSAGE
+        }),
+      )
+      .map_err(|e| format!("Failed to emit event: {}", e))?;
+
     Ok(())
   }
 
@@ -117,5 +176,53 @@ pub mod commands {
   ) -> Result<Settings, String> {
     let settings = state.settings.lock().unwrap().clone();
     Ok(settings)
+  }
+
+  #[tauri::command]
+
+  pub async fn set_language(
+    window: Window,
+    state: tauri::State<'_, AppState>,
+    new_language: String,
+  ) -> Result<(), String> {
+    let mut settings = state.settings.lock().unwrap();
+
+    if let Err(e) = settings.set_language(new_language) {
+      emit_error(&window)?;
+      return Err(e);
+    }
+
+    Ok(())
+  }
+
+  #[tauri::command]
+  pub async fn set_theme(
+    window: Window,
+    state: tauri::State<'_, AppState>,
+    new_theme: String,
+  ) -> Result<(), String> {
+    let mut settings = state.settings.lock().unwrap();
+
+    if let Err(e) = settings.set_theme(new_theme) {
+      emit_error(&window)?;
+      return Err(e);
+    }
+
+    Ok(())
+  }
+
+  #[tauri::command]
+  pub async fn set_display_targets(
+    window: Window,
+    state: tauri::State<'_, AppState>,
+    new_targets: Vec<hardware::HardwareType>,
+  ) -> Result<(), String> {
+    let mut settings = state.settings.lock().unwrap();
+
+    if let Err(e) = settings.set_display_targets(new_targets) {
+      emit_error(&window)?;
+      return Err(e);
+    }
+    Ok(())
   }
 }
