@@ -74,7 +74,7 @@ pub async fn get_nvidia_gpu_usage() -> Result<f32, nvapi::Status> {
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GpuTemperature {
+pub struct NameValue {
   name: String,
   value: f64, // 摂氏温度
 }
@@ -82,7 +82,7 @@ pub struct GpuTemperature {
 ///
 /// ## GPU温度を取得する（NVAPI を使用）
 ///
-pub async fn get_nvidia_gpu_temperature() -> Result<Vec<GpuTemperature>, nvapi::Status> {
+pub async fn get_nvidia_gpu_temperature() -> Result<Vec<NameValue>, nvapi::Status> {
   let handle = spawn_blocking(|| {
     log_debug!("start", "get_nvidia_gpu_temperature", None::<&str>);
 
@@ -111,7 +111,7 @@ pub async fn get_nvidia_gpu_temperature() -> Result<Vec<GpuTemperature>, nvapi::
         nvapi::Status::Error
       })?;
 
-      temperatures.push(GpuTemperature {
+      temperatures.push(NameValue {
         name: gpu.full_name().unwrap_or("Unknown".to_string()),
         value: thermal_settings[0].current_temperature.0 as f64, // thermal_settings の0番目の温度を f64 に変換
       });
@@ -124,6 +124,61 @@ pub async fn get_nvidia_gpu_temperature() -> Result<Vec<GpuTemperature>, nvapi::
     log_error!(
       "join_error",
       "get_nvidia_gpu_temperature",
+      Some(e.to_string())
+    );
+    nvapi::Status::Error
+  })?
+}
+
+///
+/// ## GPUのファン回転数を取得する（NVAPI を使用）
+///
+pub async fn get_nvidia_gpu_cooler_stat() -> Result<Vec<NameValue>, nvapi::Status> {
+  let handle = spawn_blocking(|| {
+    log_debug!("start", "get_nvidia_gpu_cooler_stat", None::<&str>);
+
+    let gpus = nvapi::PhysicalGpu::enumerate()?;
+
+    if gpus.is_empty() {
+      log_warn!(
+        "not found",
+        "get_nvidia_gpu_cooler_stat",
+        Some("gpu is not found")
+      );
+      tracing::warn!("gpu is not found");
+      return Err(nvapi::Status::Error); // GPUが見つからない場合はエラーを返す
+    }
+
+    let mut cooler_infos = Vec::new();
+
+    print!("{:?}", gpus);
+
+    for gpu in gpus.iter() {
+      // 温度情報を取得
+      let cooler_settings = gpu.cooler_settings(None).map_err(|e| {
+        log_warn!(
+          "cooler_settings_failed",
+          "get_nvidia_gpu_cooler_stat",
+          Some(&format!("{:?}", e))
+        );
+        nvapi::Status::Error
+      })?;
+
+      print!("{:?}", cooler_settings);
+
+      cooler_infos.push(NameValue {
+        name: gpu.full_name().unwrap_or("Unknown".to_string()),
+        value: cooler_settings[0].current_level.0 as f64,
+      });
+    }
+
+    Ok(cooler_infos)
+  });
+
+  handle.await.map_err(|e: JoinError| {
+    log_error!(
+      "join_error",
+      "get_nvidia_gpu_cooler_stat",
       Some(e.to_string())
     );
     nvapi::Status::Error

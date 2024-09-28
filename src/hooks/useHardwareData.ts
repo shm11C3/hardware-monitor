@@ -1,6 +1,8 @@
 import {
+  cpuFanSpeedAtom,
   cpuTempAtom,
   cpuUsageHistoryAtom,
+  gpuFanSpeedAtom,
   gpuTempAtom,
   graphicUsageHistoryAtom,
   memoryUsageHistoryAtom,
@@ -8,11 +10,12 @@ import {
 import { chartConfig } from "@/consts/chart";
 import {
   getCpuUsage,
+  getGpuFanSpeed,
   getGpuTemperature,
   getGpuUsage,
   getMemoryUsage,
 } from "@/services/hardwareService";
-import type { ChartDataType, Temperatures } from "@/types/hardwareDataType";
+import type { ChartDataType, NameValues } from "@/types/hardwareDataType";
 import { type PrimitiveAtom, useSetAtom } from "jotai";
 import { useEffect } from "react";
 
@@ -63,34 +66,53 @@ export const useUsageUpdater = (dataType: ChartDataType) => {
   }, [setHistory, getUsage]);
 };
 
-export const useHardwareTempUpdater = (
-  dataType: Exclude<ChartDataType, "memory">,
+export const useHardwareUpdater = (
+  hardType: Exclude<ChartDataType, "memory">,
+  dataType: "temp" | "fan",
 ) => {
   type AtomActionMapping = {
-    atom: PrimitiveAtom<Temperatures>;
-    action: () => Promise<Temperatures>;
+    atom: PrimitiveAtom<NameValues>;
+    action: () => Promise<NameValues>;
   };
 
-  const mapping: Record<Exclude<ChartDataType, "memory">, AtomActionMapping> = {
+  const mapping: Record<
+    Exclude<ChartDataType, "memory">,
+    Record<"temp" | "fan", AtomActionMapping>
+  > = {
     cpu: {
-      atom: cpuTempAtom,
-      action: () => {
-        console.error("Not implemented");
-        return Promise.resolve([]);
+      temp: {
+        atom: cpuTempAtom,
+        action: () => {
+          console.error("Not implemented");
+          return Promise.resolve([]);
+        },
+      },
+      fan: {
+        atom: cpuFanSpeedAtom,
+        action: () => {
+          console.error("Not implemented");
+          return Promise.resolve([]);
+        },
       },
     },
     gpu: {
-      atom: gpuTempAtom,
-      action: getGpuTemperature,
+      fan: {
+        atom: gpuFanSpeedAtom,
+        action: getGpuFanSpeed,
+      },
+      temp: {
+        atom: gpuTempAtom,
+        action: getGpuTemperature,
+      },
     },
   };
 
-  const setData = useSetAtom(mapping[dataType].atom);
-  const getTemp = mapping[dataType].action;
+  const setData = useSetAtom(mapping[hardType][dataType].atom);
+  const getData = mapping[hardType][dataType].action;
 
   useEffect(() => {
     const fetchData = async () => {
-      const temp = await getTemp();
+      const temp = await getData();
       setData(temp);
     };
 
@@ -101,5 +123,5 @@ export const useHardwareTempUpdater = (
     }, 10000);
 
     return () => clearInterval(intervalId);
-  }, [setData, getTemp]);
+  }, [setData, getData]);
 };

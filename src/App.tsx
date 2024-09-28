@@ -2,10 +2,7 @@ import { useEffect } from "react";
 import Dashboard from "./template/Dashboard";
 import ChartTemplate from "./template/Usage";
 import "./index.css";
-import {
-  useHardwareTempUpdater,
-  useUsageUpdater,
-} from "@/hooks/useHardwareData";
+import { useHardwareUpdater, useUsageUpdater } from "@/hooks/useHardwareData";
 import {
   useErrorModalListener,
   useSettingsModalListener,
@@ -28,7 +25,8 @@ const Page = () => {
   useUsageUpdater("cpu");
   useUsageUpdater("memory");
   useUsageUpdater("gpu");
-  useHardwareTempUpdater("gpu");
+  useHardwareUpdater("gpu", "temp");
+  useHardwareUpdater("gpu", "fan");
 
   useEffect(() => {
     if (settings?.theme) {

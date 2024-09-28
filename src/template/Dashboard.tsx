@@ -1,11 +1,13 @@
 import {
   cpuUsageHistoryAtom,
+  gpuFanSpeedAtom,
   gpuTempAtom,
   graphicUsageHistoryAtom,
   memoryUsageHistoryAtom,
 } from "@/atom/chart";
 import { useHardwareInfoAtom } from "@/atom/useHardwareInfoAtom";
 import DoughnutChart from "@/components/charts/DoughnutChart";
+import type { NameValues } from "@/types/hardwareDataType";
 import { useAtom } from "jotai";
 
 const InfoTable = ({
@@ -71,11 +73,19 @@ const CPUInfo = () => {
 const GPUInfo = () => {
   const [graphicUsageHistory] = useAtom(graphicUsageHistoryAtom);
   const [gpuTemp] = useAtom(gpuTempAtom);
+  const [gpuFan] = useAtom(gpuFanSpeedAtom);
   const { hardwareInfo } = useHardwareInfoAtom();
 
-  const targetTemperature = gpuTemp.find(
-    (x) => x.name === hardwareInfo.gpus[0].name,
-  )?.value;
+  const getTargetInfo = (data: NameValues) => {
+    return data.find(
+      (x) => hardwareInfo.gpus && x.name === hardwareInfo.gpus[0].name,
+    )?.value;
+  };
+
+  const targetTemperature = getTargetInfo(gpuTemp);
+  const targetFanSpeed = getTargetInfo(gpuFan);
+
+  console.log(gpuFan);
 
   return (
     hardwareInfo.gpus && (
@@ -91,6 +101,14 @@ const GPUInfo = () => {
             <DoughnutChart
               chartData={targetTemperature}
               dataType={"temp"}
+              hardType="gpu"
+              showTitle={false}
+            />
+          )}
+          {targetFanSpeed && (
+            <DoughnutChart
+              chartData={targetFanSpeed}
+              dataType={"clock"}
               hardType="gpu"
               showTitle={false}
             />

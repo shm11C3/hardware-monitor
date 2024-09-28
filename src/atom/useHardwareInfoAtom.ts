@@ -5,30 +5,29 @@ import { useEffect } from "react";
 
 const hardInfoAtom = atom<HardwareInfo>({
   isFetched: false,
-  gpus: [],
 });
 
 export const useHardwareInfoAtom = () => {
   const [hardwareInfo, setHardInfo] = useAtom(hardInfoAtom);
 
   useEffect(() => {
-    const init = async () => {
-      try {
-        const hardwareInfo = await getHardwareInfo();
-        setHardInfo(hardwareInfo);
-
-        hardwareInfo.isFetched = true;
-      } catch (e) {
-        console.error(e);
-        hardwareInfo.isFetched = false;
-      }
-    };
-
-    // データがなければ取得して更新
     if (!hardwareInfo.isFetched) {
+      const init = async () => {
+        try {
+          const fetchedHardwareInfo = await getHardwareInfo();
+
+          setHardInfo({
+            ...fetchedHardwareInfo,
+            isFetched: true,
+          });
+        } catch (e) {
+          console.error(e);
+        }
+      };
+
       init();
     }
-  }, [setHardInfo, hardwareInfo]);
+  }, [hardwareInfo.isFetched, setHardInfo]);
 
   return { hardwareInfo };
 };
