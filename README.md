@@ -1,10 +1,10 @@
 # hardware-monitor
 
-![GitHub branch status](https://img.shields.io/github/checks-status/shm11C3/hardware-monitor/master)
-
-![GitHub commits since tagged version](https://img.shields.io/github/commits-since/shm11C3/hardware-monitor/app-v0.1.0)
-
-
+<p align="left">
+  <img alt="GitHub branch status" src="https://img.shields.io/github/checks-status/shm11C3/hardware-monitor/master">
+  <img alt="GitHub commits since tagged version" src="https://img.shields.io/github/commits-since/shm11C3/hardware-monitor/app-v0.1.0">
+  <img alt="Windows Support Only" src="https://img.shields.io/badge/platform-Windows-blue?logo=windows&style=flat-square">
+</p>
 
 ## Dashboard
 
