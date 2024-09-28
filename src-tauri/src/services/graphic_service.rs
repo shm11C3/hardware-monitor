@@ -164,8 +164,6 @@ pub async fn get_nvidia_gpu_cooler_stat() -> Result<Vec<NameValue>, nvapi::Statu
         nvapi::Status::Error
       })?;
 
-      print!("{:?}", cooler_settings);
-
       cooler_infos.push(NameValue {
         name: gpu.full_name().unwrap_or("Unknown".to_string()),
         value: cooler_settings[0].current_level.0 as f64,

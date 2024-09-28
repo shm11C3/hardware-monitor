@@ -11,7 +11,7 @@ use commands::config;
 use commands::hardware;
 use services::window_menu_service;
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use sysinfo::System;
 
@@ -25,6 +25,8 @@ fn main() {
   let memory_history = Arc::new(Mutex::new(VecDeque::with_capacity(60)));
   let gpu_usage = Arc::new(Mutex::new(0.0));
   let gpu_history = Arc::new(Mutex::new(VecDeque::with_capacity(60)));
+  let process_cpu_histories = Arc::new(Mutex::new(HashMap::new()));
+  let process_memory_histories = Arc::new(Mutex::new(HashMap::new()));
 
   let state = hardware::AppState {
     system: Arc::clone(&system),
@@ -32,6 +34,8 @@ fn main() {
     memory_history: Arc::clone(&memory_history),
     gpu_usage: Arc::clone(&gpu_usage),
     gpu_history: Arc::clone(&gpu_history),
+    process_cpu_histories: Arc::clone(&process_cpu_histories),
+    process_memory_histories: Arc::clone(&process_memory_histories),
   };
 
   let menu = window_menu_service::create_setting();
@@ -42,6 +46,8 @@ fn main() {
     memory_history,
     gpu_usage,
     gpu_history,
+    process_cpu_histories,
+    process_memory_histories,
   );
 
   tauri::Builder::default()
@@ -50,6 +56,7 @@ fn main() {
     .manage(app_state)
     .menu(menu)
     .invoke_handler(tauri::generate_handler![
+      hardware::get_process_list,
       hardware::get_cpu_usage,
       hardware::get_hardware_info,
       hardware::get_memory_usage,

@@ -2,6 +2,13 @@ export type ChartDataType = "cpu" | "memory" | "gpu";
 
 export type HardwareDataType = "temp" | "usage" | "clock";
 
+export type ProcessInfo = {
+  pid: number;
+  name: string;
+  cpuUsage: number;
+  memoryUsage: number;
+};
+
 export type CpuInfo = {
   name: string;
   clock: number;

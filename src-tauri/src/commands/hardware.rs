@@ -1,12 +1,13 @@
 use crate::services::graphic_service;
 use crate::services::system_info_service;
-use crate::{log_debug, log_error, log_internal, log_warn};
-use serde::Serialize;
+use crate::{log_debug, log_error, log_info, log_internal, log_warn};
+use serde::{Serialize, Serializer};
+use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-use sysinfo::System;
+use sysinfo::{Pid, ProcessesToUpdate, System};
 use tauri::command;
 
 pub struct AppState {
@@ -15,6 +16,8 @@ pub struct AppState {
   pub memory_history: Arc<Mutex<VecDeque<f32>>>,
   pub gpu_history: Arc<Mutex<VecDeque<f32>>>,
   pub gpu_usage: Arc<Mutex<f32>>,
+  pub process_cpu_histories: Arc<Mutex<HashMap<Pid, VecDeque<f32>>>>,
+  pub process_memory_histories: Arc<Mutex<HashMap<Pid, VecDeque<f32>>>>,
 }
 
 ///
@@ -26,6 +29,77 @@ const SYSTEM_INFO_INIT_INTERVAL: u64 = 1;
 /// データを保持する期間（秒）
 ///
 const HISTORY_CAPACITY: usize = 60;
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcessInfo {
+  pub pid: i32,
+  pub name: String,
+  #[serde(serialize_with = "serialize_usage")]
+  pub cpu_usage: f32,
+  #[serde(serialize_with = "serialize_usage")]
+  pub memory_usage: f32,
+}
+
+fn serialize_usage<S>(x: &f32, s: S) -> Result<S::Ok, S::Error>
+where
+  S: Serializer,
+{
+  if x.fract() == 0.0 {
+    s.serialize_str(&format!("{:.0}", x)) // 整数のみ
+  } else {
+    s.serialize_str(&format!("{:.1}", x)) // 小数点以下1桁まで
+  }
+}
+
+///
+/// ## プロセスリストを取得
+///
+#[command]
+pub fn get_process_list(state: tauri::State<'_, AppState>) -> Vec<ProcessInfo> {
+  let mut system = state.system.lock().unwrap();
+  let process_cpu_histories = state.process_cpu_histories.lock().unwrap();
+  let process_memory_histories = state.process_memory_histories.lock().unwrap();
+
+  system.refresh_processes(ProcessesToUpdate::All);
+
+  system
+    .processes()
+    .values()
+    .map(|process| {
+      let pid = process.pid();
+
+      // 5秒間のCPU使用率の平均を計算
+      let cpu_usage = if let Some(history) = process_cpu_histories.get(&pid) {
+        let len = history.len().min(5); // 最大5秒分のデータ
+        let sum: f32 = history.iter().rev().take(len).sum();
+        let avg = sum / len as f32;
+
+        (avg * 10.0).round() / 10.0
+      } else {
+        0.0 // 履歴がなければ0を返す
+      };
+
+      // 5秒間のメモリ使用率の平均を計算
+      let memory_usage = if let Some(history) = process_memory_histories.get(&pid) {
+        let len = history.len().min(5); // 最大5秒分のデータ
+        let sum: f32 = history.iter().rev().take(len).sum();
+        let avg = sum / len as f32;
+
+        (avg * 10.0).round() / 10.0
+      } else {
+        process.memory() as f32 / 1024.0 // 履歴がなければ現在のメモリ使用量を返す
+      };
+
+      ProcessInfo {
+        pid: pid.as_u32() as i32,                            // プロセスID
+        name: process.name().to_string_lossy().into_owned(), // プロセス名を取得
+        cpu_usage,                                           // 平均CPU使用率
+        memory_usage,                                        // 平均メモリ使用率
+      }
+    })
+    .collect()
+}
 
 ///
 /// ## CPU使用率（%）を取得
@@ -185,6 +259,8 @@ pub fn initialize_system(
   memory_history: Arc<Mutex<VecDeque<f32>>>,
   gpu_usage: Arc<Mutex<f32>>,
   gpu_history: Arc<Mutex<VecDeque<f32>>>,
+  process_cpu_histories: Arc<Mutex<HashMap<Pid, VecDeque<f32>>>>,
+  process_memory_histories: Arc<Mutex<HashMap<Pid, VecDeque<f32>>>>,
 ) {
   thread::spawn(move || loop {
     {
@@ -193,8 +269,7 @@ pub fn initialize_system(
         Err(_) => continue, // エラーハンドリング：ロックが破損している場合はスキップ
       };
 
-      sys.refresh_cpu_all();
-      sys.refresh_memory();
+      sys.refresh_all();
 
       let cpu_usage = {
         let cpus = sys.cpus();
@@ -207,16 +282,6 @@ pub fn initialize_system(
         let total_memory = sys.total_memory() as f64;
         (used_memory / total_memory * 100.0).round() as f32
       };
-
-      //let gpu_usage_value = match get_gpu_usage() {
-      //  Ok(usage) => usage,
-      //  Err(_) => 0.0, // エラーが発生した場合はデフォルト値として0.0を使用
-      //};
-
-      //{
-      //  let mut gpu = gpu_usage.lock().unwrap();
-      //  *gpu = gpu_usage_value;
-      //}
 
       {
         let mut cpu_hist = cpu_history.lock().unwrap();
@@ -234,13 +299,32 @@ pub fn initialize_system(
         memory_hist.push_back(memory_usage);
       }
 
-      //{
-      //  let mut gpu_hist = gpu_history.lock().unwrap();
-      //  if gpu_hist.len() >= HISTORY_CAPACITY {
-      //    gpu_hist.pop_front();
-      //  }
-      //  gpu_hist.push_back(gpu_usage_value);
-      //}
+      // 各プロセスごとのCPUおよびメモリ使用率を保存
+      {
+        let mut process_cpu_histories = process_cpu_histories.lock().unwrap();
+        let mut process_memory_histories = process_memory_histories.lock().unwrap();
+
+        for (pid, process) in sys.processes() {
+          // CPU使用率の履歴を更新
+          let cpu_usage = process.cpu_usage() as f32;
+          let cpu_history = process_cpu_histories.entry(*pid).or_insert(VecDeque::new());
+
+          if cpu_history.len() >= HISTORY_CAPACITY {
+            cpu_history.pop_front();
+          }
+          cpu_history.push_back(cpu_usage);
+
+          // メモリ使用率の履歴を更新
+          let memory_usage = process.memory() as f32 / 1024.0; // KB単位からMB単位に変換
+          let memory_history =
+            process_memory_histories.entry(*pid).or_insert(VecDeque::new());
+
+          if memory_history.len() >= HISTORY_CAPACITY {
+            memory_history.pop_front();
+          }
+          memory_history.push_back(memory_usage);
+        }
+      }
     }
 
     thread::sleep(Duration::from_secs(SYSTEM_INFO_INIT_INTERVAL));

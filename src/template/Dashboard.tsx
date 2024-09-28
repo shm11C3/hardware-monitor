@@ -7,6 +7,7 @@ import {
 } from "@/atom/chart";
 import { useHardwareInfoAtom } from "@/atom/useHardwareInfoAtom";
 import DoughnutChart from "@/components/charts/DoughnutChart";
+import ProcessesTable from "@/components/charts/ProcessTable";
 import type { NameValues } from "@/types/hardwareDataType";
 import { useAtom } from "jotai";
 
@@ -84,8 +85,6 @@ const GPUInfo = () => {
 
   const targetTemperature = getTargetInfo(gpuTemp);
   const targetFanSpeed = getTargetInfo(gpuFan);
-
-  console.log(gpuFan);
 
   return (
     hardwareInfo.gpus && (
@@ -166,9 +165,14 @@ const Dashboard = () => {
         </DataArea>
       </div>
 
-      <DataArea>
-        <MemoryInfo />
-      </DataArea>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ">
+        <DataArea>
+          <MemoryInfo />
+        </DataArea>
+        <DataArea>
+          <ProcessesTable defaultItemLength={6} />
+        </DataArea>
+      </div>
     </div>
   );
 };

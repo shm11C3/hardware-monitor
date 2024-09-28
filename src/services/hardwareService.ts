@@ -1,5 +1,13 @@
-import type { HardwareInfo, NameValues } from "@/types/hardwareDataType";
+import type {
+  HardwareInfo,
+  NameValues,
+  ProcessInfo,
+} from "@/types/hardwareDataType";
 import { invoke } from "@tauri-apps/api/tauri";
+
+export const getProcesses = async (): Promise<ProcessInfo[]> => {
+  return await invoke("get_process_list");
+};
 
 export const getCpuUsage = async (): Promise<number> => {
   return await invoke("get_cpu_usage");

@@ -74,23 +74,25 @@ const SideMenu = () => {
   });
 
   return (
-    <div className="fixed inset-0 z-50">
-      <button
-        type="button"
-        className={buttonClasses({ open: isOpen })}
-        onClick={toggleMenu}
-      >
-        {isOpen ? <CaretDoubleLeft /> : <CaretDoubleRight />}
-      </button>
-      <div className={sideMenuClasses({ open: isOpen })}>
-        <ul className="p-4">
-          <li className="mb-4">
-            <h2 className="text-xl font-bold">Hardware Monitor</h2>
-          </li>
-          <MenuItem type="dashboard" />
-          <MenuItem type="usage" />
-          <MenuItem type="settings" />
-        </ul>
+    <div className="inset-0">
+      <div className="fixed z-50">
+        <button
+          type="button"
+          className={buttonClasses({ open: isOpen })}
+          onClick={toggleMenu}
+        >
+          {isOpen ? <CaretDoubleLeft /> : <CaretDoubleRight />}
+        </button>
+        <div className={sideMenuClasses({ open: isOpen })}>
+          <ul className="p-4">
+            <li className="mb-4">
+              <h2 className="text-xl font-bold">Hardware Monitor</h2>
+            </li>
+            <MenuItem type="dashboard" />
+            <MenuItem type="usage" />
+            <MenuItem type="settings" />
+          </ul>
+        </div>
       </div>
     </div>
   );
