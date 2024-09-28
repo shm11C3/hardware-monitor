@@ -17,25 +17,35 @@
 
 ## Development
 
-### Require
+### Requirements
 
-- Node.js 20
-- Rust
+- [Node.js 20+](https://nodejs.org/)
+- [Rust](https://www.rust-lang.org/)
+- [Tauri CLI](https://tauri.app/v1/guides/getting-started/prerequisites)
 
-### Creating a project
+### Setup
 
-```bash
-npm ci
-```
+1. Clone the repository:
 
-### Developing
+   ```bash
+   git clone https://github.com/shm11C3/hardware-monitor.git
+   cd hardware-monitor
+   ```
 
-```bash
-npm run tauri dev
-```
+2. Install dependencies:
 
-### Building
+   ```bash
+   npm ci
+   ```
 
-```bash
-npm run tauri build
-```
+3. Run the app in development mode:
+
+   ```bash
+   npm run tauri dev
+   ```
+
+4. Build the app for production:
+
+   ```bash
+   npm run tauri build
+   ```
