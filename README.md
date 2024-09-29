@@ -4,6 +4,7 @@
   <img alt="GitHub Release" src="https://img.shields.io/github/v/release/shm11C3/hardware-monitor?include_prereleases&display_name=release">
   <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/shm11C3/hardware-monitor/publish.yaml">
   <img alt="Windows Support Only" src="https://img.shields.io/badge/platform-Windows-blue?logo=windows">
+  <img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/shm11C3/hardware-monitor/total">
 </p>
 
 
