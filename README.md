@@ -19,11 +19,12 @@
 
 ## Development
 
+[![Linted with Biome](https://img.shields.io/badge/Linted_with-Biome-60a5fa?style=flat&logo=biome)](https://biomejs.dev)
+
 ### Requirements
 
 - [Node.js 20+](https://nodejs.org/)
 - [Rust](https://www.rust-lang.org/)
-- [Tauri CLI](https://tauri.app/v1/guides/getting-started/prerequisites)
 
 ### Setup
 
