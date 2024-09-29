@@ -12,6 +12,8 @@ import { useAtom } from "jotai";
 import { selectedMenuAtom } from "./atom/ui";
 import { useSettingsAtom } from "./atom/useSettingsAtom";
 import { useDarkMode } from "./hooks/useDarkMode";
+import ScreenTemplate from "./template/ScreenTemplate";
+import Settings from "./template/Settings";
 import SideMenu from "./template/SideMenu";
 import type { SelectedMenuType } from "./types/ui";
 
@@ -35,9 +37,17 @@ const Page = () => {
   }, [settings?.theme, toggle]);
 
   const displayTargets: Record<SelectedMenuType, JSX.Element> = {
-    dashboard: <Dashboard />,
+    dashboard: (
+      <ScreenTemplate>
+        <Dashboard />
+      </ScreenTemplate>
+    ),
     usage: <ChartTemplate />,
-    settings: <div>TODO</div>,
+    settings: (
+      <ScreenTemplate title="Settings">
+        <Settings />
+      </ScreenTemplate>
+    ),
   };
 
   return (
