@@ -1,9 +1,9 @@
 # hardware-monitor
 
-<p align="center">
+<p align="left">
   <img alt="GitHub Release" src="https://img.shields.io/github/v/release/shm11C3/hardware-monitor?include_prereleases&display_name=release">
-
-  <img alt="Windows Support Only" src="https://img.shields.io/badge/platform-Windows-blue?logo=windows&style=flat-square">
+  <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/shm11C3/hardware-monitor/publish.yaml">
+  <img alt="Windows Support Only" src="https://img.shields.io/badge/platform-Windows-blue?logo=windows">
 </p>
 
 
