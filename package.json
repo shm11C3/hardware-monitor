@@ -10,7 +10,7 @@
     "test": "vitest",
     "tauri": "tauri",
     "lint": "biome lint ./src && biome check ./src && biome format --write ./src",
-    "format": "biome format --write ./src && biome check ./src",
+    "format": "biome format --write ./src && biome check ./src --write",
     "lint:ci": "biome ci ./src"
   },
   "devDependencies": {
