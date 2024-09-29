@@ -6,7 +6,7 @@ on:
       - master
       - develop
   push:
-      branches:
+    branches:
       - develop
 
 jobs:
@@ -38,8 +38,12 @@ jobs:
       - name: install frontend dependencies
         run: npm ci
 
-      - name: check front end Lint
-        run: npm run lint:ci
+      - name: Setup Biome
+        uses: biomejs/setup-biome@v2
+        with:
+          version: latest
+      - name: Run Biome
+        run: biome ci .
 
       - uses: tauri-apps/tauri-action@v0
         env:
