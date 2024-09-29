@@ -4,25 +4,36 @@
   <img alt="GitHub Release" src="https://img.shields.io/github/v/release/shm11C3/hardware-monitor?include_prereleases&display_name=release">
   <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/shm11C3/hardware-monitor/publish.yaml">
   <img alt="Windows Support Only" src="https://img.shields.io/badge/platform-Windows-blue?logo=windows">
+  <img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/shm11C3/hardware-monitor/total">
 </p>
 
+## Features
 
-## Dashboard
+| Feature                     | Status             | 
+|-----------------------------|--------------------|
+| CPU Usage Monitoring        | ✅                |
+| RAM Usage Monitoring        | ✅                |
+| GPU Usage Monitoring        | ✅ Nvidia only    |
+| Temperature Monitoring      | ⏳                |
+| Customizable Themes       　| ⏳            |
+
+### Dashboard
 
 ![image](https://github.com/user-attachments/assets/9a2bf54f-d6e5-4c20-b0e4-f249fd5b8433)
 
-## Usage Graph
+### Usage Graph
 
 ![image](https://github.com/user-attachments/assets/b8fa7d67-a015-487f-aeb4-f43306d28f54)
 
 
 ## Development
 
+[![Linted with Biome](https://img.shields.io/badge/Linted_with-Biome-60a5fa?style=flat&logo=biome)](https://biomejs.dev)
+
 ### Requirements
 
 - [Node.js 20+](https://nodejs.org/)
 - [Rust](https://www.rust-lang.org/)
-- [Tauri CLI](https://tauri.app/v1/guides/getting-started/prerequisites)
 
 ### Setup
 
