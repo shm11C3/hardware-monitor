@@ -7,14 +7,22 @@ import {
   useErrorModalListener,
   useSettingsModalListener,
 } from "@/hooks/useTauriEventListener";
-import { useAtom } from "jotai";
-import { selectedMenuAtom } from "./atom/ui";
+import type { ErrorInfo } from "react";
+import { ErrorBoundary } from "react-error-boundary";
 import { useSettingsAtom } from "./atom/useSettingsAtom";
+import ErrorFallback from "./components/ErrorFallback";
 import { useDarkMode } from "./hooks/useDarkMode";
 import ScreenTemplate from "./template/ScreenTemplate";
 import Settings from "./template/Settings";
 import SideMenu from "./template/SideMenu";
-import type { SelectedMenuType } from "./types/ui";
+
+const onError = (error: Error, info: ErrorInfo) => {
+  console.log("error.message", error.message);
+  console.log(
+    "info.componentStack:",
+    info.componentStack ?? "No stack trace available",
+  );
+};
 
 const Page = () => {
   const { settings } = useSettingsAtom();
@@ -50,10 +58,12 @@ const Page = () => {
   };
 
   return (
-    <div className="bg-slate-200 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen">
-      <SideMenu />
-      {displayTargets[selectedMenu]}
-    </div>
+    <ErrorBoundary FallbackComponent={ErrorFallback} onError={onError}>
+      <div className="bg-slate-200 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen">
+        <SideMenu />
+        {displayTargets[settings.state.display]}
+      </div>
+    </ErrorBoundary>
   );
 };
 
