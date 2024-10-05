@@ -21,7 +21,6 @@ const ProcessesTable = ({
     const fetchProcesses = async () => {
       try {
         const processesData = await getProcesses();
-        console.log(processesData);
         setAtom(processesData);
       } catch (error) {
         console.error("Failed to fetch processes:", error);

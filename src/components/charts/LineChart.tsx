@@ -1,3 +1,4 @@
+import { useSettingsAtom } from "@/atom/useSettingsAtom";
 import type { ChartDataType } from "@/types/hardwareDataType";
 import { Cpu, GraphicsCard, Memory } from "@phosphor-icons/react";
 import {
@@ -15,6 +16,7 @@ import {
 import type { Chart, ChartData } from "chart.js";
 import { useRef } from "react";
 import { Line } from "react-chartjs-2";
+import { tv } from "tailwind-variants";
 import CustomLegend, { type LegendItem } from "./CustomLegend";
 
 ChartJS.register(
@@ -37,6 +39,8 @@ const LineChart = ({
   chartData: number[];
   dataType: ChartDataType;
 }) => {
+  const { settings } = useSettingsAtom();
+
   const chartRef = useRef<Chart<"line">>(null);
 
   const options: ChartOptions<"line"> = {
@@ -133,8 +137,24 @@ const LineChart = ({
     },
   };
 
+  const graphVariants = tv({
+    base: "mt-5 mx-auto",
+    variants: {
+      size: {
+        sm: "max-w-screen-sm",
+        md: "max-w-screen-md",
+        lg: "max-w-screen-lg",
+        xl: "max-w-screen-xl",
+        "2xl": "max-w-screen-2xl",
+      },
+    },
+    defaultVariants: {
+      size: "xl",
+    },
+  });
+
   return (
-    <div className="mt-5 max-w-screen-xl mx-auto">
+    <div className={graphVariants({ size: settings.graphSize })}>
       <Line
         className="border-2 rounded-xl border-slate-400 dark:border-zinc-600 border-ra "
         ref={chartRef}

@@ -66,10 +66,11 @@ fn main() {
       hardware::get_cpu_usage_history,
       hardware::get_memory_usage_history,
       hardware::get_gpu_usage_history,
+      config::commands::get_settings,
       config::commands::set_language,
       config::commands::set_theme,
       config::commands::set_display_targets,
-      config::commands::get_settings
+      config::commands::set_graph_size,
     ])
     .on_menu_event(|event| {
       window_menu_service::handle_menu_event(event);
