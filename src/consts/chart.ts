@@ -19,4 +19,4 @@ export const displayDataType: Record<HardwareDataType, string> = {
   clock: "Clock",
 } as const;
 
-export const sizes = ["sm", "md", "lg", "xl", "2xl"] as const;
+export const sizeOptions = ["sm", "md", "lg", "xl", "2xl"] as const;

@@ -7,7 +7,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { sizes } from "@/consts/chart";
+import { Slider } from "@/components/ui/slider";
+import { sizeOptions } from "@/consts/chart";
 import type { ChartDataType } from "@/types/hardwareDataType";
 import type { Settings as SettingTypes } from "@/types/settingsType";
 
@@ -81,26 +82,30 @@ const SettingColorMode = () => {
 
 const SettingLineChartSize = () => {
   const { settings, updateSettingAtom } = useSettingsAtom();
+  const sizeIndex = sizeOptions.indexOf(
+    settings.graphSize as SettingTypes["graphSize"],
+  );
 
-  const toggleGraphSize = async (size: SettingTypes["graphSize"]) => {
-    await updateSettingAtom("graphSize", size);
+  const changeGraphSize = async (value: number[]) => {
+    await updateSettingAtom("graphSize", sizeOptions[value[0]]);
   };
 
   return (
-    <div className="flex items-center space-x-4 py-4">
-      <Label className="text-lg">Line Chart Size</Label>
-      <Select value={settings.graphSize} onValueChange={toggleGraphSize}>
-        <SelectTrigger className="w-[180px]">
-          <SelectValue placeholder="Please select" />
-        </SelectTrigger>
-        <SelectContent>
-          {sizes.map((size) => (
-            <SelectItem key={size} value={size}>
-              {size.toUpperCase()}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <div className="my-4 w-96 ">
+      <Label className="block text-lg mb-2">Line Chart Size</Label>
+      <Slider
+        min={0}
+        max={sizeOptions.length - 1}
+        step={1}
+        value={[sizeIndex]}
+        onValueChange={changeGraphSize}
+        className="w-full mt-4"
+      />
+      <div className="flex justify-between text-sm mt-2">
+        {sizeOptions.map((size) => (
+          <span key={size}>{size.toUpperCase()}</span>
+        ))}
+      </div>
     </div>
   );
 };
