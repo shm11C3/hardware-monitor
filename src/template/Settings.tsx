@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/select";
 import { sizes } from "@/consts/chart";
 import type { ChartDataType } from "@/types/hardwareDataType";
+import type { Settings as SettingTypes } from "@/types/settingsType";
 
 const SettingGraphType = () => {
   const { settings, toggleDisplayTarget } = useSettingsAtom();
@@ -54,10 +55,10 @@ const SettingGraphType = () => {
 };
 
 const SettingColorMode = () => {
-  const { settings, toggleTheme } = useSettingsAtom();
+  const { settings, updateSettingAtom } = useSettingsAtom();
 
   const toggleDarkMode = async (mode: "light" | "dark") => {
-    await toggleTheme(mode);
+    await updateSettingAtom("theme", mode);
   };
 
   return (
@@ -79,7 +80,11 @@ const SettingColorMode = () => {
 };
 
 const SettingLineChartSize = () => {
-  const { settings, toggleGraphSize } = useSettingsAtom();
+  const { settings, updateSettingAtom } = useSettingsAtom();
+
+  const toggleGraphSize = async (size: SettingTypes["graphSize"]) => {
+    await updateSettingAtom("graphSize", size);
+  };
 
   return (
     <div className="flex items-center space-x-4 py-4">

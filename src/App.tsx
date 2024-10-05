@@ -7,7 +7,6 @@ import {
   useErrorModalListener,
   useSettingsModalListener,
 } from "@/hooks/useTauriEventListener";
-import SettingsSheet from "@/template/SettingsSheet";
 import { useAtom } from "jotai";
 import { selectedMenuAtom } from "./atom/ui";
 import { useSettingsAtom } from "./atom/useSettingsAtom";
@@ -54,7 +53,6 @@ const Page = () => {
     <div className="bg-slate-200 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen">
       <SideMenu />
       {displayTargets[selectedMenu]}
-      <SettingsSheet />
     </div>
   );
 };

@@ -2,6 +2,7 @@ import {
   getSettings,
   setDisplayTargets,
   setGraphSize,
+  setLanguage,
   setTheme,
 } from "@/services/settingService";
 import type { ChartDataType } from "@/types/hardwareDataType";
@@ -16,6 +17,15 @@ const settingsAtom = atom<Settings>({
 });
 
 export const useSettingsAtom = () => {
+  const mapSettingUpdater: {
+    [K in keyof Settings]: (value: Settings[K]) => Promise<void>;
+  } = {
+    theme: setTheme,
+    display_targets: setDisplayTargets,
+    graphSize: setGraphSize,
+    language: setLanguage,
+  };
+
   const [settings, setSettings] = useAtom(settingsAtom);
 
   useEffect(() => {
@@ -25,6 +35,18 @@ export const useSettingsAtom = () => {
     };
     loadSettings();
   }, [setSettings]);
+
+  const updateSettingAtom = async <K extends keyof Settings>(
+    key: K,
+    value: Settings[K],
+  ) => {
+    try {
+      await mapSettingUpdater[key](value);
+      setSettings((prev) => ({ ...prev, [key]: value }));
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const toggleDisplayTarget = async (target: ChartDataType) => {
     const newTargets = settings.display_targets.includes(target)
@@ -40,23 +62,9 @@ export const useSettingsAtom = () => {
     }
   };
 
-  const toggleTheme = async (theme: "light" | "dark") => {
-    try {
-      await setTheme(theme);
-      setSettings((prev) => ({ ...prev, theme }));
-    } catch (e) {
-      console.error(e);
-    }
+  return {
+    settings,
+    toggleDisplayTarget,
+    updateSettingAtom,
   };
-
-  const toggleGraphSize = async (size: Settings["graphSize"]) => {
-    try {
-      await setGraphSize(size);
-      setSettings((prev) => ({ ...prev, graphSize: size }));
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  return { settings, toggleDisplayTarget, toggleTheme, toggleGraphSize };
 };

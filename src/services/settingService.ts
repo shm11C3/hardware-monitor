@@ -20,3 +20,7 @@ export const setGraphSize = async (
 ): Promise<void> => {
   return await invoke("set_graph_size", { newSize: size });
 };
+
+export const setLanguage = async (value: string): Promise<void> => {
+  return await invoke("set_language", { newLanguage: value });
+};
