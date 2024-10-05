@@ -14,3 +14,9 @@ export const setDisplayTargets = async (
 ): Promise<void> => {
   return await invoke("set_display_targets", { newTargets: targets });
 };
+
+export const setGraphSize = async (
+  size: Settings["graphSize"],
+): Promise<void> => {
+  return await invoke("set_graph_size", { newSize: size });
+};

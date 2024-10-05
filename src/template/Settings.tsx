@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { sizes } from "@/consts/chart";
 import type { ChartDataType } from "@/types/hardwareDataType";
 
 const SettingGraphType = () => {
@@ -77,11 +78,34 @@ const SettingColorMode = () => {
   );
 };
 
+const SettingLineChartSize = () => {
+  const { settings, toggleGraphSize } = useSettingsAtom();
+
+  return (
+    <div className="flex items-center space-x-4 py-4">
+      <Label className="text-lg">Line Chart Size</Label>
+      <Select value={settings.graphSize} onValueChange={toggleGraphSize}>
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Please select" />
+        </SelectTrigger>
+        <SelectContent>
+          {sizes.map((size) => (
+            <SelectItem key={size} value={size}>
+              {size.toUpperCase()}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+};
+
 const Settings = () => {
   return (
     <>
       <SettingColorMode />
       <SettingGraphType />
+      <SettingLineChartSize />
     </>
   );
 };

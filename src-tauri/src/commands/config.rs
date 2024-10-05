@@ -19,6 +19,7 @@ pub struct Settings {
   language: String,
   theme: String,
   display_targets: Vec<hardware::HardwareType>,
+  graphSize: String,
 }
 
 impl Default for Settings {
@@ -31,6 +32,7 @@ impl Default for Settings {
         hardware::HardwareType::Memory,
         hardware::HardwareType::GPU,
       ],
+      graphSize: "xl".to_string(),
     }
   }
 }
@@ -133,6 +135,11 @@ impl Settings {
     self.display_targets = new_targets;
     self.write_file()
   }
+
+  pub fn set_graph_size(&mut self, new_size: String) -> Result<(), String> {
+    self.graphSize = new_size;
+    self.write_file()
+  }
 }
 
 #[derive(Debug)]
@@ -179,7 +186,6 @@ pub mod commands {
   }
 
   #[tauri::command]
-
   pub async fn set_language(
     window: Window,
     state: tauri::State<'_, AppState>,
@@ -220,6 +226,21 @@ pub mod commands {
     let mut settings = state.settings.lock().unwrap();
 
     if let Err(e) = settings.set_display_targets(new_targets) {
+      emit_error(&window)?;
+      return Err(e);
+    }
+    Ok(())
+  }
+
+  #[tauri::command]
+  pub async fn set_graph_size(
+    window: Window,
+    state: tauri::State<'_, AppState>,
+    new_size: String,
+  ) -> Result<(), String> {
+    let mut settings = state.settings.lock().unwrap();
+
+    if let Err(e) = settings.set_graph_size(new_size) {
       emit_error(&window)?;
       return Err(e);
     }

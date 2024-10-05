@@ -1,6 +1,7 @@
 import {
   getSettings,
   setDisplayTargets,
+  setGraphSize,
   setTheme,
 } from "@/services/settingService";
 import type { ChartDataType } from "@/types/hardwareDataType";
@@ -11,6 +12,7 @@ const settingsAtom = atom<Settings>({
   language: "en",
   theme: "light",
   display_targets: [],
+  graphSize: "xl",
 });
 
 export const useSettingsAtom = () => {
@@ -47,5 +49,14 @@ export const useSettingsAtom = () => {
     }
   };
 
-  return { settings, toggleDisplayTarget, toggleTheme };
+  const toggleGraphSize = async (size: Settings["graphSize"]) => {
+    try {
+      await setGraphSize(size);
+      setSettings((prev) => ({ ...prev, graphSize: size }));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  return { settings, toggleDisplayTarget, toggleTheme, toggleGraphSize };
 };
