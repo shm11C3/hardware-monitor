@@ -21,7 +21,7 @@ const SettingGraphType = () => {
   };
 
   return (
-    <div className="flex items-center space-x-4 py-4">
+    <div className="flex items-center space-x-4 py-6">
       <Label htmlFor="graphType" className="text-lg self-start">
         Graph Types
       </Label>
@@ -63,7 +63,7 @@ const SettingColorMode = () => {
   };
 
   return (
-    <div className="flex items-center space-x-4 py-4">
+    <div className="flex items-center space-x-4 py-6">
       <Label htmlFor="darkMode" className="text-lg">
         Color Mode
       </Label>
@@ -91,7 +91,7 @@ const SettingLineChartSize = () => {
   };
 
   return (
-    <div className="my-4 w-96 ">
+    <div className="py-6 w-96 ">
       <Label className="block text-lg mb-2">Line Chart Size</Label>
       <Slider
         min={0}
