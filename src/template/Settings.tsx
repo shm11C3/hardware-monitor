@@ -14,7 +14,7 @@ import type { Settings as SettingTypes } from "@/types/settingsType";
 
 const SettingGraphType = () => {
   const { settings, toggleDisplayTarget } = useSettingsAtom();
-  const selectedGraphTypes = settings.display_targets;
+  const selectedGraphTypes = settings.displayTargets;
 
   const toggleGraphType = async (type: ChartDataType) => {
     await toggleDisplayTarget(type);

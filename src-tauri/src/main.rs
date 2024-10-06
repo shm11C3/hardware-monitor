@@ -71,6 +71,7 @@ fn main() {
       config::commands::set_theme,
       config::commands::set_display_targets,
       config::commands::set_graph_size,
+      config::commands::set_state,
     ])
     .on_menu_event(|event| {
       window_menu_service::handle_menu_event(event);

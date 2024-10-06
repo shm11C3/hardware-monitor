@@ -15,11 +15,19 @@ trait Config {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct StateSettings {
+  pub display: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Settings {
   language: String,
   theme: String,
   display_targets: Vec<hardware::HardwareType>,
-  graphSize: String,
+  graph_size: String,
+  state: StateSettings,
 }
 
 impl Default for Settings {
@@ -32,7 +40,10 @@ impl Default for Settings {
         hardware::HardwareType::Memory,
         hardware::HardwareType::GPU,
       ],
-      graphSize: "xl".to_string(),
+      graph_size: "xl".to_string(),
+      state: StateSettings {
+        display: "dashboard".to_string(),
+      },
     }
   }
 }
@@ -137,7 +148,15 @@ impl Settings {
   }
 
   pub fn set_graph_size(&mut self, new_size: String) -> Result<(), String> {
-    self.graphSize = new_size;
+    self.graph_size = new_size;
+    self.write_file()
+  }
+
+  pub fn set_state(&mut self, key: &str, new_value: String) -> Result<(), String> {
+    match key {
+      "display" => self.state.display = new_value,
+      _ => return Err(format!("Invalid key: {}", key)),
+    }
     self.write_file()
   }
 }
@@ -244,6 +263,29 @@ pub mod commands {
       emit_error(&window)?;
       return Err(e);
     }
+    Ok(())
+  }
+
+  #[tauri::command]
+  pub async fn set_state(
+    window: Window,
+    state: tauri::State<'_, AppState>,
+    key: String,
+    new_value: String,
+  ) -> Result<(), String> {
+    let mut settings = state.settings.lock().unwrap();
+
+    if let Err(e) = settings.set_state(&key, new_value) {
+      emit_error(&window)?;
+      log_error!(
+        "Failed to update settings",
+        "set_state",
+        Some(e.to_string())
+      );
+
+      return Err(e);
+    }
+
     Ok(())
   }
 }

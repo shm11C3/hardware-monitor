@@ -1,1 +1,1 @@
-export type SelectedMenuType = "dashboard" | "usage" | "settings";
+export type SelectedDisplayType = "dashboard" | "usage" | "settings";

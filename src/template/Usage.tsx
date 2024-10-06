@@ -45,9 +45,9 @@ const ChartTemplate = () => {
   const renderedCharts = useMemo(() => {
     return (
       <>
-        {settings?.display_targets.includes("cpu") && <CpuUsageChart />}
-        {settings?.display_targets.includes("memory") && <MemoryUsageChart />}
-        {settings?.display_targets.includes("gpu") && <GpuUsageChart />}
+        {settings?.displayTargets.includes("cpu") && <CpuUsageChart />}
+        {settings?.displayTargets.includes("memory") && <MemoryUsageChart />}
+        {settings?.displayTargets.includes("gpu") && <GpuUsageChart />}
       </>
     );
   }, [settings]);
