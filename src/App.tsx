@@ -7,21 +7,19 @@ import {
   useErrorModalListener,
   useSettingsModalListener,
 } from "@/hooks/useTauriEventListener";
-import { useAtom } from "jotai";
 import type { ErrorInfo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { selectedMenuAtom } from "./atom/ui";
 import { useSettingsAtom } from "./atom/useSettingsAtom";
 import ErrorFallback from "./components/ErrorFallback";
 import { useDarkMode } from "./hooks/useDarkMode";
 import ScreenTemplate from "./template/ScreenTemplate";
 import Settings from "./template/Settings";
 import SideMenu from "./template/SideMenu";
-import type { SelectedMenuType } from "./types/ui";
+import type { SelectedDisplayType } from "./types/ui";
 
 const onError = (error: Error, info: ErrorInfo) => {
-  console.log("error.message", error.message);
-  console.log(
+  console.error("error.message", error.message);
+  console.error(
     "info.componentStack:",
     info.componentStack ?? "No stack trace available",
   );
@@ -29,7 +27,6 @@ const onError = (error: Error, info: ErrorInfo) => {
 
 const Page = () => {
   const { settings } = useSettingsAtom();
-  const [selectedMenu] = useAtom(selectedMenuAtom);
   const { toggle } = useDarkMode();
 
   useSettingsModalListener();
@@ -41,12 +38,12 @@ const Page = () => {
   useHardwareUpdater("gpu", "fan");
 
   useEffect(() => {
-    if (settings?.theme) {
+    if (settings.theme) {
       toggle(settings.theme === "dark");
     }
   }, [settings?.theme, toggle]);
 
-  const displayTargets: Record<SelectedMenuType, JSX.Element> = {
+  const displayTargets: Record<SelectedDisplayType, JSX.Element> = {
     dashboard: (
       <ScreenTemplate>
         <Dashboard />
@@ -64,7 +61,7 @@ const Page = () => {
     <ErrorBoundary FallbackComponent={ErrorFallback} onError={onError}>
       <div className="bg-slate-200 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen">
         <SideMenu />
-        {displayTargets[selectedMenu]}
+        {displayTargets[settings.state.display]}
       </div>
     </ErrorBoundary>
   );

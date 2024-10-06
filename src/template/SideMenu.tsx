@@ -1,7 +1,6 @@
-import { selectedMenuAtom } from "@/atom/ui";
-import type { SelectedMenuType } from "@/types/ui";
+import { useSettingsAtom } from "@/atom/useSettingsAtom";
+import type { SelectedDisplayType } from "@/types/ui";
 import { CaretDoubleLeft, CaretDoubleRight } from "@phosphor-icons/react";
-import { useAtom } from "jotai";
 import { useState } from "react";
 import { memo, useCallback } from "react";
 import { tv } from "tailwind-variants";
@@ -36,7 +35,7 @@ const menuItemClasses = tv({
   },
 });
 
-const menuTitles: Record<SelectedMenuType, string> = {
+const menuTitles: Record<SelectedDisplayType, string> = {
   dashboard: "Dashboard",
   usage: "Usage",
   settings: "Settings",
@@ -44,22 +43,26 @@ const menuTitles: Record<SelectedMenuType, string> = {
 
 const SideMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedMenu, setSelectedMenu] = useAtom(selectedMenuAtom);
+  const { settings, updateStateAtom } = useSettingsAtom();
 
   const toggleMenu = useCallback(() => {
     setIsOpen((prev) => !prev);
   }, []);
 
   const handleMenuClick = useCallback(
-    (type: SelectedMenuType) => {
-      setSelectedMenu(type);
+    (type: SelectedDisplayType) => {
+      updateStateAtom("display", type);
     },
-    [setSelectedMenu],
+    [updateStateAtom],
   );
 
-  const MenuItem = memo(({ type }: { type: SelectedMenuType }) => {
+  const MenuItem = memo(({ type }: { type: SelectedDisplayType }) => {
     return (
-      <li className={menuItemClasses({ selected: selectedMenu === type })}>
+      <li
+        className={menuItemClasses({
+          selected: settings.state.display === type,
+        })}
+      >
         <button
           type="button"
           className="p-2 w-full h-full text-left"

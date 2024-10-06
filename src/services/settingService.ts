@@ -10,7 +10,7 @@ export const setTheme = async (theme: Settings["theme"]): Promise<void> => {
 };
 
 export const setDisplayTargets = async (
-  targets: Settings["display_targets"],
+  targets: Settings["displayTargets"],
 ): Promise<void> => {
   return await invoke("set_display_targets", { newTargets: targets });
 };
@@ -23,4 +23,11 @@ export const setGraphSize = async (
 
 export const setLanguage = async (value: string): Promise<void> => {
   return await invoke("set_language", { newLanguage: value });
+};
+
+export const setState = async <K extends keyof Settings["state"]>(
+  key: K,
+  value: Settings["state"][K],
+): Promise<void> => {
+  return await invoke("set_state", { key: key, newValue: value });
 };
