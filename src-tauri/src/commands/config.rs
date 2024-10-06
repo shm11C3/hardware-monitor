@@ -1,10 +1,9 @@
 use crate::enums::hardware;
 use crate::utils::file::get_app_data_dir;
-use crate::{log_debug, log_error, log_info, log_internal, log_warn};
+use crate::{log_debug, log_error, log_info, log_internal, log_warn, utils};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
-use std::mem;
 use std::sync::Mutex;
 
 const SETTINGS_FILENAME: &str = "settings.json";
@@ -23,6 +22,7 @@ pub struct StateSettings {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
+  version: String,
   language: String,
   theme: String,
   display_targets: Vec<hardware::HardwareType>,
@@ -33,6 +33,7 @@ pub struct Settings {
 impl Default for Settings {
   fn default() -> Self {
     Self {
+      version: utils::tauri::get_app_version(&utils::tauri::get_config()),
       language: "en".to_string(),
       theme: "dark".to_string(),
       display_targets: vec![
