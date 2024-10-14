@@ -178,25 +178,30 @@ impl AppState {
 pub mod commands {
   use super::*;
   use serde_json::json;
-  use tauri::Window;
+  use tauri::{Emitter, EventTarget, Window};
 
   const ERROR_TITLE: &str = "設定の更新に失敗しました";
   const ERROR_MESSAGE: &str = "何度も発生する場合は settings.json を削除してください";
 
-  // [TODO] dialog を使ってエラーメッセージを表示する
-  //fn emit_error(window: &Window) -> Result<(), String> {
-  //  window
-  //    .emit(
-  //      "error_event",
-  //      json!({
-  //          "title": ERROR_TITLE,
-  //          "message": ERROR_MESSAGE
-  //      }),
-  //    )
-  //    .map_err(|e| format!("Failed to emit event: {}", e))?;
-  //
-  //  Ok(())
-  //}
+  ///
+  /// ## エラーイベントを発生させフロントエンドに通知する
+  ///
+  /// [TODO] dialog を使ってエラーメッセージを表示する
+  ///
+  fn emit_error(window: &Window) -> Result<(), String> {
+    window
+      .emit_to(
+        EventTarget::window(window.label().to_string()),
+        "error_event",
+        json!({
+            "title": ERROR_TITLE,
+            "message": ERROR_MESSAGE
+        }),
+      )
+      .map_err(|e| format!("Failed to emit event: {}", e))?;
+
+    Ok(())
+  }
 
   #[tauri::command]
   pub async fn get_settings(
@@ -215,7 +220,7 @@ pub mod commands {
     let mut settings = state.settings.lock().unwrap();
 
     if let Err(e) = settings.set_language(new_language) {
-      //emit_error(&window)?;
+      emit_error(&window)?;
       return Err(e);
     }
 
@@ -231,7 +236,7 @@ pub mod commands {
     let mut settings = state.settings.lock().unwrap();
 
     if let Err(e) = settings.set_theme(new_theme) {
-      //emit_error(&window)?;
+      emit_error(&window)?;
       return Err(e);
     }
 
@@ -247,7 +252,7 @@ pub mod commands {
     let mut settings = state.settings.lock().unwrap();
 
     if let Err(e) = settings.set_display_targets(new_targets) {
-      //emit_error(&window)?;
+      emit_error(&window)?;
       return Err(e);
     }
     Ok(())
@@ -262,7 +267,7 @@ pub mod commands {
     let mut settings = state.settings.lock().unwrap();
 
     if let Err(e) = settings.set_graph_size(new_size) {
-      //emit_error(&window)?;
+      emit_error(&window)?;
       return Err(e);
     }
     Ok(())
@@ -278,7 +283,7 @@ pub mod commands {
     let mut settings = state.settings.lock().unwrap();
 
     if let Err(e) = settings.set_state(&key, new_value) {
-      //emit_error(&window)?;
+      emit_error(&window)?;
       log_error!(
         "Failed to update settings",
         "set_state",
