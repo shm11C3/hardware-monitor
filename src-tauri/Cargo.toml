@@ -59,4 +59,4 @@ features = [
 
 [lib]
 name = "hardware_monitor_lib"
-crate-type = ["staticlib", "cdylib", "rlib", "lib"]
+crate-type = ["staticlib", "cdylib", "rlib"]
