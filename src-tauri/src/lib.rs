@@ -16,7 +16,7 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use sysinfo::System;
 
-fn main() {
+pub fn run() {
   let app_state = config::AppState::new();
 
   let system = Arc::new(Mutex::new(System::new_all()));

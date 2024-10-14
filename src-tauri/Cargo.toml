@@ -58,5 +58,5 @@ features = [
 ]
 
 [lib]
-name = "app_lib"
+name = "hardware_app2_lib"
 crate-type = ["staticlib", "cdylib", "rlib", "lib"]
