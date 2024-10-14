@@ -53,7 +53,7 @@
       {
         "resizable": true,
         "title": "hardware-monitor",
-        "decorations": true
+        "decorations": false
       }
     ],
     "security": {

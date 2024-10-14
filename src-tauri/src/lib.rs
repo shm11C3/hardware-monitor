@@ -9,7 +9,6 @@ mod utils;
 
 use commands::config;
 use commands::hardware;
-use services::window_menu_service;
 
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
@@ -38,8 +37,6 @@ fn main() {
     process_memory_histories: Arc::clone(&process_memory_histories),
   };
 
-  let menu = window_menu_service::create_setting();
-
   hardware::initialize_system(
     system,
     cpu_history,
@@ -55,7 +52,6 @@ fn main() {
     .plugin(tauri_plugin_window_state::Builder::default().build())
     .manage(state)
     .manage(app_state)
-    .menu(menu)
     .invoke_handler(tauri::generate_handler![
       hardware::get_process_list,
       hardware::get_cpu_usage,
@@ -74,9 +70,6 @@ fn main() {
       config::commands::set_graph_size,
       config::commands::set_state,
     ])
-    .on_menu_event(|event| {
-      window_menu_service::handle_menu_event(event);
-    })
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }
