@@ -39,6 +39,7 @@
     "@radix-ui/react-switch": "^1.1.0",
     "@tauri-apps/api": "^2.0.0-rc.0",
     "@tauri-apps/plugin-dialog": "^2.0.0",
+    "@tauri-apps/plugin-store": "^2.0.0",
     "chart.js": "^4.4.4",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",

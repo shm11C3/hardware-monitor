@@ -1,5 +1,5 @@
 {
-  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "$schema": "https://schema.tauri.app/config/2.0.0",
   "build": {
     "beforeBuildCommand": "npm run build",
     "beforeDevCommand": "npm run dev",
@@ -53,7 +53,7 @@
       {
         "resizable": true,
         "title": "hardware-monitor",
-        "decorations": false
+        "decorations": true
       }
     ],
     "security": {
