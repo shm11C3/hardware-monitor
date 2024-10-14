@@ -178,14 +178,20 @@ impl AppState {
 pub mod commands {
   use super::*;
   use serde_json::json;
-  use tauri::Window;
+  use tauri::{Emitter, EventTarget, Window};
 
   const ERROR_TITLE: &str = "設定の更新に失敗しました";
   const ERROR_MESSAGE: &str = "何度も発生する場合は settings.json を削除してください";
 
+  ///
+  /// ## エラーイベントを発生させフロントエンドに通知する
+  ///
+  /// [TODO] dialog を使ってエラーメッセージを表示する
+  ///
   fn emit_error(window: &Window) -> Result<(), String> {
     window
-      .emit(
+      .emit_to(
+        EventTarget::window(window.label().to_string()),
         "error_event",
         json!({
             "title": ERROR_TITLE,

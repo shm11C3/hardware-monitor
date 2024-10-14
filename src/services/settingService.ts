@@ -1,5 +1,5 @@
 import type { Settings } from "@/types/settingsType";
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 
 export const getSettings = async (): Promise<Settings> => {
   return await invoke("get_settings");

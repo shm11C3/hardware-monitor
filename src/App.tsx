@@ -3,10 +3,7 @@ import Dashboard from "./template/Dashboard";
 import ChartTemplate from "./template/Usage";
 import "./index.css";
 import { useHardwareUpdater, useUsageUpdater } from "@/hooks/useHardwareData";
-import {
-  useErrorModalListener,
-  useSettingsModalListener,
-} from "@/hooks/useTauriEventListener";
+import { useErrorModalListener } from "@/hooks/useTauriEventListener";
 import type { ErrorInfo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { useSettingsAtom } from "./atom/useSettingsAtom";
@@ -29,7 +26,6 @@ const Page = () => {
   const { settings } = useSettingsAtom();
   const { toggle } = useDarkMode();
 
-  useSettingsModalListener();
   useErrorModalListener();
   useUsageUpdater("cpu");
   useUsageUpdater("memory");

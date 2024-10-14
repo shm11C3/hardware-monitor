@@ -61,7 +61,7 @@ pub fn get_process_list(state: tauri::State<'_, AppState>) -> Vec<ProcessInfo> {
   let process_cpu_histories = state.process_cpu_histories.lock().unwrap();
   let process_memory_histories = state.process_memory_histories.lock().unwrap();
 
-  system.refresh_processes(ProcessesToUpdate::All);
+  system.refresh_processes(ProcessesToUpdate::All, true);
 
   system
     .processes()
@@ -316,8 +316,9 @@ pub fn initialize_system(
 
           // メモリ使用率の履歴を更新
           let memory_usage = process.memory() as f32 / 1024.0; // KB単位からMB単位に変換
-          let memory_history =
-            process_memory_histories.entry(*pid).or_insert(VecDeque::new());
+          let memory_history = process_memory_histories
+            .entry(*pid)
+            .or_insert(VecDeque::new());
 
           if memory_history.len() >= HISTORY_CAPACITY {
             memory_history.pop_front();

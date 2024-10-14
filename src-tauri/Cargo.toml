@@ -11,27 +11,26 @@ overflow-checks = true
 lto = true
 
 [package]
-name = "app"
+name = "hardware_monitor"
 version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
 license = ""
 repository = ""
-default-run = "app"
 edition = "2021"
 rust-version = "1.60"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "1.5.5", features = [] }
+tauri-build = { version = "2.0.0-rc", features = [] }
 
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "1.8.0", features = ["dialog-all"] }
-sysinfo = "0.31.4"
-tauri-plugin-window-state = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
+tauri = { version = "2.0.0-rc", features = [] }
+sysinfo = "0.32.0"
+tauri-plugin-window-state = { version = "2.0.0-rc" }
 nvapi = "=0.1.4"
 tokio = { version = "1.40.0", features = ["full"] }
 tracing = "0.1"
@@ -39,6 +38,8 @@ tracing-subscriber = { version = "0.3", default-features = true, features = ["en
 chrono = "0.4"
 wmi = "0.14"
 rust_decimal = "1.23.0"
+tauri-plugin-dialog = "2.0.0-rc"
+tauri-plugin-store = "2.0.0-rc"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.
@@ -55,3 +56,7 @@ features = [
     "Win32_System_Threading",
     "Win32_UI_WindowsAndMessaging",
 ]
+
+[lib]
+name = "hardware_monitor_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]

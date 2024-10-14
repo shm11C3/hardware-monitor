@@ -3,7 +3,7 @@ import type {
   NameValues,
   ProcessInfo,
 } from "@/types/hardwareDataType";
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 
 export const getProcesses = async (): Promise<ProcessInfo[]> => {
   return await invoke("get_process_list");
