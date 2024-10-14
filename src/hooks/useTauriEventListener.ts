@@ -1,5 +1,5 @@
-import { message } from "@tauri-apps/api/dialog";
 import { listen } from "@tauri-apps/api/event";
+import { message } from "@tauri-apps/plugin-dialog";
 import { useSetAtom } from "jotai";
 import { useEffect } from "react";
 import { modalAtoms } from "../atom/ui";
@@ -45,7 +45,7 @@ export const useErrorModalListener = () => {
 
       message(errorMessage, {
         title: title,
-        type: "error",
+        kind: "error",
       });
     });
 
