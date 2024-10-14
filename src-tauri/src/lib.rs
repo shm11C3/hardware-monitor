@@ -9,14 +9,14 @@ mod utils;
 
 use commands::config;
 use commands::hardware;
+use tauri::Manager;
+use tauri::Wry;
 
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use sysinfo::System;
 
 fn main() {
-  utils::logger::init();
-
   let app_state = config::AppState::new();
 
   let system = Arc::new(Mutex::new(System::new_all()));
@@ -47,7 +47,16 @@ fn main() {
     process_memory_histories,
   );
 
-  tauri::Builder::default()
+  tauri::Builder::<Wry>::default()
+    .setup(|app| {
+      let path_resolver = app.path();
+
+      // ロガーの初期化
+      utils::logger::init(path_resolver.app_log_dir().unwrap());
+
+      Ok(())
+    })
+    .plugin(tauri_plugin_store::Builder::new().build())
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_window_state::Builder::default().build())
     .manage(state)

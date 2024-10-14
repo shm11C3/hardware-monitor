@@ -1,12 +1,8 @@
-use crate::utils::file::get_app_data_dir;
 use chrono::Local;
-use std::fs;
+use std::{fs, path::PathBuf};
 use tracing_subscriber::EnvFilter;
 
-pub fn init() {
-  // ログファイルのパスを設定
-  let log_dir = get_app_data_dir("logs");
-
+pub fn init(log_dir: PathBuf) {
   if !log_dir.exists() {
     fs::create_dir_all(&log_dir).expect("failed to create log directory");
   }
