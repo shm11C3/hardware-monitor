@@ -77,6 +77,12 @@ pub fn run() {
       config::commands::set_theme,
       config::commands::set_display_targets,
       config::commands::set_graph_size,
+      config::commands::set_line_graph_border,
+      config::commands::set_line_graph_fill,
+      config::commands::set_line_graph_color,
+      config::commands::set_line_graph_mix,
+      config::commands::set_line_graph_show_legend,
+      config::commands::set_line_graph_show_scale,
       config::commands::set_state,
     ])
     .run(tauri::generate_context!())

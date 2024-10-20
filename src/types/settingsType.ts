@@ -7,6 +7,16 @@ export type Settings = {
   theme: "light" | "dark";
   displayTargets: Array<ChartDataType>;
   graphSize: (typeof sizeOptions)[number];
+  lineGraphBorder: boolean;
+  lineGraphFill: boolean;
+  lineGraphColor: {
+    cpu: string;
+    memory: string;
+    gpu: string;
+  };
+  lineGraphMix: boolean;
+  lineGraphShowLegend: boolean;
+  lineGraphShowScale: boolean;
   state: {
     display: SelectedDisplayType;
   };
