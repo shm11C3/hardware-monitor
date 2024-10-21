@@ -49,7 +49,7 @@ const LineChart = ({
     scales: {
       x: { display: false },
       y: {
-        display: false,
+        display: settings.lineGraphShowScale,
         suggestedMin: 0,
         suggestedMax: 100,
         grid: { color: "rgba(255, 255, 255, 0.2)" },
@@ -77,9 +77,9 @@ const LineChart = ({
         {
           label: "CPU Usage (%)",
           data: chartData,
-          borderColor: "rgb(75, 192, 192)",
-          backgroundColor: "rgba(75, 192, 192, 0.3)",
-          fill: true,
+          borderColor: `rgb(${settings.lineGraphColor.cpu})`,
+          backgroundColor: `rgba(${settings.lineGraphColor.cpu},0.3)`,
+          fill: settings.lineGraphFill,
         },
       ],
     },
@@ -89,9 +89,9 @@ const LineChart = ({
         {
           label: "Memory Usage (%)",
           data: chartData,
-          borderColor: "rgb(255, 99, 132)",
-          backgroundColor: "rgba(255, 99, 132, 0.3)",
-          fill: true,
+          borderColor: `rgb(${settings.lineGraphColor.memory})`,
+          backgroundColor: `rgba(${settings.lineGraphColor.memory},0.3)`,
+          fill: settings.lineGraphFill,
         },
       ],
     },
@@ -101,9 +101,9 @@ const LineChart = ({
         {
           label: "GPU Usage (%)",
           data: chartData,
-          borderColor: "rgb(255, 206, 86)",
-          backgroundColor: "rgba(255, 206, 86, 0.3)",
-          fill: true,
+          borderColor: `rgb(${settings.lineGraphColor.gpu})`,
+          backgroundColor: `rgba(${settings.lineGraphColor.gpu},0.3)`,
+          fill: settings.lineGraphFill,
         },
       ],
     },
@@ -113,14 +113,22 @@ const LineChart = ({
     cpu: {
       label: "CPU",
       icon: (
-        <Cpu size={20} color="rgb(75, 192, 192)" className="text-teal-400" />
+        <Cpu
+          size={20}
+          color={`rgb(${settings.lineGraphColor.cpu})`}
+          className="text-teal-400"
+        />
       ),
       datasetIndex: 0,
     },
     memory: {
       label: "Memory",
       icon: (
-        <Memory size={20} color="rgb(255, 99, 132)" className="text-pink-400" />
+        <Memory
+          size={20}
+          color={`rgb(${settings.lineGraphColor.memory})`}
+          className="text-pink-400"
+        />
       ),
       datasetIndex: 1,
     },
@@ -129,7 +137,7 @@ const LineChart = ({
       icon: (
         <GraphicsCard
           size={20}
-          color="rgb(255, 206, 86)"
+          color={`rgb(${settings.lineGraphColor.gpu})`}
           className="text-yellow-400"
         />
       ),

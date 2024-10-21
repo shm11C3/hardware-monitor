@@ -194,14 +194,20 @@ const Settings = () => {
         <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-6">
           {/** TODO 横にグラフのプレビューを出したい */}
           <div className="w-4/5">
-            <SettingGraphSwitch label="Border" type="lineGraphBorder" />
-            <SettingGraphSwitch label="Fill" type="lineGraphFill" />
-            <SettingGraphSwitch label="Mix" type="lineGraphMix" />
             <SettingGraphSwitch
-              label="Show Legend"
+              label="Line Chart Border"
+              type="lineGraphBorder"
+            />
+            <SettingGraphSwitch label="Line Chart Fill" type="lineGraphFill" />
+            <SettingGraphSwitch label="Line Chart Mix" type="lineGraphMix" />
+            <SettingGraphSwitch
+              label="Line Chart Legend"
               type="lineGraphShowLegend"
             />
-            <SettingGraphSwitch label="Show Scale" type="lineGraphShowScale" />
+            <SettingGraphSwitch
+              label="Line Chart Show Scale"
+              type="lineGraphShowScale"
+            />
             <SettingLineChartSize />
           </div>
           <div className="w-4/5">

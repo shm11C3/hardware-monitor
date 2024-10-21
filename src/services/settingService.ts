@@ -40,8 +40,8 @@ export const setLineGraphColor = async <
   value: Settings["lineGraphColor"][K],
 ): Promise<string> => {
   return await invoke<string>("set_line_graph_color", {
-    key: key,
-    newValue: value,
+    target: key,
+    newColor: value,
   });
 };
 
