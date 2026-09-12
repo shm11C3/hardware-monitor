@@ -190,7 +190,7 @@ fn finalize(
       .execute_batch(&format!(
         "CREATE TABLE {} (state VARCHAR NOT NULL, schema_version BIGINT NOT NULL, \
          source_candidate_path VARCHAR NOT NULL, source_schema_sha256 VARCHAR NOT NULL, \
-         source_rows BIGINT NOT NULL); \
+         source_rows BIGINT NOT NULL, reconciled BOOLEAN NOT NULL); \
          CREATE TABLE {} (table_name VARCHAR PRIMARY KEY, column_name VARCHAR NOT NULL, \
          mode VARCHAR NOT NULL, high_water BIGINT NOT NULL)",
         quote_identifier(NATIVE_METADATA_TABLE),
@@ -864,7 +864,7 @@ fn write_metadata(
   destination
     .execute(
       &format!(
-        "INSERT INTO {} VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO {} VALUES (?, ?, ?, ?, ?, ?)",
         quote_identifier(NATIVE_METADATA_TABLE)
       ),
       duckdb::params![
@@ -872,7 +872,11 @@ fn write_metadata(
         i64::from(schema.version),
         candidate_path.to_string_lossy().as_ref(),
         source_schema_sha256,
-        rows
+        rows,
+        // A finalized file copies one snapshot taken while the application
+        // kept writing, so it is stale by construction and must not be
+        // selectable until a reconciliation has caught it up.
+        false
       ],
     )
     .map(|_| ())

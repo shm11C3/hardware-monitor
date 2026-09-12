@@ -16,8 +16,8 @@ use hardviz_core::infrastructure::database::migrate;
 use hardviz_core::infrastructure::database::native_database::{
   AUTHORITY_MARKER_FILE_NAME, AuthorityPaths, AuthorityState, NativeDatabase,
   NativeDatabaseError, NativeDatabaseOptions, NativeFinalizationReport,
-  NativeReconciliationReport, finalize_candidate_database, inspect_authority,
-  observe_authority, reconcile_native_database,
+  NativeReconciliationReport, VerifiedNativeDatabase, finalize_candidate_database,
+  inspect_authority, observe_authority, reconcile_native_database,
 };
 use sha2::{Digest, Sha256};
 use sqlx::ConnectOptions;
@@ -105,9 +105,12 @@ impl NativeFixture {
     .unwrap()
   }
 
+  /// The report and the proof reconciliation mints, which is the only thing
+  /// [`select_native_database`] accepts.
   pub async fn try_reconcile(
     &self,
-  ) -> Result<NativeReconciliationReport, NativeDatabaseError> {
+  ) -> Result<(NativeReconciliationReport, VerifiedNativeDatabase), NativeDatabaseError>
+  {
     reconcile_native_database(
       &self.source,
       &self.finalized,

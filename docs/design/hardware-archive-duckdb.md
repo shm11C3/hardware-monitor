@@ -381,6 +381,19 @@ gate instead - the table sets and the column names in both directions, for every
 table, before the transaction opens - so a migration is refused with the table
 and column named and nothing written. Both digests are reported.
 
+**Only a reconciled file can be selected, and the caller must quiesce first.**
+A finalized file copies one snapshot taken while the application kept writing,
+so it is stale by construction; selecting it would drop whatever SQLite
+recorded in between. The proof selection accepts is minted only by a successful
+reconciliation and has no public constructor, and the file itself records
+whether a reconciliation committed into it, so a look-alike file - one
+re-finalized from the same unchanged source - is refused by the database as
+well as by the type. What neither can see is a writer that kept running: a
+reconciliation makes the file equal the source *at the moment it captured its
+candidate*. Quiescing every SQLite writer before the final reconciliation, and
+keeping them quiesced until selection returns, is the App lifecycle owner's
+obligation and is documented on the proof type.
+
 **Selection is recorded twice, database first.** A backend selection cannot be
 undone by deleting a file, so it is written into the native database's own
 metadata (committed, checkpointed, synced) and then into a small marker file
@@ -400,7 +413,13 @@ size of the source plus its `-wal`/`-shm` sidecars. All three coexist, because
 reconciliation holds a second candidate while the finalized file is on disk and
 stages its changed rows in the workspace. No compression is assumed; a measured
 ratio from an earlier conversion may only raise the estimate. A short volume is
-refused with the two numbers rather than discovered halfway through.
+refused with the two numbers rather than discovered halfway through. Free space
+is attributed by matching the workspace against the longest mount point that
+prefixes it, with Windows extended-length (`\\?\`) paths rewritten to the
+ordinary spelling the mount table uses - `Path::canonicalize` returns the
+verbatim form there and `Path::starts_with` compares the prefix component, so
+without the rewrite a supported platform would report its free space as
+unknowable.
 
 ## Remaining design questions
 

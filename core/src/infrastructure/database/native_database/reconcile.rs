@@ -76,6 +76,7 @@ use super::finalize::{
 };
 use super::paging::{PagedReader, ReadColumn};
 use super::schema::NativeSchemaDefinition;
+use super::selection::VerifiedNativeDatabase;
 use crate::infrastructure::database::candidate_database::build_candidate_database;
 use crate::infrastructure::database::migrate::SchemaMigration;
 
@@ -126,12 +127,19 @@ pub struct NativeReconciliationReport {
 /// transaction. The native database is left untouched unless the whole
 /// reconciliation commits, and the committed result is verified after the file
 /// has been closed and reopened.
+///
+/// The [`VerifiedNativeDatabase`] returned beside the report is the only proof
+/// [`super::select_native_database`] accepts, so a backend can be made
+/// authoritative only from a file this call has just caught up and read back.
+///
+/// Opens the native database as a DuckDB instance of its own, so no
+/// [`super::NativeDatabase`] owner may be live on the same file while it runs.
 pub async fn reconcile_native_database(
   source: &Path,
   native_database: &Path,
   migrations: Vec<SchemaMigration>,
   schema: NativeSchemaDefinition,
-) -> Result<NativeReconciliationReport, NativeDatabaseError> {
+) -> Result<(NativeReconciliationReport, VerifiedNativeDatabase), NativeDatabaseError> {
   let metadata =
     std::fs::metadata(native_database).map_err(|_| NativeDatabaseError::Unavailable {
       path: native_database.to_owned(),
@@ -164,7 +172,7 @@ pub async fn reconcile_native_database(
     })?;
 
   let native_database = native_database.to_owned();
-  tokio::task::spawn_blocking(move || {
+  let report = tokio::task::spawn_blocking(move || {
     let result = reconcile(&candidate_path, &native_database, schema, work.path());
     drop(work);
     result
@@ -172,7 +180,9 @@ pub async fn reconcile_native_database(
   .await
   .map_err(|error| NativeDatabaseError::Worker {
     message: error.to_string(),
-  })?
+  })??;
+  let verified = VerifiedNativeDatabase::from_reconciliation(&report);
+  Ok((report, verified))
 }
 
 fn reconcile(
@@ -194,6 +204,11 @@ fn reconcile(
   let source_schema_sha256;
   let previous_source_schema_sha256;
   let mut tables = Vec::with_capacity(schema.tables.len());
+  // Scoped so both connections - and with them the candidate file inside the
+  // work directory - are released before the database is reopened for
+  // verification and before the work directory is removed. Windows cannot
+  // reopen or delete a file another DuckDB instance still holds; an early
+  // return from inside this block drops them just the same.
   {
     let candidate =
       open_database(candidate_path, AccessMode::ReadOnly, &candidate_spill)?;
@@ -274,8 +289,12 @@ fn reconcile(
   }
   require_no_wal(native_path)?;
 
+  // Reuses the spill the closed read-write instance had: sequential, never
+  // concurrent, which is the same order finalization verifies in.
   verify_reconciled(native_path, &native_spill, &schema, &mut tables)?;
 
+  // Measured only after `verify_reconciled` returned and dropped its
+  // connection, so nothing holds the file.
   let native_bytes = std::fs::metadata(native_path)
     .map_err(|error| {
       NativeDatabaseError::finalization("measure the reconciled database", error)
@@ -857,7 +876,8 @@ fn rewrite_identities(
 }
 
 /// The file is now a copy of the new candidate, so it records that candidate's
-/// provenance rather than the snapshot it was originally finalized from.
+/// provenance rather than the snapshot it was originally finalized from, and
+/// the `reconciled` flag selection requires is raised in the same transaction.
 fn rewrite_metadata(
   native: &Connection,
   candidate_path: &Path,
@@ -874,7 +894,7 @@ fn rewrite_metadata(
     .execute(
       &format!(
         "UPDATE {} SET source_candidate_path = ?, source_schema_sha256 = ?, \
-         source_rows = ?",
+         source_rows = ?, reconciled = true",
         quote_identifier(NATIVE_METADATA_TABLE)
       ),
       duckdb::params![

@@ -42,8 +42,7 @@ use serde::{Deserialize, Serialize};
 use super::NativeDatabaseError;
 use super::cell::quote_identifier;
 use super::finalize::{
-  FINALIZED_UNSELECTED, NATIVE_METADATA_TABLE, NativeFinalizationReport, SELECTED,
-  open_database, require_no_wal,
+  FINALIZED_UNSELECTED, NATIVE_METADATA_TABLE, SELECTED, open_database, require_no_wal,
 };
 use super::reconcile::NativeReconciliationReport;
 
@@ -57,11 +56,24 @@ const WORK_PREFIX: &str = ".hardwarevisualizer-duckdb-";
 
 const MARKER_VERSION: u32 = 1;
 
-/// A native database that this process has just built and verified.
+/// Proof that a reconciliation caught this file up to its source and read it
+/// back afterwards.
 ///
-/// Selection is refused unless the file on disk still matches one of these, and
-/// the only way to obtain one is from a finalization or reconciliation report -
-/// so "select whatever is lying there" cannot be expressed.
+/// It has no public constructor: the only way to obtain one is
+/// [`super::reconcile_native_database`], so "select whatever is lying there"
+/// cannot be expressed, and neither can "select the file finalization just
+/// produced" - a finalized file copies one snapshot taken while the
+/// application kept writing, so it is stale by construction.
+///
+/// # Precondition the caller owns
+///
+/// Reconciliation makes the native database equal the source *at the moment it
+/// captured its candidate*. Rows written to SQLite after that are not in the
+/// file, and nothing here can see them. The App lifecycle owner must therefore
+/// quiesce every SQLite writer before the final reconciliation and keep them
+/// quiesced until [`select_native_database`] returns; selecting after a
+/// reconciliation that ran against a live writer silently drops whatever was
+/// written in between.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedNativeDatabase {
   path: PathBuf,
@@ -71,16 +83,9 @@ pub struct VerifiedNativeDatabase {
 }
 
 impl VerifiedNativeDatabase {
-  pub fn from_finalization(report: &NativeFinalizationReport) -> Self {
-    Self {
-      path: report.finalized_database_path.clone(),
-      schema_version: report.schema_version,
-      source_schema_sha256: report.source_schema_sha256.clone(),
-      total_rows: report.total_rows,
-    }
-  }
-
-  pub fn from_reconciliation(report: &NativeReconciliationReport) -> Self {
+  /// Only [`super::reconcile`] may mint proof, and only from a report it has
+  /// just verified against the reopened file.
+  pub(super) fn from_reconciliation(report: &NativeReconciliationReport) -> Self {
     Self {
       path: report.native_database_path.clone(),
       schema_version: report.schema_version,
@@ -91,6 +96,18 @@ impl VerifiedNativeDatabase {
 
   pub fn path(&self) -> &Path {
     &self.path
+  }
+
+  pub fn schema_version(&self) -> u32 {
+    self.schema_version
+  }
+
+  pub fn source_schema_sha256(&self) -> &str {
+    &self.source_schema_sha256
+  }
+
+  pub fn total_rows(&self) -> u64 {
+    self.total_rows
   }
 }
 
@@ -159,6 +176,10 @@ pub enum NativeMetadataFacts {
     state: NativeState,
     schema_version: u32,
     source_schema_sha256: String,
+    /// The row count the file records, compared against the marker's so a
+    /// database restored from a different backup than its marker is reported
+    /// rather than trusted.
+    source_rows: u64,
   },
 }
 
@@ -227,6 +248,10 @@ pub enum AuthorityState {
 
 /// Record `native_database` as the authoritative backend.
 ///
+/// Opens the database itself, so no [`super::NativeDatabase`] owner may be live
+/// on the same file: DuckDB refuses a second instance, and on Windows the file
+/// could not be synced afterwards either.
+///
 /// The database's own metadata is committed, checkpointed and synced before the
 /// marker is written, so the only interruption window leaves the one state
 /// [`repair_authority_marker`] can close.
@@ -254,34 +279,33 @@ fn select(
       ),
     });
   }
-  let directory = paths
-    .marker
-    .parent()
-    .filter(|path| !path.as_os_str().is_empty())
-    .ok_or_else(|| {
-      NativeDatabaseError::selection(
-        "resolve the selection marker directory",
-        "the marker must have a parent directory",
-      )
-    })?
-    .to_owned();
-  let spill = tempfile::Builder::new()
-    .prefix(WORK_PREFIX)
-    .tempdir_in(&directory)
-    .map_err(|error| {
-      NativeDatabaseError::selection("reserve the selection spill directory", error)
-    })?;
+  let spill = selection_spill()?;
 
+  // Scoped so every DuckDB handle on the file is released before the file is
+  // synced and the marker is written: Windows refuses to reopen, rename or
+  // delete a file another instance still holds.
   {
     let connection =
       open_database(&paths.native_database, AccessMode::ReadWrite, spill.path())?;
-    let (state, schema_version, source_schema_sha256, source_rows) =
+    let (state, schema_version, source_schema_sha256, source_rows, reconciled) =
       read_metadata_row(&connection)?;
     if state != FINALIZED_UNSELECTED {
       return Err(NativeDatabaseError::UnexpectedState {
         operation: "selected",
         state,
         expected: FINALIZED_UNSELECTED,
+      });
+    }
+    // The file says for itself whether a reconciliation committed into it, so
+    // a proof that happens to describe a look-alike file - one re-finalized
+    // from the same unchanged source, say - still cannot select it.
+    if !reconciled {
+      return Err(NativeDatabaseError::UnverifiedSelection {
+        detail: format!(
+          "{} records no committed reconciliation, so it holds one snapshot \
+           taken while the source was still being written",
+          paths.native_database.display()
+        ),
       });
     }
     let schema_version = u32::try_from(schema_version).unwrap_or(u32::MAX);
@@ -331,30 +355,18 @@ fn select(
 ///
 /// Refuses anything else, including a database that is merely finalized: the
 /// marker is a record of a decision, never the decision itself.
+///
+/// Opens the database, so it carries the same "no live owner" precondition as
+/// [`observe_authority`].
 pub fn repair_authority_marker(
   paths: &AuthorityPaths,
 ) -> Result<AuthorityMarker, NativeDatabaseError> {
-  let directory = paths
-    .marker
-    .parent()
-    .filter(|path| !path.as_os_str().is_empty())
-    .ok_or_else(|| {
-      NativeDatabaseError::selection(
-        "resolve the selection marker directory",
-        "the marker must have a parent directory",
-      )
-    })?
-    .to_owned();
-  let spill = tempfile::Builder::new()
-    .prefix(WORK_PREFIX)
-    .tempdir_in(&directory)
-    .map_err(|error| {
-      NativeDatabaseError::selection("reserve the selection spill directory", error)
-    })?;
+  let spill = selection_spill()?;
+  // Scoped so the database is closed before the marker is renamed over.
   let marker = {
     let connection =
       open_database(&paths.native_database, AccessMode::ReadOnly, spill.path())?;
-    let (state, schema_version, source_schema_sha256, source_rows) =
+    let (state, schema_version, source_schema_sha256, source_rows, _) =
       read_metadata_row(&connection)?;
     if state != SELECTED {
       return Err(NativeDatabaseError::UnexpectedState {
@@ -375,17 +387,42 @@ pub fn repair_authority_marker(
   Ok(marker)
 }
 
+/// The metadata row, as `(state, schema_version, source_schema_sha256,
+/// source_rows, reconciled)`.
+/// Selection reads and updates one metadata row, so its spill never holds
+/// anything. It goes in the system temporary directory rather than beside the
+/// databases: a directory named with the conversion work prefix, left behind by
+/// an interrupted selection, would read as interrupted *conversion* debris to
+/// [`inspect_authority`].
+fn selection_spill() -> Result<tempfile::TempDir, NativeDatabaseError> {
+  tempfile::Builder::new()
+    .prefix(WORK_PREFIX)
+    .tempdir()
+    .map_err(|error| {
+      NativeDatabaseError::selection("reserve the selection spill directory", error)
+    })
+}
+
 fn read_metadata_row(
   connection: &Connection,
-) -> Result<(String, i64, String, i64), NativeDatabaseError> {
+) -> Result<(String, i64, String, i64, bool), NativeDatabaseError> {
   connection
     .query_row(
       &format!(
-        "SELECT state, schema_version, source_schema_sha256, source_rows FROM {}",
+        "SELECT state, schema_version, source_schema_sha256, source_rows, \
+         reconciled FROM {}",
         quote_identifier(NATIVE_METADATA_TABLE)
       ),
       [],
-      |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+      |row| {
+        Ok((
+          row.get(0)?,
+          row.get(1)?,
+          row.get(2)?,
+          row.get(3)?,
+          row.get(4)?,
+        ))
+      },
     )
     .map_err(|error| {
       NativeDatabaseError::duckdb("read the native metadata to select", error)
@@ -468,6 +505,16 @@ fn sync_directory(directory: &Path) -> Result<(), NativeDatabaseError> {
 ///
 /// Never writes, and never fails: an unreadable marker or database is a fact
 /// about the state, not an error, and [`inspect_authority`] has an arm for it.
+///
+/// # Call this before the backend is opened, never beside it
+///
+/// Reading the native metadata means opening the file as a second DuckDB
+/// instance, and DuckDB refuses a file another instance already holds. Called
+/// while a [`super::NativeDatabase`] owner is live, this would therefore report
+/// the metadata as *unreadable* - which [`inspect_authority`] turns into
+/// `ConversionInProgress`, an alarming answer about a perfectly healthy
+/// database. It belongs at startup, before any owner is opened, and after one
+/// has been closed.
 pub fn observe_authority(
   paths: &AuthorityPaths,
   expected_schema_version: u32,
@@ -521,13 +568,13 @@ fn observe_marker(path: &Path) -> MarkerFacts {
 }
 
 fn observe_native_metadata(path: &Path) -> NativeMetadataFacts {
-  let Ok(spill) = tempfile::Builder::new().prefix(WORK_PREFIX).tempdir() else {
+  let Ok(spill) = selection_spill() else {
     return NativeMetadataFacts::Unreadable;
   };
   let Ok(connection) = open_database(path, AccessMode::ReadOnly, spill.path()) else {
     return NativeMetadataFacts::Unreadable;
   };
-  let Ok((state, schema_version, source_schema_sha256, _)) =
+  let Ok((state, schema_version, source_schema_sha256, source_rows, _)) =
     read_metadata_row(&connection)
   else {
     return NativeMetadataFacts::Unreadable;
@@ -540,10 +587,14 @@ fn observe_native_metadata(path: &Path) -> NativeMetadataFacts {
   let Ok(schema_version) = u32::try_from(schema_version) else {
     return NativeMetadataFacts::Unreadable;
   };
+  let Ok(source_rows) = u64::try_from(source_rows) else {
+    return NativeMetadataFacts::Unreadable;
+  };
   NativeMetadataFacts::Present {
     state,
     schema_version,
     source_schema_sha256,
+    source_rows,
   }
 }
 
@@ -568,6 +619,7 @@ pub fn inspect_authority(facts: &AuthorityFacts) -> AuthorityState {
         state,
         schema_version,
         source_schema_sha256,
+        source_rows,
       } = &facts.native_metadata
       else {
         return stop(AuthorityInconsistency::NativeMetadataUnreadable);
@@ -578,8 +630,13 @@ pub fn inspect_authority(facts: &AuthorityFacts) -> AuthorityState {
       if *schema_version != facts.expected_schema_version {
         return stop(AuthorityInconsistency::SchemaVersionMismatch);
       }
+      // Every field the marker carries is one the database records too, so all
+      // of them are compared. A restore that put back a database and a marker
+      // from different backups agrees on the file name and the schema but not
+      // on how many rows were selected.
       if marker.schema_version != *schema_version
         || &marker.source_schema_sha256 != source_schema_sha256
+        || marker.total_rows != *source_rows
       {
         return stop(AuthorityInconsistency::MarkerDisagreesWithNativeDatabase);
       }
@@ -655,6 +712,7 @@ mod tests {
         state: NativeState::Selected,
         schema_version: 1,
         source_schema_sha256: "abc".to_owned(),
+        source_rows: 10,
       },
       expected_schema_version: 1,
     }
@@ -698,6 +756,7 @@ mod tests {
       state: NativeState::FinalizedUnselected,
       schema_version: 1,
       source_schema_sha256: "abc".to_owned(),
+      source_rows: 10,
     };
     assert_eq!(
       inspect_authority(&observed),
@@ -787,6 +846,7 @@ mod tests {
       state: NativeState::FinalizedUnselected,
       schema_version: 1,
       source_schema_sha256: "abc".to_owned(),
+      source_rows: 10,
     };
     assert_eq!(
       inspect_authority(&observed),
@@ -806,6 +866,21 @@ mod tests {
       state: NativeState::Selected,
       schema_version: 1,
       source_schema_sha256: "different".to_owned(),
+      source_rows: 10,
+    };
+    assert_eq!(
+      inspect_authority(&observed),
+      inconsistent(AuthorityInconsistency::MarkerDisagreesWithNativeDatabase)
+    );
+
+    // A restore that put back a database and a marker from different backups:
+    // everything agrees except how many rows were selected.
+    let mut observed = facts();
+    observed.native_metadata = NativeMetadataFacts::Present {
+      state: NativeState::Selected,
+      schema_version: 1,
+      source_schema_sha256: "abc".to_owned(),
+      source_rows: 11,
     };
     assert_eq!(
       inspect_authority(&observed),
@@ -819,6 +894,7 @@ mod tests {
       state: NativeState::FinalizedUnselected,
       schema_version: 1,
       source_schema_sha256: "abc".to_owned(),
+      source_rows: 10,
     };
     assert_eq!(
       inspect_authority(&observed),

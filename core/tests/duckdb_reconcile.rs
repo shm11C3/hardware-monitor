@@ -12,8 +12,8 @@ mod native_support;
 use hardviz_core::infrastructure::database::migrate::{self, SchemaMigration};
 use hardviz_core::infrastructure::database::native_database::{
   AuthorityInconsistency, AuthorityRecovery, AuthorityState, NativeDatabaseError,
-  VerifiedNativeDatabase, inspect_authority, observe_authority,
-  reconcile_native_database, repair_authority_marker, select_native_database,
+  inspect_authority, observe_authority, reconcile_native_database,
+  repair_authority_marker, select_native_database,
 };
 use native_support::{
   NativeFixture, app_migrations, app_native_schema, file_hash, open_pool, read_only,
@@ -65,11 +65,12 @@ async fn reconciliation_applies_inserts_updates_and_deletes_and_matches_a_fresh_
   pool.close().await;
   let source_hash = file_hash(&fixture.source);
 
-  let report = fixture.try_reconcile().await.unwrap();
+  let (report, _) = fixture.try_reconcile().await.unwrap();
 
   // The source was only read, and nothing was left beside the database.
   assert_eq!(file_hash(&fixture.source), source_hash);
   assert!(fixture.work_directories().is_empty());
+  assert_no_handle_survives(&fixture);
   assert_eq!(report.state, "finalized_unselected");
   assert_eq!(report.tables.len(), 15);
   // Appending integer readings changes no storage class, so the provenance the
@@ -288,15 +289,13 @@ async fn selecting_records_the_database_first_and_then_the_marker() {
     AuthorityState::FinalizedUnselected
   );
 
-  let report = fixture.try_reconcile().await.unwrap();
+  let (report, verified) = fixture.try_reconcile().await.unwrap();
   let paths = fixture.authority_paths();
-  let marker = select_native_database(
-    paths.clone(),
-    VerifiedNativeDatabase::from_reconciliation(&report),
-  )
-  .await
-  .unwrap();
+  let marker = select_native_database(paths.clone(), verified.clone())
+    .await
+    .unwrap();
 
+  assert_no_handle_survives(&fixture);
   assert_eq!(marker.native_database_file_name, "finalized.duckdb");
   assert_eq!(marker.source_schema_sha256, report.source_schema_sha256);
   assert_eq!(marker.total_rows, report.total_rows);
@@ -308,12 +307,14 @@ async fn selecting_records_the_database_first_and_then_the_marker() {
   // it. Refusing here would break the backend exactly once it became
   // authoritative.
   fixture.open().await.close().await.unwrap();
+  // A closed owner releases the file, so the authority can be observed again -
+  // DuckDB refuses a second instance on a file one still holds, and reading it
+  // beside a live owner would report a healthy database as unreadable.
+  assert_no_handle_survives(&fixture);
+  assert_eq!(fixture.authority_state(), AuthorityState::NativeSelected);
 
   // Selecting again is a caller mistake, not an idempotent no-op.
-  let error =
-    select_native_database(paths, VerifiedNativeDatabase::from_reconciliation(&report))
-      .await
-      .unwrap_err();
+  let error = select_native_database(paths, verified).await.unwrap_err();
   assert!(matches!(error, NativeDatabaseError::UnexpectedState { .. }));
 }
 
@@ -325,14 +326,12 @@ async fn a_marker_lost_after_the_commit_is_repaired_from_the_database() {
   let pool = fixture.migrated_pool().await;
   seed(&pool).await;
   pool.close().await;
-  let finalization = fixture.finalize().await;
+  fixture.finalize().await;
+  let (report, verified) = fixture.try_reconcile().await.unwrap();
   let paths = fixture.authority_paths();
-  select_native_database(
-    paths.clone(),
-    VerifiedNativeDatabase::from_finalization(&finalization),
-  )
-  .await
-  .unwrap();
+  select_native_database(paths.clone(), verified)
+    .await
+    .unwrap();
 
   std::fs::remove_file(&paths.marker).unwrap();
   assert_eq!(
@@ -344,10 +343,8 @@ async fn a_marker_lost_after_the_commit_is_repaired_from_the_database() {
   );
 
   let repaired = repair_authority_marker(&paths).unwrap();
-  assert_eq!(
-    repaired.source_schema_sha256,
-    finalization.source_schema_sha256
-  );
+  assert_eq!(repaired.source_schema_sha256, report.source_schema_sha256);
+  assert_eq!(repaired.total_rows, report.total_rows);
   assert_eq!(fixture.authority_state(), AuthorityState::NativeSelected);
 
   // A marker that names a database this directory does not hold is reported,
@@ -367,15 +364,17 @@ async fn a_marker_lost_after_the_commit_is_repaired_from_the_database() {
   );
 }
 
-/// A verified conversion is the only thing that may be selected, so a file that
-/// moved on since it was verified is refused rather than published.
+/// Proof describes one reconciled file at one moment. A file that moved on
+/// since, and a look-alike that never went through reconciliation at all, are
+/// both refused rather than published.
 #[tokio::test]
 async fn a_database_that_is_not_the_verified_conversion_cannot_be_selected() {
   let fixture = NativeFixture::new();
   let pool = fixture.migrated_pool().await;
   seed(&pool).await;
   pool.close().await;
-  let finalization = fixture.finalize().await;
+  fixture.finalize().await;
+  let (_, stale) = fixture.try_reconcile().await.unwrap();
 
   let pool = open_pool(&fixture.source, false).await;
   pool
@@ -386,21 +385,48 @@ async fn a_database_that_is_not_the_verified_conversion_cannot_be_selected() {
     .await
     .unwrap();
   pool.close().await;
-  fixture.try_reconcile().await.unwrap();
+  let (_, current) = fixture.try_reconcile().await.unwrap();
 
-  // The finalization report describes the file as it was before reconciliation.
-  let error = select_native_database(
-    fixture.authority_paths(),
-    VerifiedNativeDatabase::from_finalization(&finalization),
-  )
-  .await
-  .unwrap_err();
+  // The first proof describes the file as it was one reconciliation ago.
+  let error = select_native_database(fixture.authority_paths(), stale)
+    .await
+    .unwrap_err();
   assert!(matches!(
     error,
     NativeDatabaseError::UnverifiedSelection { .. }
   ));
   assert!(!fixture.authority_paths().marker.exists());
   assert_eq!(state_of(&fixture), "finalized_unselected");
+
+  // A finalized file copies one snapshot taken while the application kept
+  // writing, so it is stale by construction. Re-finalizing over the same path
+  // from the same unchanged source produces a file the current proof matches
+  // field for field - and it still refuses, because the file itself records no
+  // committed reconciliation.
+  let finalized = fixture.finalized.clone();
+  std::fs::remove_file(&finalized).unwrap();
+  let refinalized = fixture
+    .finalize_into(
+      &fixture.directory.path().join("relook-candidate.duckdb"),
+      &finalized,
+    )
+    .await;
+  assert_eq!(refinalized.total_rows, current.total_rows());
+  assert_eq!(
+    refinalized.source_schema_sha256,
+    current.source_schema_sha256()
+  );
+
+  let error = select_native_database(fixture.authority_paths(), current)
+    .await
+    .unwrap_err();
+  match error {
+    NativeDatabaseError::UnverifiedSelection { ref detail } => {
+      assert!(detail.contains("no committed reconciliation"), "{detail}");
+    }
+    other => panic!("unexpected error: {other:?}"),
+  }
+  assert!(!fixture.authority_paths().marker.exists());
 }
 
 /// Once the native database is authoritative there is nothing to reconcile
@@ -411,13 +437,11 @@ async fn a_selected_database_is_not_reconciled_again() {
   let pool = fixture.migrated_pool().await;
   seed(&pool).await;
   pool.close().await;
-  let finalization = fixture.finalize().await;
-  select_native_database(
-    fixture.authority_paths(),
-    VerifiedNativeDatabase::from_finalization(&finalization),
-  )
-  .await
-  .unwrap();
+  fixture.finalize().await;
+  let (_, verified) = fixture.try_reconcile().await.unwrap();
+  select_native_database(fixture.authority_paths(), verified)
+    .await
+    .unwrap();
 
   let error = fixture.try_reconcile().await.unwrap_err();
 
@@ -446,6 +470,16 @@ fn table<'a>(
     .iter()
     .find(|table| table.name == name)
     .unwrap()
+}
+
+/// Nothing may still hold the native database: Windows refuses to read, rename
+/// or delete a file another DuckDB instance has open, and a retained handle is
+/// otherwise invisible on a developer's macOS or Linux machine.
+fn assert_no_handle_survives(fixture: &NativeFixture) {
+  let _ = file_hash(&fixture.finalized);
+  let moved = fixture.directory.path().join("moved.duckdb");
+  std::fs::rename(&fixture.finalized, &moved).unwrap();
+  std::fs::rename(&moved, &fixture.finalized).unwrap();
 }
 
 fn table_rows(fixture: &NativeFixture, table: &str) -> u64 {

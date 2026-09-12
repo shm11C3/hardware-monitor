@@ -19,6 +19,7 @@
 //! below assumes the rename, so if the copy is chosen this formula has to gain
 //! a fourth term.
 
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 use super::NativeDatabaseError;
@@ -164,18 +165,47 @@ fn file_bytes(path: &Path) -> Option<u64> {
 /// `sysinfo` is already a Core dependency for hardware collection, so this adds
 /// no new library for one number.
 fn available_bytes(workspace: &Path) -> Result<u64, NativeDatabaseError> {
-  let resolved = workspace
+  let canonical = workspace
     .canonicalize()
     .unwrap_or_else(|_| workspace.to_owned());
+  let resolved = strip_verbatim_prefix(&canonical);
   let disks = sysinfo::Disks::new_with_refreshed_list();
   disks
     .iter()
-    .filter(|disk| resolved.starts_with(disk.mount_point()))
+    .filter(|disk| resolved.starts_with(strip_verbatim_prefix(disk.mount_point())))
     .max_by_key(|disk| disk.mount_point().as_os_str().len())
     .map(sysinfo::Disk::available_space)
     .ok_or_else(|| NativeDatabaseError::WorkspaceSpaceUnknown {
       path: workspace.to_owned(),
     })
+}
+
+/// Put a Windows extended-length path back into the ordinary form the mount
+/// table uses.
+///
+/// `Path::canonicalize` returns verbatim paths on Windows - `\\?\C:\Users\...`,
+/// or `\\?\UNC\server\share\...` for a network path - while `sysinfo` reports
+/// mount points as `C:\` and `\\server\share`. `Path::starts_with` compares
+/// whole components including the prefix, so the two never match and the
+/// preflight would report the free space as unknowable on a supported
+/// platform. The rewrite is textual on purpose: the prefixes are only produced
+/// by Windows, but the function has to be compiled and testable everywhere.
+fn strip_verbatim_prefix(path: &Path) -> Cow<'_, Path> {
+  let Some(text) = path.to_str() else {
+    return Cow::Borrowed(path);
+  };
+  if let Some(share) = text.strip_prefix(r"\\?\UNC\") {
+    return Cow::Owned(PathBuf::from(format!(r"\\{share}")));
+  }
+  // A verbatim device path (`\\?\Volume{...}`) has no ordinary spelling, so
+  // it is left alone rather than turned into something that is not a path.
+  if let Some(rest) = text.strip_prefix(r"\\?\")
+    && rest.as_bytes().first().is_some_and(u8::is_ascii_alphabetic)
+    && rest.as_bytes().get(1) == Some(&b':')
+  {
+    return Cow::Owned(PathBuf::from(rest));
+  }
+  Cow::Borrowed(path)
 }
 
 #[cfg(test)]
@@ -231,6 +261,50 @@ mod tests {
       MINIMUM_WORKSPACE_BYTES
     );
     assert_eq!(requirement.required_bytes, 2_048 + MINIMUM_WORKSPACE_BYTES);
+  }
+
+  /// Pure path arithmetic, so it runs on every platform even though only
+  /// Windows produces the input.
+  #[test]
+  fn a_windows_extended_length_path_is_matched_against_an_ordinary_mount_point() {
+    let disk = Path::new(r"\\?\C:\Users\someone\AppData\Roaming\hv");
+    assert_eq!(
+      strip_verbatim_prefix(disk).as_ref(),
+      Path::new(r"C:\Users\someone\AppData\Roaming\hv")
+    );
+
+    let network = Path::new(r"\\?\UNC\server\share\hv");
+    assert_eq!(
+      strip_verbatim_prefix(network).as_ref(),
+      Path::new(r"\\server\share\hv")
+    );
+
+    // A volume GUID path has no drive-letter spelling, and an ordinary path is
+    // never rewritten.
+    let volume = Path::new(r"\\?\Volume{9f3a}\hv");
+    assert_eq!(strip_verbatim_prefix(volume).as_ref(), volume);
+    for ordinary in [r"C:\Users\someone", "/Users/someone", "/"] {
+      let ordinary = Path::new(ordinary);
+      assert_eq!(strip_verbatim_prefix(ordinary).as_ref(), ordinary);
+    }
+
+    // The comparison the rewrite exists for. Only Windows parses a drive or
+    // UNC prefix into components, so only there can the match be asserted;
+    // everywhere else a backslash is an ordinary character and both paths are
+    // one component.
+    #[cfg(windows)]
+    {
+      assert!(
+        strip_verbatim_prefix(disk).starts_with(strip_verbatim_prefix(Path::new(r"C:\")))
+      );
+      assert!(
+        strip_verbatim_prefix(network)
+          .starts_with(strip_verbatim_prefix(Path::new(r"\\server\share")))
+      );
+      // Without the rewrite the verbatim prefix is its own component, so the
+      // mount point never matches and the free space reads as unknowable.
+      assert!(!disk.starts_with(Path::new(r"C:\")));
+    }
   }
 
   #[test]
