@@ -43,6 +43,9 @@ async fn finalizes_every_domain_table_preserving_classes_ids_and_multiplicity() 
     assert_eq!(table.copied_rows, table.reopened_rows, "{}", table.name);
     assert_eq!(table.copied_digest, table.reopened_digest, "{}", table.name);
     assert_eq!(table.copied_digest.len(), 64, "{}", table.name);
+    // Every stamp in this fixture is one SQLite can read, so the conversion
+    // has nothing to report.
+    assert_eq!(table.unconvertible_timestamps, 0, "{}", table.name);
   }
   assert_eq!(
     report.tables.iter().map(|t| t.copied_rows).sum::<u64>(),

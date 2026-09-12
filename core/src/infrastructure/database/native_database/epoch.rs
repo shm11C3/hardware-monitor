@@ -11,9 +11,10 @@
 //! SQLite queries compute for the same text - including the cases where
 //! SQLite's `strftime` returns NULL, which stay NULL here rather than becoming
 //! a guessed instant. Reimplementing SQLite's date-string grammar in Rust would
-//! be a second, drifting definition of the same fact; the writers that will
-//! later insert new rows already hold the `DateTime<Utc>` and never need to
-//! parse text back.
+//! be a second, drifting definition of the same fact - and a measured one:
+//! [`super::write_stamp`] records the instant where the obvious Rust formula
+//! and this adapter disagree. Native writers therefore stamp new rows through
+//! the same oracle rather than deriving a key from the instant they hold.
 
 use sqlx::sqlite::SqliteConnection;
 use sqlx::{Connection, Row};

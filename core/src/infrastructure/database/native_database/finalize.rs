@@ -56,6 +56,16 @@ pub struct NativeTableReport {
   pub copied_digest: String,
   /// The same digest recomputed after the database was closed and reopened.
   pub reopened_digest: String,
+  /// Rows whose source timestamp text is present but which SQLite cannot read
+  /// as an instant, so their derived epoch key is NULL and no range query can
+  /// bucket them - in either engine.
+  ///
+  /// No writer this application ships produces such a stamp, and a conversion
+  /// is the one moment the whole archive is read, so the count is reported
+  /// here rather than discovered later one query at a time. It is
+  /// informational: a non-zero count does not fail the conversion, because the
+  /// rows themselves are copied intact and every other query still sees them.
+  pub unconvertible_timestamps: u64,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -314,6 +324,7 @@ struct CopiedTable {
   candidate_rows: u64,
   rows: u64,
   digest: RowMultisetDigest,
+  unconvertible_timestamps: u64,
 }
 
 /// One finalized column and where its value comes from.
@@ -394,6 +405,7 @@ fn copy_table(
   let mut digest = RowMultisetDigest::default();
   let mut rows = 0_u64;
   let mut ordinal_base = 0_u64;
+  let mut unconvertible_timestamps = 0_u64;
   destination
     .execute_batch("BEGIN TRANSACTION")
     .map_err(|error| {
@@ -408,7 +420,14 @@ fn copy_table(
           _ => u64::MAX,
         })
         .collect::<Vec<_>>();
-      let derived = derive_epoch_milliseconds(epoch, table, &plan, &page, &ordinals)?;
+      let derived = derive_epoch_milliseconds(
+        epoch,
+        table,
+        &plan,
+        &page,
+        &ordinals,
+        &mut unconvertible_timestamps,
+      )?;
 
       let mut values = Vec::new();
       for (row_index, cells) in page.iter().enumerate() {
@@ -478,16 +497,21 @@ fn copy_table(
     candidate_rows,
     rows,
     digest,
+    unconvertible_timestamps,
   })
 }
 
 /// Convert the page's stored timestamp texts in one batch per derived column.
+/// `unconvertible` accumulates the rows whose source text is present but which
+/// SQLite cannot read, which is the only case where a derived key is NULL while
+/// its source is not.
 fn derive_epoch_milliseconds(
   epoch: &mut EpochMilliseconds,
   table: &str,
   plan: &[ColumnPlan],
   page: &[Vec<Cell>],
   ordinals: &[u64],
+  unconvertible: &mut u64,
 ) -> Result<BTreeMap<(usize, usize), Cell>, NativeDatabaseError> {
   let mut converted = BTreeMap::new();
   for (column_index, column) in plan.iter().enumerate() {
@@ -513,6 +537,9 @@ fn derive_epoch_milliseconds(
       }
     }
     for (row_index, milliseconds) in epoch.convert(&texts)?.into_iter().enumerate() {
+      if milliseconds.is_none() && texts[row_index].is_some() {
+        *unconvertible = unconvertible.saturating_add(1);
+      }
       converted.insert(
         (row_index, column_index),
         milliseconds.map_or(Cell::Null, Cell::Integer),
@@ -937,6 +964,7 @@ fn verify_finalized(
       reopened_rows,
       copied_digest: table.digest.encode(),
       reopened_digest: digest.encode(),
+      unconvertible_timestamps: table.unconvertible_timestamps,
     });
   }
   Ok(reports)

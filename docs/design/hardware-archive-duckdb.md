@@ -212,8 +212,20 @@ scratch in-memory SQLite database for each stored text, so the key is by
 construction the value the current queries compute. The column stays nullable
 even where its source `timestamp` is `NOT NULL`, because SQLite returns NULL for
 text it cannot read as an instant and a missing conversion must stay missing
-rather than become a guessed zero. Writers that insert new rows already hold the
-`DateTime<Utc>` and never parse stored text back.
+rather than become a guessed zero.
+
+Native writers do not shortcut that adapter either, even though they hold the
+`DateTime<Utc>` rather than the text. A Rust formula for "what the adapter would
+return for this instant" was written, measured against the adapter over boundary
+and randomized instants, and deleted: at
+`1969-12-31T23:59:59.999500+00:00` the adapter answers 999 ms and the formula
+answers 0 ms, because SQLite's `strftime('%s')` truncates that negative fraction
+toward zero while its `%f` field still reports `59.999`, so the adapter's two
+halves come from different seconds. A row stamped by the formula would sit in a
+different bucket than the same row would occupy after conversion - the exact
+divergence the derived column exists to remove. Each native write cycle
+therefore takes its key from the same oracle, on the blocking lane it already
+runs on.
 
 **Aggregates.** SQLite's `avg()` over REAL has used Kahan-Babuska-Neumaier
 compensated summation since 3.43, and DuckDB has no aggregate that reproduces
@@ -294,6 +306,47 @@ half-written state the catch-up cursor would have to repair, and it cannot tell
 that case apart from a day that legitimately had none once the archive rows
 behind it age out; failing the day as a whole leaves the cursor unmoved so the
 next pass retries it.
+
+### The archive families, and where they deliberately differ
+
+The DATA_ARCHIVE and GPU_DATA_ARCHIVE families
+([#2089](https://github.com/shm11C3/HardwareVisualizer/issues/2089)) are
+compared against their SQLite counterparts by putting one fixture through both
+paths and comparing bit for bit - the bucket grid at both stamp ends, the gap
+convention, the refusals, the stored cell classes, and the rows a Retention
+Period leaves behind. Three results are worth recording as decisions rather than
+as test detail.
+
+**Storage class is part of the row.** `cpu_*`, `ram_*`, `usage_*` and
+`temperature_avg` are declared INTEGER in SQLite but written from `Option<f32>`,
+so SQLite's INTEGER affinity stores an integral reading as an integer and a
+fractional one as a real - which is why a finalized archive holds these as
+`UNION(i BIGINT, r DOUBLE)` at all. A native writer that always wrote the real
+member would produce rows that read back as the same numbers while being a
+different row; the writers apply the affinity rule instead. The same measurement
+turned up SQLite's negative-zero behaviour: `-0.0` becomes the integer `0` in an
+INTEGER column and loses its sign in a REAL one, so the writers reproduce that
+too.
+
+**Mixed classes are reduced by the cast, not compared exactly.** Both series
+queries cast every cell to binary64 before aggregating, so an integer past 2^53
+is rounded identically by both engines. The averaging boundary from the previous
+section applies to this family as well - `cpu_avg` is INTEGER-declared, so a
+legacy row can carry a value large enough for the compensated-summation
+difference to appear, measured at two ulps - but no current writer can produce
+one, since every reading arrives as `f32`.
+
+**An unreadable stamp is a gap in both engines.** A stored timestamp SQLite
+cannot read as an instant - a spelling no current writer produces, but one a
+released build could have left behind - has no epoch key, so a bucketed series
+omits it: SQLite groups it under a NULL bucket that decodes to `0` and falls
+outside every askable range, and the native query reads the same NULL the same
+way. Refusing the whole range instead was considered and rejected: the rest of
+the row is not wrong, every query that is not bucketed by time still returns it,
+and failing a range over one legacy row would cost more than it tells anyone.
+Conversion is the one moment the whole archive is read, so that is where such
+rows are counted - `NativeTableReport::unconvertible_timestamps`, per table,
+informational and never a refusal.
 
 ## Remaining design questions
 

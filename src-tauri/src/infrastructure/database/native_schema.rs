@@ -46,12 +46,22 @@ const TABLES: &[&str] = &[
   "cooling_fan_covariate_daily_summary",
 ];
 
-/// The three archive tables whose rows are read back by time range. Cooling
+/// The four archive tables whose rows are read back by time range. Cooling
 /// summaries and Storage Health are keyed by a `date`/`hour_start` string
 /// rather than an instant, so they need no derived epoch key.
+///
+/// `GPU_DATA_ARCHIVE` belongs here for the same reason `DATA_ARCHIVE` does:
+/// `archive_queries::gpu_archive_series_sql` buckets its rows through
+/// `sqlite_epoch_milliseconds()`, so the native series query needs the same
+/// derived key rather than a second reading of SQLite's date-string grammar.
 const TIMESTAMPS: &[NativeTimestampColumn] = &[
   NativeTimestampColumn {
     table: "DATA_ARCHIVE",
+    source_column: "timestamp",
+    epoch_milliseconds_column: "__hv_timestamp_epoch_ms",
+  },
+  NativeTimestampColumn {
+    table: "GPU_DATA_ARCHIVE",
     source_column: "timestamp",
     epoch_milliseconds_column: "__hv_timestamp_epoch_ms",
   },
@@ -176,7 +186,8 @@ CREATE TABLE GPU_DATA_ARCHIVE (
   dedicated_memory_avg BIGINT,
   dedicated_memory_max BIGINT,
   dedicated_memory_min BIGINT,
-  gpu_id VARCHAR
+  gpu_id VARCHAR,
+  __hv_timestamp_epoch_ms BIGINT
 );
 
 CREATE TABLE PROCESS_STATS (
@@ -405,12 +416,12 @@ mod tests {
 
   #[test]
   fn derived_epoch_columns_stay_nullable_so_an_unconvertible_stamp_reads_absent() {
-    assert_eq!(TIMESTAMPS.len(), 3);
+    assert_eq!(TIMESTAMPS.len(), 4);
     assert_eq!(
       NATIVE_SCHEMA_SQL
         .matches("__hv_timestamp_epoch_ms BIGINT\n")
         .count(),
-      3
+      4
     );
     assert!(!NATIVE_SCHEMA_SQL.contains("__hv_timestamp_epoch_ms BIGINT NOT NULL"));
   }

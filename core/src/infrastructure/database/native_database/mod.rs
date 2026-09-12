@@ -17,14 +17,17 @@ pub mod cooling_fan_daily_summary;
 pub mod cooling_hourly_summary;
 pub mod cooling_rollup;
 pub mod cooling_thermal_delta_daily_summary;
+pub mod data_archive;
 mod epoch;
 mod error;
 pub mod fan_archive;
 mod finalize;
+pub mod gpu_archive;
 mod paging;
 pub mod process_stats;
 mod runtime;
 mod schema;
+mod series;
 mod stored_text;
 mod write_stamp;
 
@@ -44,6 +47,7 @@ pub use runtime::{
 pub use schema::{
   NativeIdentity, NativeIdentityMode, NativeSchemaDefinition, NativeTimestampColumn,
 };
+pub use series::NativeSeriesWindow;
 
 /// Point one DuckDB instance at its own spill directory and close it to the
 /// filesystem afterwards.

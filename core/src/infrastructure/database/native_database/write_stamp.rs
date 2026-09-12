@@ -26,6 +26,13 @@
 //! always reads. A NULL back from the oracle would mean the two disagreed
 //! about our own output, which is a defect rather than a missing reading, so it
 //! is refused instead of silently stored as an unqueryable NULL.
+//!
+//! A pure Rust formula was tried and measured wrong before this was settled:
+//! `1969-12-31T23:59:59.999500+00:00` converts to 999 ms through SQLite and
+//! to 0 ms through a floored-second plus rounded-millisecond formula, because
+//! `strftime('%s')` truncates that negative fraction toward zero while `%f`
+//! still reports `59.999`, so the adapter's two halves come from different
+//! seconds.
 
 use chrono::{DateTime, Utc};
 
@@ -48,11 +55,8 @@ pub(super) fn stamp_for_write(
     .into_iter()
     .next()
     .flatten()
-    .ok_or_else(|| {
-      NativeDatabaseError::finalization(
-        "derive a native timestamp key",
-        format!("SQLite did not read the rendered stamp {text:?} as an instant"),
-      )
+    .ok_or_else(|| NativeDatabaseError::UnstampableWrite {
+      timestamp: text.clone(),
     })?;
   Ok((text, epoch_milliseconds))
 }
@@ -87,6 +91,28 @@ mod tests {
     assert_eq!(tie.0, "2026-09-01T00:00:00.000500+00:00");
     assert_eq!(below.1, 1_788_220_800_000);
     assert_eq!(tie.1, 1_788_220_800_001);
+  }
+
+  /// Includes the pre-epoch instant where a hand-written formula disagrees
+  /// with SQLite.
+  #[test]
+  fn the_key_is_the_sqlite_adapters_answer_for_the_text_being_stored() {
+    for (seconds, nanoseconds, expected_text, expected_key) in [
+      (0_i64, 0_u32, "1970-01-01T00:00:00+00:00", 0_i64),
+      (-1, 999_500_000, "1969-12-31T23:59:59.999500+00:00", 999),
+      (
+        1_788_220_800,
+        499_999,
+        "2026-09-01T00:00:00.000499999+00:00",
+        1_788_220_800_000,
+      ),
+    ] {
+      let instant = DateTime::from_timestamp(seconds, nanoseconds).unwrap();
+      assert_eq!(
+        stamp_for_write(&instant).unwrap(),
+        (expected_text.to_owned(), expected_key),
+      );
+    }
   }
 
   #[tokio::test]
