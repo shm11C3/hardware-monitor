@@ -14,8 +14,10 @@ use hardviz_core::infrastructure::database::candidate_database::{
 };
 use hardviz_core::infrastructure::database::migrate;
 use hardviz_core::infrastructure::database::native_database::{
-  NativeDatabase, NativeDatabaseError, NativeDatabaseOptions, NativeFinalizationReport,
-  finalize_candidate_database,
+  AUTHORITY_MARKER_FILE_NAME, AuthorityPaths, AuthorityState, NativeDatabase,
+  NativeDatabaseError, NativeDatabaseOptions, NativeFinalizationReport,
+  NativeReconciliationReport, finalize_candidate_database, inspect_authority,
+  observe_authority, reconcile_native_database,
 };
 use sha2::{Digest, Sha256};
 use sqlx::ConnectOptions;
@@ -82,6 +84,52 @@ impl NativeFixture {
   pub async fn finalize(&self) -> NativeFinalizationReport {
     self.build_candidate().await.unwrap();
     self.try_finalize().await.unwrap()
+  }
+
+  /// Finalize into caller-chosen paths, so a test can build a second, freshly
+  /// converted database beside the one it reconciled.
+  pub async fn finalize_into(
+    &self,
+    candidate: &Path,
+    finalized: &Path,
+  ) -> NativeFinalizationReport {
+    build_candidate_database(&self.source, candidate, app_migrations::get_migrations())
+      .await
+      .unwrap();
+    finalize_candidate_database(
+      candidate,
+      finalized,
+      app_native_schema::get_native_schema(),
+    )
+    .await
+    .unwrap()
+  }
+
+  pub async fn try_reconcile(
+    &self,
+  ) -> Result<NativeReconciliationReport, NativeDatabaseError> {
+    reconcile_native_database(
+      &self.source,
+      &self.finalized,
+      app_migrations::get_migrations(),
+      app_native_schema::get_native_schema(),
+    )
+    .await
+  }
+
+  pub fn authority_paths(&self) -> AuthorityPaths {
+    AuthorityPaths {
+      source_database: self.source.clone(),
+      native_database: self.finalized.clone(),
+      marker: self.directory.path().join(AUTHORITY_MARKER_FILE_NAME),
+    }
+  }
+
+  pub fn authority_state(&self) -> AuthorityState {
+    inspect_authority(&observe_authority(
+      &self.authority_paths(),
+      app_native_schema::NATIVE_SCHEMA_VERSION,
+    ))
   }
 
   pub async fn try_open(

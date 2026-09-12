@@ -89,6 +89,35 @@ pub enum NativeDatabaseError {
   UnstampableWrite { timestamp: String },
   #[error("native database finalization failed during {context}: {message}")]
   Finalization { context: String, message: String },
+  #[error("failed to capture a new source snapshot for reconciliation: {message}")]
+  SourceSnapshot { message: String },
+  #[error(
+    "a native database in state {state} cannot be {operation}; it must be {expected}"
+  )]
+  UnexpectedState {
+    operation: &'static str,
+    state: String,
+    expected: &'static str,
+  },
+  #[error(
+    "the native database does not hold the verified conversion the caller is selecting: {detail}"
+  )]
+  UnverifiedSelection { detail: String },
+  #[error(
+    "{path} needs {required_bytes} bytes for the conversion but reports {available_bytes} available"
+  )]
+  InsufficientWorkspace {
+    path: PathBuf,
+    required_bytes: u64,
+    available_bytes: u64,
+  },
+  #[error("free space on the volume holding {path} could not be determined")]
+  WorkspaceSpaceUnknown { path: PathBuf },
+  #[error("failed to record the durable authority selection: {context}: {message}")]
+  Selection {
+    context: &'static str,
+    message: String,
+  },
 }
 
 impl NativeDatabaseError {
@@ -102,6 +131,16 @@ impl NativeDatabaseError {
   ) -> Self {
     Self::Finalization {
       context: context.into(),
+      message: message.to_string(),
+    }
+  }
+
+  pub(crate) fn selection(
+    context: &'static str,
+    message: impl std::fmt::Display,
+  ) -> Self {
+    Self::Selection {
+      context,
       message: message.to_string(),
     }
   }

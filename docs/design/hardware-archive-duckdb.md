@@ -348,14 +348,73 @@ Conversion is the one moment the whole archive is read, so that is where such
 rows are counted - `NativeTableReport::unconvertible_timestamps`, per table,
 informational and never a refusal.
 
+### Reconciliation and durable authority selection
+
+Finalization copies one pinned snapshot, and the application keeps writing to
+SQLite while that copy runs, so the finalized file is stale the moment it
+exists. Reconciliation ([#2090](https://github.com/shm11C3/HardwareVisualizer/issues/2090))
+closes the gap by capturing a *second* candidate from the live source and making
+the finalized file equal to it. Reusing the candidate builder rather than
+reading SQLite a second way keeps the pinned transaction, the canonical-cell
+validation and the per-row size bounds in one place; the cost is one more file
+on disk while it runs, which the space preflight budgets.
+
+**Every table is diffed by primary key, not by an id high-water mark.** An
+append-only fast path is not available in this schema: Retention Period pruning
+deletes from `DATA_ARCHIVE`, `PROCESS_STATS`, `AMBIENT_ARCHIVE` and
+`FAN_ARCHIVE`, and the cooling and Storage Health summaries are recomputed in
+place. A high-water path would need a second, hand-maintained declaration of
+which tables may lose rows, and it would save nothing, because the mandated
+reopen verification reads every row back either way. All fifteen tables, the
+re-imported identity high-water marks and the metadata row are written in one
+transaction, so an interruption - including a cell the stable column cannot
+hold, discovered on the last table - leaves the previous database untouched.
+
+**What guards against a migration that ran in between.** The candidate's
+`source_schema_sha256` looks like a schema digest but is recomputed after the
+rows are scanned, so it also covers the storage classes each column was
+*observed* to hold: a writer binding its first `Option<f32>` into an
+INTEGER-declared column changes it without any migration. Comparing it would
+strand the conversion on exactly the data shape the tagged-union columns exist
+to carry. The structural comparison against the App-owned stable schema is the
+gate instead - the table sets and the column names in both directions, for every
+table, before the transaction opens - so a migration is refused with the table
+and column named and nothing written. Both digests are reported.
+
+**Selection is recorded twice, database first.** A backend selection cannot be
+undone by deleting a file, so it is written into the native database's own
+metadata (committed, checkpointed, synced) and then into a small marker file
+beside it. That order leaves exactly one interruption window - the database says
+`selected`, the marker is missing - and that state is repairable without
+guessing, by rewriting the marker from the database. The reverse order would
+leave a marker claiming a selection the database never recorded, which nothing
+can resolve. Every other disagreement between the two is reported with its
+numbers rather than repaired; recovery code that guesses which of two files is
+authoritative is how history gets lost silently. The state vocabulary stays at
+two values, `finalized_unselected` and `selected`, so the recovery decision
+stays small enough to enumerate.
+
+**Space is budgeted before anything is copied, in bytes.** The requirement is
+`candidate + finalized + workspace`, each database term starting at the full
+size of the source plus its `-wal`/`-shm` sidecars. All three coexist, because
+reconciliation holds a second candidate while the finalized file is on disk and
+stages its changed rows in the workspace. No compression is assumed; a measured
+ratio from an earlier conversion may only raise the estimate. A short volume is
+refused with the two numbers rather than discovered halfway through.
+
 ## Remaining design questions
 
 - [#2089](https://github.com/shm11C3/HardwareVisualizer/issues/2089): native
   queries and write schema, numeric/exceptional-value compatibility, timestamp
   adapters, database owner lifetime, cancellation and retention.
-- [#2090](https://github.com/shm11C3/HardwareVisualizer/issues/2090): mutable
-  reconciliation, durable authority selection/recovery, supported-platform
-  packaging and application resource evidence.
+- [#2090](https://github.com/shm11C3/HardwareVisualizer/issues/2090):
+  supported-platform packaging and application resource evidence. Reconciliation
+  and durable selection are settled above; what is still open is whether the
+  SQLite source is renamed in place or copied aside when a later verified
+  startup retires it. A rename is atomic and free but lets a downgraded older
+  build create a fresh empty database; a copy is safe but needs another whole
+  source's worth of disk, which the preflight does not currently budget. The App
+  lifecycle owner needs this decided.
 - [#2084](https://github.com/shm11C3/HardwareVisualizer/issues/2084) and
   [#2085](https://github.com/shm11C3/HardwareVisualizer/issues/2085) retain the
   investigation evidence for unresolved lifecycle and delivery choices.

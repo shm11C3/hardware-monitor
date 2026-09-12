@@ -17,7 +17,7 @@ use tokio::sync::{Mutex as AsyncMutex, RwLock, mpsc, oneshot};
 use super::NativeDatabaseError;
 use super::cell::quote_identifier;
 use super::finalize::{
-  FINALIZED_UNSELECTED, NATIVE_IDENTITY_TABLE, NATIVE_METADATA_TABLE,
+  FINALIZED_UNSELECTED, NATIVE_IDENTITY_TABLE, NATIVE_METADATA_TABLE, SELECTED,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -575,7 +575,10 @@ fn validate_native_metadata(
   let Some((state, actual)) = row else {
     return Err(NativeDatabaseError::Unfinalized);
   };
-  if state != FINALIZED_UNSELECTED {
+  // A selected database is the same finalized file with its authority
+  // recorded, so the owner serves it on the same terms. Refusing it here would
+  // make the backend unopenable exactly once it became authoritative.
+  if state != FINALIZED_UNSELECTED && state != SELECTED {
     return Err(NativeDatabaseError::Unfinalized);
   }
   let actual = u32::try_from(actual).map_err(|_| NativeDatabaseError::Unfinalized)?;
