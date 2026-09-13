@@ -32,7 +32,7 @@ jobs:
           fetch-depth: 1
 
       - name: Run Claude PR Action
-        uses: anthropics/claude-code-action@8251c103ac8c1d761882c86aba1412c7f583c844 # beta
+        uses: anthropics/claude-code-action@5ccc3a35a6367cdb8e6fbd0728287467540ecfe2 # beta
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # Or use OAuth token instead:
