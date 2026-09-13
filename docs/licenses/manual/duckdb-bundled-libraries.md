@@ -197,3 +197,15 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## Refresh procedure
+
+When `libduckdb-sys` is upgraded, extract the new `duckdb.tar.gz`, compare all
+compiled `third_party/` libraries and their headers with this entry, and update
+the covered versions, copyright lines, license text, and extra-data notices.
+Then run `cargo license --features duckdb-archive --json`,
+`cargo metadata --features duckdb-archive --format-version 1`,
+`.github/scripts/generate-licenses.ts`,
+`node --experimental-strip-types .github/scripts/check-duckdb-license-version.ts`,
+and the feature-enabled `cargo deny` license command before committing the
+refreshed entry.
