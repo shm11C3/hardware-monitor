@@ -6,9 +6,8 @@ use crate::infrastructure::providers::windows::cpu_temperature::{
 use crate::infrastructure::providers::windows::super_io_motherboard::MotherboardSensorReadout;
 use crate::log_warn;
 use crate::models::{
-  CpuPackageThermalStatus, ExternalComponentGuidanceCandidate,
-  MotherboardSensorCollection, PowerDraw, SensorAvailability, SensorSupport,
-  SensorTemperature, TemperatureSample,
+  ExternalComponentGuidanceCandidate, MotherboardSensorCollection, PowerDraw,
+  SensorAvailability, SensorSupport, SensorTemperature, TemperatureSample,
 };
 
 static MOTHERBOARD_SENSOR_FALLBACK_LOGGED: AtomicBool = AtomicBool::new(false);
@@ -214,6 +213,7 @@ fn cpu_package_sensor_name(sample: &CpuPackageTemperature) -> &'static str {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::models::CpuPackageThermalStatus;
 
   #[test]
   fn power_draw_maps_only_cpu_watts() {
