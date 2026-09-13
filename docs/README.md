@@ -30,6 +30,7 @@ documentation.
 - [E2E capture harness](development/e2e-captures.md)
 - [Super I/O sensor work handoff](development/sensor-handoff/)
 - [GitHub label guide](development/labels.md)
+- [Local build cache across git worktrees](development/local-build-cache.md)
 - [Download verification](download-verification.md)
 - [Release vulnerability response](security/release-vulnerability-response.md)
 - [Documentation guide](documentation-guide.md)
