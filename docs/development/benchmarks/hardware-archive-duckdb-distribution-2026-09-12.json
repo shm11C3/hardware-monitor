@@ -1,0 +1,472 @@
+{
+  "schema_version": 1,
+  "scope": "Distribution and durability evidence for the native DuckDB Hardware Archive, collected for the adoption blockers still listed in #2085 and #2084. Evidence and planning only: the duckdb-archive feature is not enabled in any production build, no runtime behavior changed, and no product code was added.",
+  "date": "2026-09-12",
+  "branch": "chore/2085-duckdb-distribution-evidence",
+  "commit_measured": "1839986f6e29422420d5fcb4d49337e7bed1e31e",
+  "issues": [2085, 2084],
+  "host_and_versions": {
+    "macos": "26.6.2 build 25G83",
+    "kernel_target": "Darwin 25.6.0 arm64",
+    "cpu": "Apple M4",
+    "logical_cpus": 10,
+    "physical_memory_bytes": 25769803776,
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)",
+    "rust_toolchain_toml_channel": "1.98.1",
+    "cxx_compiler": "Apple clang version 17.0.0 (clang-1700.6.3.2), target arm64-apple-darwin25.6.0",
+    "node": "v24.11.1",
+    "duckdb_crate": "duckdb 1.10505.0 (default-features = false, features = [\"bundled\"])",
+    "libduckdb_sys_crate": "libduckdb-sys 1.10505.0",
+    "bundled_duckdb_engine": "1.5.5 (vendored duckdb.tar.gz inside libduckdb-sys 1.10505.0)"
+  },
+  "measurement_conditions": {
+    "concurrency": "Three other agent lanes were compiling this workspace in sibling worktrees on the same host throughout. Load averages are recorded per run; wall-clock build times are contaminated by that contention and must be read as indicative, not as a stable benchmark. Sizes and byte counts are not affected by load.",
+    "cargo_flags": "--release --locked --offline; Cargo.lock was not modified",
+    "release_profile": {
+      "opt_level": "s",
+      "lto": true,
+      "codegen_units": 1,
+      "strip": true,
+      "overflow_checks": true
+    },
+    "target_dirs": "Fresh, empty CARGO_TARGET_DIR per run under the agent scratch directory",
+    "dependency_fetch": "Excluded: the crate sources were already in the local Cargo registry and every build ran with --offline"
+  },
+  "A_build_and_binary_evidence": {
+    "measured": {
+      "core_library_release_build": {
+        "description": "hardviz-core rlib built with and without the duckdb-archive feature. This is the measurement that was actually completed; it isolates the dependency cost without the full-LTO Tauri application link.",
+        "runs": {
+          "without_feature": {
+            "label": "core-baseline",
+            "command": "cargo build --release --locked --offline -p hardviz-core --lib ",
+            "cargo_target_dir": "/private/tmp/claude-501/-Users-shm11c3-Develop-HardwareVisualizer/59b1f5d3-eb4d-4de4-ac30-1e93806641c1/scratchpad/lane-c/core-baseline",
+            "clean_build_exit": 0,
+            "clean_build_seconds": 159.35,
+            "noop_rebuild_exit": 0,
+            "noop_rebuild_seconds": 1.6,
+            "touched_core_lib_rebuild_exit": 0,
+            "touched_core_lib_rebuild_seconds": 37.0,
+            "rlib_path": "/private/tmp/claude-501/-Users-shm11c3-Develop-HardwareVisualizer/59b1f5d3-eb4d-4de4-ac30-1e93806641c1/scratchpad/lane-c/core-baseline/release/libhardviz_core.rlib",
+            "rlib_bytes": 18349744,
+            "rlib_gzip9_bytes": 4507872,
+            "libduckdb_sys_out_kib": 0,
+            "libduckdb_sys_largest_archive_bytes": 0,
+            "target_dir_kib": 548796,
+            "loadavg_before": "{ 11.59 5.69 8.19 }",
+            "loadavg_after": "{ 76.39 29.10 16.92 }"
+          },
+          "with_feature": {
+            "label": "core-duckdb",
+            "command": "cargo build --release --locked --offline -p hardviz-core --lib --features duckdb-archive",
+            "cargo_target_dir": "/private/tmp/claude-501/-Users-shm11c3-Develop-HardwareVisualizer/59b1f5d3-eb4d-4de4-ac30-1e93806641c1/scratchpad/lane-c/core-duckdb",
+            "clean_build_exit": 0,
+            "clean_build_seconds": 233.3,
+            "noop_rebuild_exit": 0,
+            "noop_rebuild_seconds": 0.53,
+            "touched_core_lib_rebuild_exit": 0,
+            "touched_core_lib_rebuild_seconds": 9.34,
+            "rlib_path": "/private/tmp/claude-501/-Users-shm11c3-Develop-HardwareVisualizer/59b1f5d3-eb4d-4de4-ac30-1e93806641c1/scratchpad/lane-c/core-duckdb/release/libhardviz_core.rlib",
+            "rlib_bytes": 23281552,
+            "rlib_gzip9_bytes": 5715878,
+            "libduckdb_sys_out_kib": 181460,
+            "libduckdb_sys_largest_archive_bytes": 70018256,
+            "target_dir_kib": 1038660,
+            "loadavg_before": "{ 76.51 37.03 20.55 }",
+            "loadavg_after": "{ 28.12 33.52 23.03 }"
+          }
+        },
+        "deltas": {
+          "rlib_bytes": 4931808,
+          "rlib_mib": 4.703,
+          "rlib_gzip9_bytes": 1208006,
+          "clean_build_seconds": 73.95,
+          "noop_rebuild_seconds": -1.07,
+          "touched_core_lib_rebuild_seconds": -27.66,
+          "target_dir_kib": 489864,
+          "target_dir_mib": 478.383
+        },
+        "notes": [
+          "An rlib is not a shipped artifact and is not stripped or LTO-linked, so its size is neither the executable growth nor an upper bound on it: the compiled DuckDB C++ lives in the separate libduckdb-sys static archive, not in the rlib.",
+          "libduckdb_sys_out_kib is the build-script output directory holding the compiled DuckDB C++ objects and static archive; libduckdb_sys_largest_archive_bytes is the static archive itself, before linking, dead-code elimination, LTO or stripping. It is the payload the linker draws from, not the amount that reaches the binary.",
+          "The time deltas in this pair are NOT usable. The with-feature build reports a FASTER no-op rebuild (0.53 s vs 1.60 s) and a FASTER touched-source rebuild (9.34 s vs 37.00 s) than the strictly smaller baseline, which is physically implausible and is direct evidence that the host contention dominated the measurement. The baseline ran as load climbed from 11.6 to 76.4; the with-feature run started at 76.5 and fell to 28.1. Only the byte counts from this pair should be used."
+        ]
+      },
+      "application_binary_without_feature": {
+        "description": "hardware_visualizer release binary built WITHOUT the duckdb-archive feature. Completed before the paired with-feature run failed; recorded as the baseline half of an incomplete pair.",
+        "command": "cargo build --release --locked --offline -p hardware_visualizer --bin hardware_visualizer --features custom-protocol",
+        "run": {
+          "label": "baseline",
+          "extra_cargo_args": "--features custom-protocol",
+          "cargo_target_dir": "/private/tmp/claude-501/-Users-shm11c3-Develop-HardwareVisualizer/59b1f5d3-eb4d-4de4-ac30-1e93806641c1/scratchpad/lane-c/target-baseline",
+          "clean_build_exit": 0,
+          "clean_build_seconds": 557.85,
+          "noop_rebuild_exit": 0,
+          "noop_rebuild_seconds": 162.75,
+          "touched_core_lib_rebuild_exit": 0,
+          "touched_core_lib_rebuild_seconds": 170.05,
+          "binary_bytes": 13487440,
+          "binary_gzip9_bytes": 6306422,
+          "target_dir_kib": 2355628,
+          "loadavg_before": "{ 6.94 5.94 4.81 }",
+          "loadavg_after": "{ 9.83 24.12 18.79 }"
+        },
+        "binary_mib": 12.863,
+        "gzip9_mib": 6.014,
+        "frontend_assets": "A copy of the already-built dist/ from the main checkout was used so that custom-protocol could embed assets without running npm. The copy was removed afterwards."
+      },
+      "dependency_graph_growth": {
+        "method": "cargo tree --offline --locked -p hardware_visualizer -e normal,build --prefix none --no-dedupe, with and without --features duckdb-archive, compared as sorted sets",
+        "crates_without_feature": 432,
+        "crates_with_feature": 473,
+        "crates_added": 41,
+        "added_crates": [
+          "ahash v0.8.12",
+          "arrow v58.4.0",
+          "arrow-arith v58.4.0",
+          "arrow-array v58.4.0",
+          "arrow-buffer v58.4.0",
+          "arrow-cast v58.4.0",
+          "arrow-data v58.4.0",
+          "arrow-ord v58.4.0",
+          "arrow-row v58.4.0",
+          "arrow-schema v58.4.0",
+          "arrow-select v58.4.0",
+          "arrow-string v58.4.0",
+          "bumpalo v3.20.2",
+          "cast v0.3.0",
+          "comfy-table v7.1.4",
+          "crossterm v0.28.1",
+          "duckdb v1.10505.0",
+          "fallible-iterator v0.3.0",
+          "fallible-streaming-iterator v0.1.9",
+          "jobserver v0.1.35",
+          "lexical-core v1.0.6",
+          "lexical-parse-float v1.0.6",
+          "lexical-parse-integer v1.0.6",
+          "lexical-util v1.0.7",
+          "lexical-write-float v1.0.6",
+          "lexical-write-integer v1.0.6",
+          "libduckdb-sys v1.10505.0",
+          "libm v0.2.16",
+          "num-bigint v0.4.8",
+          "num-complex v0.4.6",
+          "num-integer v0.1.46",
+          "rustix v0.38.44",
+          "strum v0.27.2",
+          "strum_macros v0.27.2 (proc-macro)",
+          "unicode-width v0.2.2",
+          "ureq v3.4.1",
+          "ureq-proto v0.6.2",
+          "utf8-zero v0.8.1",
+          "zip v6.0.0",
+          "zlib-rs v0.6.7",
+          "zopfli v0.8.3"
+        ],
+        "notes": [
+          "These counts are from commit_measured. -e normal,build omits proc-macro edges, so the listing is narrower than the graph cargo-deny walks; see B_license_and_packaging for a rejected crate that does not appear here.",
+          "ureq / ureq-proto / zip / zopfli / zlib-rs enter only as BUILD dependencies of libduckdb-sys (the non-bundled download path); they do not link into the shipped binary.",
+          "The arrow-* crates are normal dependencies of the duckdb crate and do link in."
+        ]
+      },
+      "compiled_native_surface": {
+        "method": "Parsed duckdb/manifest.json from the vendored duckdb.tar.gz and applied build_bundled_cc.rs::extension_enabled",
+        "translation_units_compiled": 280,
+        "extensions_linked": ["core_functions"],
+        "extensions_available_but_not_enabled": ["json", "parquet"],
+        "reason": "core/Cargo.toml uses default-features = false with only the bundled feature, so the duckdb crate's json and parquet features are off",
+        "third_party_cpp_libraries_compiled": 12
+      }
+    },
+    "not_measured": {
+      "application_binary_with_feature": {
+        "status": "FAILED - environment, not product",
+        "command": "cargo build --release --locked --offline -p hardware_visualizer --bin hardware_visualizer --features custom-protocol,duckdb-archive",
+        "failure": "No space left on device (os error 28)",
+        "first_causal_errors": [
+          "rustc-LLVM ERROR: IO failure on output stream: No space left on device",
+          "error: could not compile `arrow-cast` (lib)",
+          "warning: libduckdb-sys@1.10505.0: error: unable to open output file '.../out/b01d61d01f89d940-set.o': 'No space left on device'"
+        ],
+        "cause": "The shared volume fell from 24 GiB free to 132 MiB free while four agent lanes built the same workspace concurrently. The build never reached a link step, so no with-feature executable size, gzip size or target growth exists. It was not re-run because the remaining lanes were still compiling and a contended re-run would have produced another unusable timing.",
+        "consequence": "The application binary delta, and therefore the installed application size delta, is UNMEASURED. Do not infer it from the rlib or from the 2026-09-06 standalone probe."
+      },
+      "tauri_bundle": {
+        "status": "NOT ATTEMPTED",
+        "reason": "cargo tauri build requires the Tauri CLI and a frontend build; the lane was not permitted to run npm install, and the with-feature Rust build itself did not complete. No .app or .dmg size delta exists."
+      },
+      "other_targets": {
+        "status": "NOT MEASURED ON THIS HOST",
+        "detail": "Windows x64, Linux x64 and macOS x64 build time, binary size and installer size are unmeasured here."
+      }
+    }
+  },
+  "B_license_and_packaging": {
+    "crate_level_licenses": {
+      "duckdb@1.10505.0": "MIT (no LICENSE file in the published crate directory)",
+      "libduckdb-sys@1.10505.0": "MIT, LICENSE file present, 'Copyright 2021-2026 Stichting DuckDB Foundation'",
+      "added_crate_license_expressions": {
+        "Apache-2.0": 11,
+        "Apache-2.0 AND MIT": 1,
+        "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT": 1,
+        "MIT": 8,
+        "MIT OR Apache-2.0": 11,
+        "MIT/Apache-2.0": 8,
+        "Zlib": 1
+      },
+      "verdict": "Every added crate's expression is already on the src-tauri/deny.toml allow list."
+    },
+    "vendored_cpp_licenses": {
+      "method": "Extracted libduckdb-sys-1.10505.0/duckdb.tar.gz into the agent scratch directory (never into the repository) and read the source headers. The tarball ships NO LICENSE, COPYING or NOTICE files: `find third_party -maxdepth 2 -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'NOTICE*'` returns nothing.",
+      "libraries_actually_compiled": {
+        "fastpforlib": "Apache-2.0",
+        "fmt": "MIT",
+        "fsst": "MIT",
+        "hyperloglog": "BSD-3-Clause (Redis / Salvatore Sanfilippo)",
+        "libpg_query": "PostgreSQL License (BSD-style), plus a GNU Bison 2.3 parser skeleton carrying GPL-2.0-or-later WITH the Bison special exception",
+        "mbedtls": "Apache-2.0 OR GPL-2.0-or-later (SPDX-License-Identifier headers)",
+        "miniz": "MIT, with a public-domain PNG writer snippet",
+        "re2": "BSD-3-Clause, plus Unicode data terms",
+        "skiplist": "MIT",
+        "utf8proc": "MIT, plus Unicode data terms",
+        "yyjson": "MIT",
+        "zstd": "BSD-3-Clause OR GPL-2.0 (dual, user's choice)"
+      },
+      "not_compiled_in_this_configuration": [
+        "brotli",
+        "concurrentqueue",
+        "fast_float",
+        "httplib",
+        "jaro_winkler",
+        "lz4",
+        "parquet",
+        "pcg",
+        "pdqsort",
+        "ska_sort",
+        "snappy",
+        "tdigest",
+        "thrift",
+        "vergesort"
+      ],
+      "gpl_compatibility": "The application is GPL-3.0-or-later (ADR 0020). Every compiled library offers a GPLv3-compatible arm: Apache-2.0 for mbedtls, BSD-3-Clause for zstd, the Bison special exception for the libpg_query skeleton, and permissive terms for the rest. No GPL-incompatible term was found. This is a source-header reading, not legal advice."
+    },
+    "repository_tooling": {
+      "cargo_deny": {
+        "job": ".github/workflows/ci.yml job license-check-cargo (windows-latest, ubuntu-22.04, macos-latest)",
+        "command": "cargo deny --manifest-path Cargo.toml check --config src-tauri/deny.toml licenses",
+        "config": "src-tauri/deny.toml, [graph] all-features = false, no-default-features = false",
+        "finding": "The DuckDB tree is invisible to this gate today. With default features, `cargo metadata --offline --locked` returns no duckdb or libduckdb-sys node in resolve.nodes and no such entry in packages (verified). Because the config does not set all-features, enabling the duckdb-archive feature in product code would ship 41 crates the license gate never evaluated.",
+        "executed_locally": {
+          "tool": "cargo-deny 0.19.4, the version CI installs",
+          "without_feature": {
+            "command": "cargo deny --manifest-path Cargo.toml check --config src-tauri/deny.toml licenses",
+            "exit_code": 0,
+            "result": "licenses ok - matches what CI does today"
+          },
+          "with_feature": {
+            "command": "cargo deny --manifest-path Cargo.toml --features duckdb-archive check --config src-tauri/deny.toml licenses",
+            "exit_code": 4,
+            "result": "licenses FAILED",
+            "rejection": "error[rejected]: tiny-keccak 2.0.2 is CC0-1.0, which is not on the deny.toml allow list. Path: tiny-keccak <- const-random-macro <- const-random <- ahash <- arrow-array <- arrow <- duckdb <- hardviz-core <- hardware_visualizer."
+          },
+          "correction": "An earlier revision of this artifact predicted that the gate 'would pass if it ran'. That prediction was WRONG and has been replaced with the executed result. It was derived from the 41 crates that cargo tree -e normal,build enumerates, which omits proc-macro edges - tiny-keccak does not appear in that listing at all, while cargo-deny walks the full graph and finds it.",
+          "consequence": "Enabling duckdb-archive in a build the license job evaluates would FAIL license-check-cargo until CC0-1.0 is allowed or the dependency is avoided. cargo-deny still says nothing about the 12 vendored C/C++ libraries either way."
+        }
+      },
+      "third_party_notice_generation": {
+        "script": ".github/scripts/generate-licenses.ts",
+        "workflows": [
+          ".github/workflows/auto-update-licenses.yml (scheduled, matrix: windows-latest, ubuntu-22.04 and macos-latest; each uploads licenses-<platform> and the merge job commits them under docs/licenses/<platform>/)",
+          ".github/workflows/publish.yml (per release target, uploads THIRD_PARTY_NOTICES_<os>.md as a release asset)"
+        ],
+        "how_notices_ship": "Notices DO ship inside the installers. publish.yml regenerates ./tmp/THIRD_PARTY_NOTICES.md immediately before the tauri-action build step, and src-tauri/tauri.conf.json declares '../tmp/THIRD_PARTY_NOTICES.md' as the bundle resource 'THIRD_PARTY_NOTICES.md' alongside LICENSE, LICENSE_INFORMATION.md and MIT-pre-relicense.txt. The same file is then also uploaded as a per-target release asset. The version committed in the repository is a 29-byte 'dummy' placeholder; only the release build carries real content.",
+        "findings": [
+          "The generator runs `cargo license --json` and `cargo metadata --format-version 1` with DEFAULT features, so duckdb, libduckdb-sys and the arrow crates would be absent from the notices even after the feature is enabled in product code.",
+          "Even once included, cargo-license reports only libduckdb-sys's crate-level `MIT`, so the 12 vendored C/C++ libraries above would remain unattributed.",
+          "The generator filtered on a crate's own target kinds until #2104; it now walks resolve.nodes[].deps[].dep_kinds, which is correct. The default-feature gap above is present in both versions and is unaffected by that fix."
+        ]
+      }
+    },
+    "required_changes_not_applied": [
+      "Decide the feature's shipping status first. If duckdb-archive is ever enabled in a release build, src-tauri/deny.toml must evaluate it (either [graph] all-features = true, or an explicit features list) so license-check-cargo covers the tree.",
+      "Resolve the measured CC0-1.0 rejection before that: with the feature enabled cargo-deny exits 4 on tiny-keccak 2.0.2, so the allow list needs CC0-1.0 or the ahash/const-random path needs avoiding.",
+      "Add a manual notice under docs/licenses/manual/ covering DuckDB and the 12 compiled C/C++ libraries, because no automated tool can derive them from crate metadata. That is the directory generate-licenses.ts actually reads fragments from; docs/licenses/<platform>/ holds generated output and would be overwritten.",
+      "Make generate-licenses.ts collect metadata with the feature set the release actually builds, rather than default features.",
+      "Nothing in this lane changed any of the above."
+    ],
+    "product_note": "build_bundled_cc.rs compiles with DUCKDB_EXTENSION_AUTOINSTALL_DEFAULT=1 and DUCKDB_EXTENSION_AUTOLOAD_DEFAULT=1. The runtime owner counters this at open time with enable_autoload_extension(false) and SET enable_external_access = false (core/src/infrastructure/database/native_database/runtime.rs, mod.rs). The compile-time default being on is worth an explicit decision against the no-outbound-telemetry principle."
+  },
+  "C_supported_target_matrix": {
+    "current_state": {
+      "ci_jobs_that_already_compile_the_feature": [
+        {
+          "job": "lint-core",
+          "platforms": ["windows-latest", "ubuntu-22.04", "macos-latest"],
+          "command": "cargo clippy -p hardviz-core --features duckdb-archive --all-targets -- -D warnings"
+        },
+        {
+          "job": "test-core",
+          "platforms": ["windows-latest", "ubuntu-22.04", "macos-latest"],
+          "command": "cargo test -p hardviz-core --features duckdb-archive -- --test-threads=1 --nocapture"
+        },
+        {
+          "job": "lint-tauri",
+          "platforms": ["windows-latest", "ubuntu-22.04", "macos-latest"],
+          "command": "cargo clippy -p hardware_visualizer --features duckdb-archive --all-targets -- -D warnings",
+          "added_by": "commit 4c97041c on this stack"
+        }
+      ],
+      "ci_jobs_that_do_not": [
+        {
+          "job": "test-tauri",
+          "command": "cargo test -p hardware_visualizer -- --test-threads=1 --nocapture"
+        },
+        {
+          "job": "test-build",
+          "command": "cargo build -p hardware_visualizer --profile ci --features custom-protocol (PR) / tauri-action --no-bundle (push)"
+        },
+        {
+          "job": "check-core-tauri-integration",
+          "command": "cargo check -p hardware_visualizer --all-targets --features custom-protocol"
+        }
+      ],
+      "release_pipeline": {
+        "workflow": ".github/workflows/publish.yml",
+        "targets": [
+          "windows-latest (x64)",
+          "ubuntu-22.04 (x64)",
+          "macos-latest --target aarch64-apple-darwin --skip-stapling",
+          "macos-latest --target x86_64-apple-darwin --skip-stapling"
+        ],
+        "feature_enabled": false,
+        "feature_note": "publish.yml contains no reference to duckdb-archive on any target, so every released installer, macOS x64 included, is a feature-disabled build. Release coverage of a target is therefore not evidence that the feature builds there.",
+        "bundling": "tauri-action produces the installers; CI's test-build uses --no-bundle, so no CI job ever builds an installer."
+      }
+    },
+    "gaps": [
+      "No FEATURE-ENABLED job covers macOS x64. x86_64-apple-darwin appears in no CI matrix at all, and the publish-tauri release matrix does cross-compile it, but with the feature disabled - publish.yml never mentions duckdb-archive. So the target has feature-disabled release coverage and zero feature-enabled coverage; the bundled DuckDB C++ has never been compiled for it in this repository.",
+      "No job links a hardware_visualizer executable with the feature on any platform: lint-tauri stops at clippy, and test-build omits the feature.",
+      "No job builds an installer with the feature on any platform."
+    ],
+    "cache_behaviour": {
+      "action": "Swatinem/rust-cache v2.9.2 via .github/actions/setup-rust",
+      "config": "workspaces: '. -> target' and './src-tauri -> target'; add-job-id-key: false; shared-key: 'rust-workspace'; save-if: only on the default branch (develop)",
+      "key_construction": "Read from src/config.ts at the pinned SHA 6323deb102c322ba6fcbdcafc7e3dddab59af2b6, not from the README. The prefix is prefix-key (default 'v0-rust') plus the shared-key, plus the job id ONLY when add-job-id-key is true, and then unconditionally plus '-${runnerOS}-${runnerArch}' - the source comment there says this exists 'to avoid cross-contamination of cache'. Separately, when add-rust-environment-hash-key is true (its default, and this repository does not override it) a hash of the resolved rust versions and selected env vars is appended to the restore key, and a hash of the lockfiles and manifests to the full key.",
+      "consequence": "Setting add-job-id-key: false removes only the job id. Runner OS and architecture are always in the key, and the rust/env and lockfile hashes partition it further, so Windows, Linux and macOS never share a cache entry and a toolchain or lockfile change does not either. What the shared-key does is make all Rust jobs that DO share a platform, toolchain and lockfile share one entry, and no pull request run saves. Within one such group a PR restores whichever artifact set the last develop push happened to save; because rust-cache prunes target artifacts outside the current job's dependency set, a develop job WITHOUT the feature can save an entry lacking the DuckDB objects that a later same-platform job then restores. So the feature's compile cost is not reliably amortised, but the reason is intra-platform sharing, not cross-platform sharing."
+    },
+    "time_estimate": {
+      "basis": "Measured local hardviz-core clean-build delta on an Apple M4 under heavy contention (see A). This is an ESTIMATE, not a measurement of CI.",
+      "local_clean_build_delta_seconds": 73.95,
+      "estimate": "The local cold delta for compiling the bundled DuckDB C++ plus the 41 added crates was about 74 s on 10 Apple M4 cores under load. GitHub-hosted Linux and Windows runners have 4 cores and slower per-core throughput, so a cold job should be budgeted at roughly 5 to 12 minutes of added wall time, with Windows MSVC at the upper end. The proposed change touches one job across three platforms, so the worst case is that added cost on three runners in parallel, i.e. added critical-path time, not three times the cost. A warm rust-cache hit reduces it to near zero, but see cache_behaviour: warm hits are not guaranteed.",
+      "caveats": [
+        "GitHub-hosted runners are slower and have fewer cores than this M4; Windows MSVC compilation of the same amalgamation is typically the slowest of the three.",
+        "The local delta was taken under load averages far above core count, so it overstates an uncontended local build and understates nothing reliably.",
+        "No CI run with the feature in test-build has been executed, so no observed CI delta exists."
+      ]
+    },
+    "smallest_proposed_change": "Recorded as a diff in the companion Markdown summary. NOT applied."
+  },
+  "D_durability_plan": {
+    "what_the_engine_does": {
+      "evidence_base": "Vendored DuckDB 1.5.5 source extracted from libduckdb-sys-1.10505.0/duckdb.tar.gz",
+      "commit_path": "SingleFileStorageCommitState::FlushCommit() (src/storage/storage_manager.cpp) calls WriteAheadLog::Flush() (src/storage/write_ahead_log.cpp:542), which appends a WALType::WAL_FLUSH marker and then calls writer->Sync().",
+      "sync_primitive": {
+        "macos": "LocalFileSystem::FileSync (src/common/local_file_system.cpp:764) tries fcntl(fd, F_FULLFSYNC) first and only falls back to fdatasync/fsync if it fails. The source comment states fsync alone does not guarantee durability past power failure on macOS.",
+        "linux": "fdatasync when HAVE_FDATASYNC, else fsync; a failed fsync raises a FatalException to avoid the fsyncgate retry hazard.",
+        "windows": "FlushFileBuffers (src/common/local_file_system.cpp:1336)."
+      },
+      "recovery_path": "src/storage/wal_replay.cpp replays entries and commits only at WAL_FLUSH markers. Each entry carries a stored checksum; a mismatch raises IOException ('Corrupt WAL file'). The replay loop is wrapped in try/catch: a SERIALIZATION exception, which is what a truncated tail produces, is swallowed and the WAL is truncated to the last successful offset, while any other exception is rethrown unless config.options.abort_on_wal_failure is set.",
+      "checkpoint_defaults": {
+        "checkpoint_wal_size": "1 << 24 bytes (16 MiB), src/include/duckdb/main/config.hpp:101, settable as checkpoint_threshold",
+        "wal_autocheckpoint_entries": "default '0' = disabled, src/include/duckdb/main/settings.hpp:1613",
+        "checkpoint_on_shutdown": "true, src/include/duckdb/main/config.hpp:124"
+      }
+    },
+    "what_the_runtime_owner_configures": {
+      "file": "core/src/infrastructure/database/native_database/runtime.rs (native_config) and mod.rs (configure_spill)",
+      "settings": [
+        "AccessMode::ReadWrite",
+        "threads(2)",
+        "max_memory(\"128MB\")",
+        "enable_autoload_extension(false)",
+        "SET temp_directory = <owned spill dir beside the database>",
+        "SET enable_external_access = false"
+      ],
+      "not_set": [
+        "checkpoint_threshold - the 16 MiB default applies",
+        "wal_autocheckpoint_entries - disabled by default",
+        "abort_on_wal_failure - default, so a truncated WAL tail is silently discarded rather than surfaced"
+      ],
+      "explicit_checkpoints": [
+        "core/.../native_database/finalize.rs:216 CHECKPOINT after finalization",
+        "core/.../candidate_database/sink.rs:287 COMMIT; CHECKPOINT after a candidate snapshot"
+      ]
+    },
+    "existing_evidence_is_app_crash_only": "The 2026-09-06 and 2026-09-07 probes used SIGKILL before and after commit. SIGKILL destroys the process but leaves the page cache and the kernel intact, so it exercises WAL replay and nothing about whether data reached stable storage. It is not OS-crash or power-loss evidence.",
+    "proposed_validation": {
+      "tier_1_fsync_observation": {
+        "platform": "macOS arm64, this host",
+        "method": "Run the existing Rust lifecycle probe under `sudo fs_usage -w -f filesys <pid>` and confirm one fcntl F_FULLFSYNC (or its fsync fallback) against the .wal path per committed minute batch, plus the pre-header Sync during CHECKPOINT.",
+        "proves": "That the durability call is actually issued per commit on the platform the maintainer develops on, and how many syncs a minute costs.",
+        "cannot_prove": "That the hardware honours the flush, or that the file survives a real power cut."
+      },
+      "tier_2_block_level_cut_linux": {
+        "platform": "Linux x64 guest or bare Linux host",
+        "method": "Place the database on a dm-log-writes target, run N acknowledged minute commits, then replay the recorded log onto a scratch device up to each chosen cut point and open the resulting image. dm-log-writes is preferred over dm-flakey because it enumerates cut points deterministically and can replay to flush boundaries, rather than dropping writes at random.",
+        "assertions": "Every commit acknowledged before the cut point is present after reopen; no partially applied batch; no checksum error; the identity high-water never regresses.",
+        "proves": "That DuckDB's WAL protocol is crash-consistent on Linux against a device that retains only writes the engine flushed before the cut point.",
+        "cannot_prove": "macOS/APFS or Windows/NTFS behaviour; drive firmware that acknowledges a cache-flush it did not perform; a failure rate, since a handful of cut points is not a statistical sample."
+      },
+      "tier_3_block_level_cut_windows": {
+        "platform": "Windows x64 guest, running on a Linux host",
+        "method": "Run the Windows guest with its virtual disk image backed by a host dm-log-writes device and cache=none so that guest writes and guest flushes reach the log in order rather than sitting in the host page cache. Replay the host log onto a scratch device up to each cut point, boot or mount the replayed image, and open the archive. A block-log or copy-on-write snapshot backend that can discard every write after the cut point is an acceptable substitute.",
+        "proves": "That the Windows write path, including FlushFileBuffers and NTFS, is crash-consistent under a device that drops post-cut writes.",
+        "cannot_prove": "Physical drive behaviour; anything about macOS; a failure rate.",
+        "rejected_alternative": "An earlier draft proposed a QEMU/UTM guest with cache=writeback that is killed host-side. That is NOT a valid power-loss test and was removed: with cache=writeback the guest's unflushed writes have already been accepted into the HOST page cache, so killing the QEMU process loses nothing - the host kernel still writes them back to the image. A passing reopen under that method would prove only that the process died, not that any write was lost."
+      },
+      "macos_gap": {
+        "status": "NO IN-SCOPE MECHANISM",
+        "detail": "macOS has no dm-log-writes equivalent, so beyond tier 1 there is no way here to prove crash consistency on APFS. Tier 1 shows the F_FULLFSYNC call is issued; everything after that is inference from the Linux result plus the shared engine code path. State this as an open gap rather than claiming macOS durability evidence."
+      },
+      "tier_4_real_hardware": {
+        "status": "OUT OF SCOPE for an evidence lane",
+        "note": "A physical power cut on each supported machine is the only thing that proves the drive honours the flush. Treat the adopted durability target as 'validated against an honest device' and say so."
+      },
+      "explicitly_not_covered": [
+        "Disk-exhaustion during checkpoint or during copy compaction",
+        "Filesystem-level corruption outside the WAL (bit rot in checkpointed blocks)",
+        "Concurrent access from a second application instance"
+      ]
+    },
+    "file_format_compatibility_finding": {
+      "evidence": "duckdb/src/storage/storage_info.cpp and duckdb/src/storage/single_file_block_manager.cpp in the vendored 1.5.5 source",
+      "constants": {
+        "VERSION_NUMBER": 64,
+        "VERSION_NUMBER_LOWER": 64,
+        "VERSION_NUMBER_UPPER": 68,
+        "DEFAULT_SERIALIZATION_VERSION_INFO": 1,
+        "LATEST_SERIALIZATION_VERSION_INFO": 7
+      },
+      "default_write_behaviour": "SerializationCompatibility::Default() returns v0.10.2 (serialization version 1) unless DUCKDB_LATEST_STORAGE or DUCKDB_ALTERNATIVE_VERIFY is defined at compile time. build_bundled_cc.rs defines neither (verified by grep). SingleFileBlockManager::GetVersionNumber() returns VERSION_NUMBER = 64 whenever the storage version is below 4. A database this application creates is therefore written at storage version 64.",
+      "read_range": "This build refuses any file whose header version is outside [64, 68] with an IOException naming the range and the writing DuckDB version. In storage_version_info the header number 64 is shared by the names v0.9.0 through v1.1.3; 65 is v1.2.x, 66 v1.3.x, 67 v1.4.x and 68 v1.5.x.",
+      "supported_older_reader_floor": {
+        "floor": "v0.10.2",
+        "basis": "SerializationCompatibility::Default() literally returns FromString(\"v0.10.2\"). That is the compatibility target this vendored build declares, so v0.10.2 is the oldest reader version the source supports as a claim.",
+        "untested_claim": "A header number of 64 is NOT proof that a v0.9.0 binary can open a file this 1.5.5 build writes. The header number and the serialization content are separate: several DuckDB release names share header 64, and nothing in the source guarantees byte-level readability by every one of them. Any claim that readers older than v0.10.2 can open the produced file is UNTESTED and must not be made until a file is actually opened with such a reader. This lane did not do that: no with-feature binary was produced, and obtaining an older DuckDB reader would require a network download or a new dependency, both out of scope."
+      },
+      "policy_answer": "The crate version does NOT determine the file format. Pinning duckdb = '=1.10505.0' pins the engine, but the file this application writes is header version 64, the oldest format this engine emits, so a later crate upgrade keeps reading it and the declared older-reader floor is v0.10.2. Readability by anything older than v0.10.2 is untested and must not be claimed. The real hazards are the reverse direction and an implicit upgrade: single_file_block_manager.cpp:1321 silently rewrites the main header from 64 to 65 when the storage version reaches 4, so anything that raises the serialization version (an explicit STORAGE_VERSION, a future crate whose default changes, or a feature that requires it) permanently makes the archive unreadable by any reader whose accepted version range ends below 65. That is narrower than 'older builds': a build's accepted range is [VERSION_NUMBER_LOWER, VERSION_NUMBER_UPPER], and storage_version_info maps 65 to the v1.2.x names, so releases from that era onward are unaffected. The adoption policy therefore needs to (a) assert the written storage version explicitly rather than rely on the default, (b) record it in the existing native metadata table next to schema_version, and (c) treat a crate bump as a format review, not a routine dependency update."
+    }
+  },
+  "limits": [
+    "Single run per configuration. No repetitions, no percentiles.",
+    "All wall-clock times were taken while three other agent lanes compiled the same workspace on the same 10-core host; load averages between 6.9 and 102 are recorded per run. Treat every duration as indicative only.",
+    "The with-feature application binary build failed with ENOSPC and was not repeated, so the shipped-executable size delta, its gzip size and its target growth are unmeasured.",
+    "No Tauri bundle (.app/.dmg/.msi/.AppImage) was produced, so no installer size delta exists.",
+    "macOS arm64 only. Windows x64, Linux x64 and macOS x64 are unmeasured on every axis here.",
+    "The CI time estimate is arithmetic over a local contended measurement, not an observed CI run.",
+    "License determination is a reading of source headers in the vendored tarball, not a legal review, and the tarball ships no license files to read.",
+    "The durability plan is a plan. No OS-crash or power-loss test was executed in this lane.",
+    "The storage-version findings are read from source constants; no DuckDB file was created and inspected, because no with-feature binary was produced."
+  ]
+}

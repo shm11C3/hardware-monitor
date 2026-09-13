@@ -18,6 +18,7 @@ documentation.
 - [Hardware Archive migration lifecycle proposal](adr/0021-hardware-archive-migration-lifecycle.md)
 - [Native DuckDB direction decision](adr/0022-prioritize-native-duckdb-archive-qualification.md)
 - [Native DuckDB Hardware Archive Design Doc](design/hardware-archive-duckdb.md)
+- [Native DuckDB distribution and durability evidence](development/hardware-archive-duckdb-distribution-evidence.md)
 - [Earlier SQLite chunk candidate](development/hardware-archive-storage-design.md)
 - [Hardware Archive investigation and work tracking](https://github.com/shm11C3/HardwareVisualizer/issues/2052)
 - [Relicense to GPL-3.0-or-later decision](adr/0020-relicense-to-gpl-3.0-or-later.md)
