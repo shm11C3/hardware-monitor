@@ -72,9 +72,12 @@ ordering, validity checks, and the exact decode formula with units.
 
 <!--
 Per-model deviations, errata, offsets. Each entry: factual statement +
-source note backed by a primary source. A quirk known only from a
-copyleft implementation must live in Open questions, not here, until
-independently verified.
+source note. A quirk backed by a primary source or an accepted dump
+may serve Verified scopes. A read-only quirk known only from a
+copyleft implementation may appear here as a lead-only fact (source
+note "lead-only (copyleft)") serving Experimental scopes only
+(ADR 0023). A lead-only quirk that conflicts with primary evidence,
+or that is not a read-only fact, lives in Open questions instead.
 -->
 
 ## Safety notes
@@ -87,7 +90,9 @@ and what must never be written.
 ## Open questions
 
 <!--
-Anything not yet verified against a primary source, with what evidence
+Anything that cannot be stated as a tagged fact in the tables above
+(unverified and not eligible as a lead-only Experimental fact,
+conflicting sources, non-read-only behavior), with what evidence
 exists so far. Implementers must treat these as unresolved.
 At status-flip time every entry must be resolved or annotated as its
 first line with exactly:
