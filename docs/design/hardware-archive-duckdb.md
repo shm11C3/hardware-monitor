@@ -212,8 +212,20 @@ scratch in-memory SQLite database for each stored text, so the key is by
 construction the value the current queries compute. The column stays nullable
 even where its source `timestamp` is `NOT NULL`, because SQLite returns NULL for
 text it cannot read as an instant and a missing conversion must stay missing
-rather than become a guessed zero. Writers that insert new rows already hold the
-`DateTime<Utc>` and never parse stored text back.
+rather than become a guessed zero.
+
+Native writers do not shortcut that adapter either, even though they hold the
+`DateTime<Utc>` rather than the text. A Rust formula for "what the adapter would
+return for this instant" was written, measured against the adapter over boundary
+and randomized instants, and deleted: at
+`1969-12-31T23:59:59.999500+00:00` the adapter answers 999 ms and the formula
+answers 0 ms, because SQLite's `strftime('%s')` truncates that negative fraction
+toward zero while its `%f` field still reports `59.999`, so the adapter's two
+halves come from different seconds. A row stamped by the formula would sit in a
+different bucket than the same row would occupy after conversion - the exact
+divergence the derived column exists to remove. Each native write cycle
+therefore takes its key from the same oracle, on the blocking lane it already
+runs on.
 
 **Aggregates.** SQLite's `avg()` over REAL has used Kahan-Babuska-Neumaier
 compensated summation since 3.43, and DuckDB has no aggregate that reproduces
@@ -295,14 +307,144 @@ that case apart from a day that legitimately had none once the archive rows
 behind it age out; failing the day as a whole leaves the cursor unmoved so the
 next pass retries it.
 
+### The archive families, and where they deliberately differ
+
+The DATA_ARCHIVE and GPU_DATA_ARCHIVE families
+([#2089](https://github.com/shm11C3/HardwareVisualizer/issues/2089)) are
+compared against their SQLite counterparts by putting one fixture through both
+paths and comparing bit for bit - the bucket grid at both stamp ends, the gap
+convention, the refusals, the stored cell classes, and the rows a Retention
+Period leaves behind. Three results are worth recording as decisions rather than
+as test detail.
+
+**Storage class is part of the row.** `cpu_*`, `ram_*`, `usage_*` and
+`temperature_avg` are declared INTEGER in SQLite but written from `Option<f32>`,
+so SQLite's INTEGER affinity stores an integral reading as an integer and a
+fractional one as a real - which is why a finalized archive holds these as
+`UNION(i BIGINT, r DOUBLE)` at all. A native writer that always wrote the real
+member would produce rows that read back as the same numbers while being a
+different row; the writers apply the affinity rule instead. The same measurement
+turned up SQLite's negative-zero behaviour: `-0.0` becomes the integer `0` in an
+INTEGER column and loses its sign in a REAL one, so the writers reproduce that
+too.
+
+**Mixed classes are reduced by the cast, not compared exactly.** Both series
+queries cast every cell to binary64 before aggregating, so an integer past 2^53
+is rounded identically by both engines. The averaging boundary from the previous
+section applies to this family as well - `cpu_avg` is INTEGER-declared, so a
+legacy row can carry a value large enough for the compensated-summation
+difference to appear, measured at two ulps - but no current writer can produce
+one, since every reading arrives as `f32`.
+
+**An unreadable stamp is a gap in both engines.** A stored timestamp SQLite
+cannot read as an instant - a spelling no current writer produces, but one a
+released build could have left behind - has no epoch key, so a bucketed series
+omits it: SQLite groups it under a NULL bucket that decodes to `0` and falls
+outside every askable range, and the native query reads the same NULL the same
+way. Refusing the whole range instead was considered and rejected: the rest of
+the row is not wrong, every query that is not bucketed by time still returns it,
+and failing a range over one legacy row would cost more than it tells anyone.
+Conversion is the one moment the whole archive is read, so that is where such
+rows are counted - `NativeTableReport::unconvertible_timestamps`, per table,
+informational and never a refusal.
+
+### Reconciliation and durable authority selection
+
+Finalization copies one pinned snapshot, and the application keeps writing to
+SQLite while that copy runs, so the finalized file is stale the moment it
+exists. Reconciliation ([#2090](https://github.com/shm11C3/HardwareVisualizer/issues/2090))
+closes the gap by capturing a *second* candidate from the live source and making
+the finalized file equal to it. Reusing the candidate builder rather than
+reading SQLite a second way keeps the pinned transaction, the canonical-cell
+validation and the per-row size bounds in one place; the cost is one more file
+on disk while it runs, which the space preflight budgets.
+
+**Every table is diffed by primary key, not by an id high-water mark.** An
+append-only fast path is not available in this schema: Retention Period pruning
+deletes from `DATA_ARCHIVE`, `PROCESS_STATS`, `AMBIENT_ARCHIVE` and
+`FAN_ARCHIVE`, and the cooling and Storage Health summaries are recomputed in
+place. A high-water path would need a second, hand-maintained declaration of
+which tables may lose rows, and it would save nothing, because the mandated
+reopen verification reads every row back either way. All fifteen tables, the
+re-imported identity high-water marks and the metadata row are written in one
+transaction, so a failure before the commit - including a cell the stable column
+cannot hold, discovered on the last table - rolls back and leaves the previous
+database untouched.
+
+After the commit the new rows are durable, and the checkpoint and the reopen
+verification that follow are not part of that atomic step: an interruption there
+leaves a reconciled database whose verification never ran. That state cannot be
+selected, because the proof selection requires is the value the interrupted call
+never returned; the next run reconciles against a fresh candidate and verifies
+again before anything can become authoritative.
+
+**What guards against a migration that ran in between.** The candidate's
+`source_schema_sha256` looks like a schema digest but is recomputed after the
+rows are scanned, so it also covers the storage classes each column was
+*observed* to hold: a writer binding its first `Option<f32>` into an
+INTEGER-declared column changes it without any migration. Comparing it would
+strand the conversion on exactly the data shape the tagged-union columns exist
+to carry. The structural comparison against the App-owned stable schema is the
+gate instead - the table sets and the column names in both directions, for every
+table, before the transaction opens - so a migration is refused with the table
+and column named and nothing written. Both digests are reported.
+
+**Only a reconciled file can be selected, and the caller must quiesce first.**
+A finalized file copies one snapshot taken while the application kept writing,
+so it is stale by construction; selecting it would drop whatever SQLite
+recorded in between. The proof selection accepts is minted only by a successful
+reconciliation and has no public constructor, and the file itself records
+whether a reconciliation committed into it, so a look-alike file - one
+re-finalized from the same unchanged source - is refused by the database as
+well as by the type. What neither can see is a writer that kept running: a
+reconciliation makes the file equal the source *at the moment it captured its
+candidate*. Quiescing every SQLite writer before the final reconciliation, and
+keeping them quiesced until selection returns, is the App lifecycle owner's
+obligation and is documented on the proof type.
+
+**Selection is recorded twice, database first.** A backend selection cannot be
+undone by deleting a file, so it is written into the native database's own
+metadata (committed, checkpointed, synced) and then into a small marker file
+beside it. That order leaves exactly one interruption window - the database says
+`selected`, the marker is missing - and that state is repairable without
+guessing, by rewriting the marker from the database. The reverse order would
+leave a marker claiming a selection the database never recorded, which nothing
+can resolve. Every other disagreement between the two is reported with its
+numbers rather than repaired; recovery code that guesses which of two files is
+authoritative is how history gets lost silently. The state vocabulary stays at
+two values, `finalized_unselected` and `selected`, so the recovery decision
+stays small enough to enumerate.
+
+**Space is budgeted before anything is copied, in bytes.** The requirement is
+`candidate + finalized + workspace`, each database term starting at the full
+size of the source plus its `-wal`/`-shm` sidecars. All three coexist, because
+reconciliation holds a second candidate while the finalized file is on disk and
+stages its changed rows in the workspace. No compression is assumed; a measured
+ratio from an earlier conversion may only raise the estimate. A short volume is
+refused with the two numbers rather than discovered halfway through. Free space
+is attributed by matching the workspace against the longest mount point that
+prefixes it, with Windows extended-length (`\\?\`) paths rewritten to the
+ordinary spelling the mount table uses - `Path::canonicalize` returns the
+verbatim form there and `Path::starts_with` compares the prefix component, so
+without the rewrite a supported platform would report its free space as
+unknowable.
+
 ## Remaining design questions
 
 - [#2089](https://github.com/shm11C3/HardwareVisualizer/issues/2089): native
   queries and write schema, numeric/exceptional-value compatibility, timestamp
   adapters, database owner lifetime, cancellation and retention.
-- [#2090](https://github.com/shm11C3/HardwareVisualizer/issues/2090): mutable
-  reconciliation, durable authority selection/recovery, supported-platform
-  packaging and application resource evidence.
+- [#2090](https://github.com/shm11C3/HardwareVisualizer/issues/2090):
+  supported-platform packaging and application resource evidence. Reconciliation
+  and durable selection are settled above. Retiring the SQLite source after a
+  later verified startup is decided as a **rename in place** (2026-09-13): it
+  is atomic and needs no extra disk, which is what the space preflight already
+  budgets. A copy would only protect a downgraded older build from starting on
+  an empty database, and downgrade behavior is deferred by
+  [#2052](https://github.com/shm11C3/HardwareVisualizer/issues/2052); the
+  current build's authority marker already refuses to create an empty database
+  when the native file is missing. The App lifecycle owner implements the
+  rename.
 - [#2084](https://github.com/shm11C3/HardwareVisualizer/issues/2084) and
   [#2085](https://github.com/shm11C3/HardwareVisualizer/issues/2085) retain the
   investigation evidence for unresolved lifecycle and delivery choices.

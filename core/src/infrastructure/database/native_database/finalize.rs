@@ -28,8 +28,13 @@ use super::schema::{NativeIdentityMode, NativeSchemaDefinition};
 pub(super) const NATIVE_METADATA_TABLE: &str = "__hv_native_metadata";
 pub(super) const NATIVE_IDENTITY_TABLE: &str = "__hv_native_identities";
 pub(super) const FINALIZED_UNSELECTED: &str = "finalized_unselected";
+/// The only other state a native database may record. The vocabulary is kept at
+/// two values deliberately: every extra state is another arm
+/// [`super::selection::inspect_authority`] has to decide, and reconciliation is
+/// already proved by the reopen verification rather than by a recorded flag.
+pub(super) const SELECTED: &str = "selected";
 const SNAPSHOT_METADATA_TABLE: &str = "__hv_snapshot_metadata";
-const SOURCE_ORDINAL_COLUMN: &str = "__hv_source_ordinal";
+pub(super) const SOURCE_ORDINAL_COLUMN: &str = "__hv_source_ordinal";
 const SQLITE_SEQUENCE_TABLE: &str = "sqlite_sequence";
 const SQLX_MIGRATIONS_TABLE: &str = "_sqlx_migrations";
 const WORK_PREFIX: &str = ".hardwarevisualizer-duckdb-finalize-";
@@ -56,6 +61,16 @@ pub struct NativeTableReport {
   pub copied_digest: String,
   /// The same digest recomputed after the database was closed and reopened.
   pub reopened_digest: String,
+  /// Rows whose source timestamp text is present but which SQLite cannot read
+  /// as an instant, so their derived epoch key is NULL and no range query can
+  /// bucket them - in either engine.
+  ///
+  /// No writer this application ships produces such a stamp, and a conversion
+  /// is the one moment the whole archive is read, so the count is reported
+  /// here rather than discovered later one query at a time. It is
+  /// informational: a non-zero count does not fail the conversion, because the
+  /// rows themselves are copied intact and every other query still sees them.
+  pub unconvertible_timestamps: u64,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -175,7 +190,7 @@ fn finalize(
       .execute_batch(&format!(
         "CREATE TABLE {} (state VARCHAR NOT NULL, schema_version BIGINT NOT NULL, \
          source_candidate_path VARCHAR NOT NULL, source_schema_sha256 VARCHAR NOT NULL, \
-         source_rows BIGINT NOT NULL); \
+         source_rows BIGINT NOT NULL, reconciled BOOLEAN NOT NULL); \
          CREATE TABLE {} (table_name VARCHAR PRIMARY KEY, column_name VARCHAR NOT NULL, \
          mode VARCHAR NOT NULL, high_water BIGINT NOT NULL)",
         quote_identifier(NATIVE_METADATA_TABLE),
@@ -276,7 +291,7 @@ fn finalize(
 /// failure [`plan_columns`] already refuses, and just as silent a loss of
 /// history. Checked before anything is written, so a schema definition that has
 /// fallen behind the migration set produces no partial file.
-fn require_every_candidate_table_is_declared(
+pub(super) fn require_every_candidate_table_is_declared(
   candidate: &Connection,
   schema: &NativeSchemaDefinition,
 ) -> Result<(), NativeDatabaseError> {
@@ -314,17 +329,18 @@ struct CopiedTable {
   candidate_rows: u64,
   rows: u64,
   digest: RowMultisetDigest,
+  unconvertible_timestamps: u64,
 }
 
 /// One finalized column and where its value comes from.
-struct ColumnPlan {
-  name: String,
-  kind: NativeColumnKind,
-  nullable: bool,
-  source: ColumnSource,
+pub(super) struct ColumnPlan {
+  pub(super) name: String,
+  pub(super) kind: NativeColumnKind,
+  pub(super) nullable: bool,
+  pub(super) source: ColumnSource,
 }
 
-enum ColumnSource {
+pub(super) enum ColumnSource {
   /// Copied verbatim from the candidate cell at this index.
   Candidate(usize),
   /// Derived from the stored timestamp text at this candidate index.
@@ -394,6 +410,7 @@ fn copy_table(
   let mut digest = RowMultisetDigest::default();
   let mut rows = 0_u64;
   let mut ordinal_base = 0_u64;
+  let mut unconvertible_timestamps = 0_u64;
   destination
     .execute_batch("BEGIN TRANSACTION")
     .map_err(|error| {
@@ -408,7 +425,14 @@ fn copy_table(
           _ => u64::MAX,
         })
         .collect::<Vec<_>>();
-      let derived = derive_epoch_milliseconds(epoch, table, &plan, &page, &ordinals)?;
+      let derived = derive_epoch_milliseconds(
+        epoch,
+        table,
+        &plan,
+        &page,
+        &ordinals,
+        &mut unconvertible_timestamps,
+      )?;
 
       let mut values = Vec::new();
       for (row_index, cells) in page.iter().enumerate() {
@@ -478,16 +502,21 @@ fn copy_table(
     candidate_rows,
     rows,
     digest,
+    unconvertible_timestamps,
   })
 }
 
 /// Convert the page's stored timestamp texts in one batch per derived column.
-fn derive_epoch_milliseconds(
+/// `unconvertible` accumulates the rows whose source text is present but which
+/// SQLite cannot read, which is the only case where a derived key is NULL while
+/// its source is not.
+pub(super) fn derive_epoch_milliseconds(
   epoch: &mut EpochMilliseconds,
   table: &str,
   plan: &[ColumnPlan],
   page: &[Vec<Cell>],
   ordinals: &[u64],
+  unconvertible: &mut u64,
 ) -> Result<BTreeMap<(usize, usize), Cell>, NativeDatabaseError> {
   let mut converted = BTreeMap::new();
   for (column_index, column) in plan.iter().enumerate() {
@@ -513,6 +542,9 @@ fn derive_epoch_milliseconds(
       }
     }
     for (row_index, milliseconds) in epoch.convert(&texts)?.into_iter().enumerate() {
+      if milliseconds.is_none() && texts[row_index].is_some() {
+        *unconvertible = unconvertible.saturating_add(1);
+      }
       converted.insert(
         (row_index, column_index),
         milliseconds.map_or(Cell::Null, Cell::Integer),
@@ -522,7 +554,7 @@ fn derive_epoch_milliseconds(
   Ok(converted)
 }
 
-fn plan_columns(
+pub(super) fn plan_columns(
   schema: &NativeSchemaDefinition,
   table: &str,
   source_columns: &[TableColumn],
@@ -583,7 +615,7 @@ fn plan_columns(
 /// hold. Widening an integer to a double would round beyond 2^53 and narrowing
 /// a double to an integer would drop the fraction; both would make a stored
 /// reading say something the source never said.
-fn stage_cell(
+pub(super) fn stage_cell(
   table: &str,
   column: &ColumnPlan,
   row_ordinal: u64,
@@ -639,7 +671,7 @@ fn stage_cell(
   Ok(())
 }
 
-fn create_staging_sql(staging: &str, plan: &[ColumnPlan]) -> String {
+pub(super) fn create_staging_sql(staging: &str, plan: &[ColumnPlan]) -> String {
   let mut columns = Vec::new();
   for (index, column) in plan.iter().enumerate() {
     if column.kind == NativeColumnKind::TaggedNumeric {
@@ -658,7 +690,7 @@ fn create_staging_sql(staging: &str, plan: &[ColumnPlan]) -> String {
   )
 }
 
-fn append_staging(
+pub(super) fn append_staging(
   destination: &Connection,
   staging: &str,
   plan: &[ColumnPlan],
@@ -699,7 +731,11 @@ fn append_staging(
   })
 }
 
-fn insert_from_staging_sql(table: &str, staging: &str, plan: &[ColumnPlan]) -> String {
+pub(super) fn insert_from_staging_sql(
+  table: &str,
+  staging: &str,
+  plan: &[ColumnPlan],
+) -> String {
   let mut names = Vec::with_capacity(plan.len());
   let mut projections = Vec::with_capacity(plan.len());
   for (index, column) in plan.iter().enumerate() {
@@ -731,7 +767,7 @@ fn insert_from_staging_sql(table: &str, staging: &str, plan: &[ColumnPlan]) -> S
 /// disagree: a sequence that lags its own rows must never hand out a colliding
 /// id. Rowid tables record no high-water mark because SQLite derives their next
 /// id from the current maximum.
-fn write_identities(
+pub(super) fn write_identities(
   candidate: &Connection,
   destination: &Connection,
   schema: &NativeSchemaDefinition,
@@ -828,7 +864,7 @@ fn write_metadata(
   destination
     .execute(
       &format!(
-        "INSERT INTO {} VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO {} VALUES (?, ?, ?, ?, ?, ?)",
         quote_identifier(NATIVE_METADATA_TABLE)
       ),
       duckdb::params![
@@ -836,7 +872,11 @@ fn write_metadata(
         i64::from(schema.version),
         candidate_path.to_string_lossy().as_ref(),
         source_schema_sha256,
-        rows
+        rows,
+        // A finalized file copies one snapshot taken while the application
+        // kept writing, so it is stale by construction and must not be
+        // selectable until a reconciliation has caught it up.
+        false
       ],
     )
     .map(|_| ())
@@ -937,19 +977,20 @@ fn verify_finalized(
       reopened_rows,
       copied_digest: table.digest.encode(),
       reopened_digest: digest.encode(),
+      unconvertible_timestamps: table.unconvertible_timestamps,
     });
   }
   Ok(reports)
 }
 
 #[derive(Clone, Debug)]
-struct TableColumn {
-  name: String,
-  kind: NativeColumnKind,
-  nullable: bool,
+pub(super) struct TableColumn {
+  pub(super) name: String,
+  pub(super) kind: NativeColumnKind,
+  pub(super) nullable: bool,
 }
 
-fn read_columns(
+pub(super) fn read_columns(
   connection: &Connection,
   table: &str,
 ) -> Result<Vec<TableColumn>, NativeDatabaseError> {
@@ -991,7 +1032,7 @@ fn read_columns(
     .collect()
 }
 
-fn read_primary_key(
+pub(super) fn read_primary_key(
   connection: &Connection,
   table: &str,
 ) -> Result<Vec<String>, NativeDatabaseError> {
@@ -1019,7 +1060,10 @@ fn read_primary_key(
   Ok(columns)
 }
 
-fn count_rows(connection: &Connection, table: &str) -> Result<u64, NativeDatabaseError> {
+pub(super) fn count_rows(
+  connection: &Connection,
+  table: &str,
+) -> Result<u64, NativeDatabaseError> {
   let count: i64 = connection
     .query_row(
       &format!("SELECT COUNT(*) FROM {}", quote_identifier(table)),
@@ -1032,7 +1076,7 @@ fn count_rows(connection: &Connection, table: &str) -> Result<u64, NativeDatabas
   })
 }
 
-fn read_candidate_provenance(
+pub(super) fn read_candidate_provenance(
   candidate: &Connection,
 ) -> Result<String, NativeDatabaseError> {
   let (kind, digest): (String, Vec<u8>) = candidate
@@ -1055,7 +1099,7 @@ fn read_candidate_provenance(
   Ok(encode_hex(&digest))
 }
 
-fn open_database(
+pub(super) fn open_database(
   path: &Path,
   access_mode: AccessMode,
   spill: &Path,
@@ -1075,7 +1119,7 @@ fn open_database(
   Ok(connection)
 }
 
-fn require_no_wal(database: &Path) -> Result<(), NativeDatabaseError> {
+pub(super) fn require_no_wal(database: &Path) -> Result<(), NativeDatabaseError> {
   let mut wal = database.as_os_str().to_os_string();
   wal.push(".wal");
   if PathBuf::from(&wal).exists() {
@@ -1089,7 +1133,7 @@ fn require_no_wal(database: &Path) -> Result<(), NativeDatabaseError> {
   Ok(())
 }
 
-fn encode_hex(bytes: &[u8]) -> String {
+pub(super) fn encode_hex(bytes: &[u8]) -> String {
   use std::fmt::Write;
 
   let mut encoded = String::with_capacity(bytes.len() * 2);

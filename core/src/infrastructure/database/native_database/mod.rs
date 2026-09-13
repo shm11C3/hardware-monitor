@@ -17,14 +17,20 @@ pub mod cooling_fan_daily_summary;
 pub mod cooling_hourly_summary;
 pub mod cooling_rollup;
 pub mod cooling_thermal_delta_daily_summary;
+pub mod data_archive;
 mod epoch;
 mod error;
 pub mod fan_archive;
 mod finalize;
+pub mod gpu_archive;
 mod paging;
+mod preflight;
 pub mod process_stats;
+mod reconcile;
 mod runtime;
 mod schema;
+mod selection;
+mod series;
 mod stored_text;
 mod write_stamp;
 
@@ -37,6 +43,13 @@ pub use error::NativeDatabaseError;
 pub use finalize::{
   NativeFinalizationReport, NativeTableReport, finalize_candidate_database,
 };
+pub use preflight::{
+  ConversionSpaceObservation, ConversionSpacePlan, ConversionSpaceRequirement,
+  conversion_space_requirement, plan_conversion_space,
+};
+pub use reconcile::{
+  NativeReconciliationReport, NativeReconciliationTableReport, reconcile_native_database,
+};
 pub use runtime::{
   NativeCancellation, NativeConnectionContext, NativeDatabase, NativeDatabaseOptions,
   NativeTransactionContext,
@@ -44,6 +57,13 @@ pub use runtime::{
 pub use schema::{
   NativeIdentity, NativeIdentityMode, NativeSchemaDefinition, NativeTimestampColumn,
 };
+pub use selection::{
+  AUTHORITY_MARKER_FILE_NAME, AuthorityFacts, AuthorityInconsistency, AuthorityMarker,
+  AuthorityPaths, AuthorityRecovery, AuthorityState, MarkerFacts, NativeMetadataFacts,
+  NativeState, VerifiedNativeDatabase, inspect_authority, observe_authority,
+  repair_authority_marker, select_native_database,
+};
+pub use series::NativeSeriesWindow;
 
 /// Point one DuckDB instance at its own spill directory and close it to the
 /// filesystem afterwards.

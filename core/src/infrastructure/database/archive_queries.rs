@@ -6,14 +6,14 @@ use std::fmt;
 const MAX_ARCHIVE_SERIES_POINTS: i64 = 10_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ArchiveAggregation {
+pub(crate) enum ArchiveAggregation {
   Avg,
   Max,
   Min,
 }
 
 impl ArchiveAggregation {
-  fn sql(self) -> &'static str {
+  pub(crate) fn sql(self) -> &'static str {
     match self {
       Self::Avg => "AVG",
       Self::Max => "MAX",
@@ -101,7 +101,7 @@ pub enum DataArchiveColumn {
 }
 
 impl DataArchiveColumn {
-  fn sql(self) -> &'static str {
+  pub(crate) fn sql(self) -> &'static str {
     match self {
       Self::CpuAvg => "cpu_avg",
       Self::CpuMax => "cpu_max",
@@ -127,7 +127,7 @@ impl DataArchiveColumn {
     }
   }
 
-  fn aggregation(self) -> ArchiveAggregation {
+  pub(crate) fn aggregation(self) -> ArchiveAggregation {
     match self {
       Self::CpuAvg
       | Self::CpuTemperatureAvg
@@ -168,7 +168,7 @@ pub enum GpuArchiveColumn {
 }
 
 impl GpuArchiveColumn {
-  fn sql(self) -> &'static str {
+  pub(crate) fn sql(self) -> &'static str {
     match self {
       Self::UsageAvg => "usage_avg",
       Self::UsageMax => "usage_max",
@@ -182,7 +182,7 @@ impl GpuArchiveColumn {
     }
   }
 
-  fn aggregation(self) -> ArchiveAggregation {
+  pub(crate) fn aggregation(self) -> ArchiveAggregation {
     match self {
       Self::UsageAvg | Self::TemperatureAvg | Self::DedicatedMemoryAvg => {
         ArchiveAggregation::Avg
@@ -686,7 +686,11 @@ fn ceil_to_bucket(timestamp: i64, width: i64) -> Option<i64> {
   }
 }
 
-fn format_datetime(datetime: &DateTime<Utc>) -> String {
+/// The exact bound spelling every range query binds. `pub(crate)` so the
+/// native backend (#2089) binds the same bytes rather than a second rendering
+/// of the same instant - the range rule is a byte comparison, so the spelling
+/// is part of it.
+pub(crate) fn format_datetime(datetime: &DateTime<Utc>) -> String {
   datetime.to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
