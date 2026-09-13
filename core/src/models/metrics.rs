@@ -14,6 +14,21 @@ pub struct GpuSample {
   pub source: String,
 }
 
+/// Live package-level Intel thermal and power-limitation status.
+///
+/// This value is present only when the package status register was read
+/// successfully. The fields are current-state bits; sticky/log history bits
+/// are intentionally not represented here.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct CpuPackageThermalStatus {
+  /// Intel package Thermal Status (`0`).
+  pub thermal_status: bool,
+  /// Intel package PROCHOT# or FORCEPR# event status (`2`).
+  pub prochot_or_forcepr_asserted: bool,
+  /// Intel package Power Limitation Status (`10`).
+  pub power_limitation_status: bool,
+}
+
 /// Live platform power readings in watts.
 ///
 /// `package_watts`, when available, is the derived CPU + GPU + ANE total;
@@ -146,6 +161,7 @@ pub struct MotherboardSensorSample {
 pub struct TemperatureSample {
   pub cpu_temperature: Option<f32>,
   pub sensor_temperatures: Vec<SensorTemperature>,
+  pub cpu_package_thermal_status: Option<CpuPackageThermalStatus>,
   pub availability: SensorAvailability,
   pub guidance_candidates: Vec<ExternalComponentGuidanceCandidate>,
 }
@@ -227,6 +243,9 @@ pub struct MetricsSnapshot {
   /// Headline CPU temperature in raw °C. `None` when no readable sensor
   /// exists on this platform (currently collected on Windows only).
   pub cpu_temperature: Option<f32>,
+  /// Live Intel package thermal and power-limitation status. `None` when
+  /// the package status register is unavailable or the platform is not Intel.
+  pub cpu_package_thermal_status: Option<CpuPackageThermalStatus>,
   /// All named temperature sensors in raw °C (ACPI thermal zones on
   /// Windows). Empty when unsupported.
   pub sensor_temperatures: Vec<SensorTemperature>,

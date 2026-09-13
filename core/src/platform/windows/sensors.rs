@@ -142,11 +142,16 @@ fn build_temperature_sample(
       TemperatureSample {
         cpu_temperature: Some(sample.temperature_celsius),
         sensor_temperatures,
+        cpu_package_thermal_status: sample.thermal_status,
         availability: SensorAvailability::Available,
         guidance_candidates: Vec::new(),
       }
     }
     Err(pawnio_error) => {
+      let cpu_package_thermal_status = match &pawnio_error {
+        CpuPackageTemperatureError::Unavailable { thermal_status, .. } => *thermal_status,
+        _ => None,
+      };
       let pawnio_reason = pawnio_error.to_string();
       let component_failed = matches!(
         &pawnio_error,
@@ -190,6 +195,7 @@ fn build_temperature_sample(
       TemperatureSample {
         cpu_temperature,
         sensor_temperatures,
+        cpu_package_thermal_status,
         availability,
         guidance_candidates,
       }
@@ -207,6 +213,7 @@ fn cpu_package_sensor_name(sample: &CpuPackageTemperature) -> &'static str {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::models::CpuPackageThermalStatus;
 
   #[test]
   fn power_draw_maps_only_cpu_watts() {
@@ -306,6 +313,11 @@ mod tests {
         crate::infrastructure::providers::windows::cpu_temperature::CpuPackageTemperature {
           temperature_celsius: 61.25,
           source: crate::infrastructure::providers::windows::cpu_temperature::CpuTemperatureSource::IntelDtsPackageMsr,
+          thermal_status: Some(crate::models::CpuPackageThermalStatus {
+            thermal_status: true,
+            prochot_or_forcepr_asserted: false,
+            power_limitation_status: true,
+          }),
         },
       ),
       vec![SensorTemperature {
@@ -315,6 +327,14 @@ mod tests {
     );
 
     assert_eq!(sample.cpu_temperature, Some(61.25));
+    assert_eq!(
+      sample.cpu_package_thermal_status,
+      Some(crate::models::CpuPackageThermalStatus {
+        thermal_status: true,
+        prochot_or_forcepr_asserted: false,
+        power_limitation_status: true,
+      })
+    );
     assert_eq!(
       sample.sensor_temperatures[0].name,
       "CPU Package (PawnIO Intel DTS)"
@@ -329,6 +349,7 @@ mod tests {
       Ok(CpuPackageTemperature {
         temperature_celsius: 63.5,
         source: CpuTemperatureSource::AmdZenSmnTctl,
+        thermal_status: None,
       }),
       Vec::new(),
     );
@@ -348,6 +369,7 @@ mod tests {
       Err(CpuPackageTemperatureError::Unavailable {
         reason: "PawnIOLib.dll not found".to_string(),
         enablement: crate::models::SensorEnablement::Verified,
+        thermal_status: None,
       }),
       vec![
         SensorTemperature {
@@ -371,6 +393,7 @@ mod tests {
       Err(CpuPackageTemperatureError::Unavailable {
         reason: "pawnio_open failed".to_string(),
         enablement: crate::models::SensorEnablement::Verified,
+        thermal_status: None,
       }),
       Vec::new(),
     );
@@ -385,11 +408,32 @@ mod tests {
   }
 
   #[test]
+  fn temperature_sample_preserves_package_status_when_temperature_decode_fails() {
+    let thermal_status = CpuPackageThermalStatus {
+      thermal_status: true,
+      prochot_or_forcepr_asserted: true,
+      power_limitation_status: true,
+    };
+    let sample = build_temperature_sample(
+      Err(CpuPackageTemperatureError::Unavailable {
+        reason: "CPU temperature decode failed".to_string(),
+        enablement: crate::models::SensorEnablement::Verified,
+        thermal_status: Some(thermal_status),
+      }),
+      Vec::new(),
+    );
+
+    assert_eq!(sample.cpu_temperature, None);
+    assert_eq!(sample.cpu_package_thermal_status, Some(thermal_status));
+  }
+
+  #[test]
   fn temperature_sample_returns_guidance_when_pawnio_and_acpi_fail() {
     let sample = build_temperature_sample(
       Err(CpuPackageTemperatureError::Unavailable {
         reason: "PawnIOLib.dll not found".to_string(),
         enablement: crate::models::SensorEnablement::Verified,
+        thermal_status: None,
       }),
       Vec::new(),
     );
@@ -412,6 +456,7 @@ mod tests {
       Err(CpuPackageTemperatureError::Unavailable {
         reason: "CPU temperature decode failed".to_string(),
         enablement: crate::models::SensorEnablement::Experimental,
+        thermal_status: None,
       }),
       Vec::new(),
     );
@@ -472,6 +517,7 @@ mod tests {
       Err(CpuPackageTemperatureError::Unavailable {
         reason: "PawnIOLib.dll not found".to_string(),
         enablement: crate::models::SensorEnablement::Verified,
+        thermal_status: None,
       }),
       vec![SensorTemperature {
         name: "CPUZ".into(),

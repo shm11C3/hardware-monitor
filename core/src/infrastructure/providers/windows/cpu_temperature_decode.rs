@@ -1,3 +1,5 @@
+use crate::models::CpuPackageThermalStatus;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum CpuTemperatureDecodeError {
   ZeroIntelTemperatureTarget,
@@ -44,6 +46,19 @@ pub(crate) fn decode_intel_package_temperature(
   }
 
   Ok(temperature as f32)
+}
+
+/// Decode only the live package status fields from `IA32_PACKAGE_THERM_STATUS`.
+/// Sticky/log fields are intentionally ignored so a sampled value describes
+/// the current package state rather than accumulated history.
+pub(crate) fn decode_intel_package_thermal_status(
+  package_therm_status: u64,
+) -> CpuPackageThermalStatus {
+  CpuPackageThermalStatus {
+    thermal_status: (package_therm_status & (1 << 0)) != 0,
+    prochot_or_forcepr_asserted: (package_therm_status & (1 << 2)) != 0,
+    power_limitation_status: (package_therm_status & (1 << 10)) != 0,
+  }
 }
 
 pub(crate) fn decode_amd_zen_package_temperature(
@@ -134,6 +149,30 @@ mod tests {
           target: 90
         }
       )
+    );
+  }
+
+  #[test]
+  fn intel_package_thermal_status_decodes_live_bits_and_ignores_logs() {
+    let status = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 10) | (1 << 11);
+
+    assert_eq!(
+      decode_intel_package_thermal_status(status),
+      CpuPackageThermalStatus {
+        thermal_status: true,
+        prochot_or_forcepr_asserted: true,
+        power_limitation_status: true,
+      }
+    );
+  }
+
+  #[test]
+  fn intel_package_thermal_status_does_not_infer_state_from_logs() {
+    let sticky_logs = (1 << 1) | (1 << 3) | (1 << 11);
+
+    assert_eq!(
+      decode_intel_package_thermal_status(sticky_logs),
+      CpuPackageThermalStatus::default()
     );
   }
 
