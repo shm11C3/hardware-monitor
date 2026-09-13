@@ -26,10 +26,12 @@ Implementation-ready").
 <!--
 Primary sources first (vendor datasheets / manuals / public hardware
 specifications / independently collected hardware dumps).
-MPL/GPL/LGPL implementations are non-normative leads only: list them,
-mark them non-normative, and never let a normative fact rest solely on
-them. A quirk known only from a copyleft implementation belongs in
-Open questions until independently verified. Pin page/section where
+MPL/GPL/LGPL implementations are leads: list them with the note
+"lead-only (copyleft)". A fact whose only source is such a lead may
+back an Experimental scope only (ADR 0023); Verified scopes need a
+primary source or an accepted hardware dump. A lead-only fact that
+conflicts with primary evidence, or that cannot be stated as a
+read-only fact, belongs in Open questions. Pin page/section where
 possible; otherwise add TODO(provenance).
 -->
 

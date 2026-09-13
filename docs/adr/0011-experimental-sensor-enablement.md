@@ -9,6 +9,13 @@ increase the number of devices that can produce useful local readings and then
 use user reports, diagnostics, and later primary-source or hardware-dump
 verification to improve quality.
 
+[ADR 0023](0023-copyleft-derived-facts-for-experimental-scopes.md) refines the
+source rule for the Experimental state: a specification may rest an
+Experimental scope on facts whose only source is a copyleft monitoring
+implementation, tagged as lead-only, while Verified scopes still require a
+primary source or an accepted hardware dump. The three-state model, the
+plausibility gates, and the failure presentation below are unchanged.
+
 The concrete trigger is issue #1824: AMD Family 1Ah / Zen 5 (Ryzen 7 9800X3D)
 is recognized by the PawnIO `RyzenSMU` module, but HardwareVisualizer previously
 hard-disabled it with `AMD family 0x1a is disabled by the ready spec`. Under this
