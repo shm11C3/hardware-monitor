@@ -78,6 +78,13 @@ prohibited even where those licenses are now compatible with
 considered and rejected in #1635. `.agents/rules/clean-room-sensors.md` and
 `docs/specs/sensors/README.md` state the policy in those terms.
 
+[ADR 0023](0023-copyleft-derived-facts-for-experimental-scopes.md) later
+refines one consequence of this section: because the license reason for
+treating copyleft-derived register facts as non-normative no longer applies, a
+specification may use such facts, tagged as lead-only, to back Experimental
+scopes. The porting prohibition and the implementer's prohibited-source list
+are unchanged.
+
 ### Metadata
 
 `LICENSE` contains the verbatim GPL-3.0 text. `package.json`, `core/Cargo.toml`,

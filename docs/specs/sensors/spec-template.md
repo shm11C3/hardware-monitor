@@ -25,11 +25,15 @@ Implementation-ready").
 
 <!--
 Primary sources first (vendor datasheets / manuals / public hardware
-specifications / independently collected hardware dumps).
-MPL/GPL/LGPL implementations are non-normative leads only: list them,
-mark them non-normative, and never let a normative fact rest solely on
-them. A quirk known only from a copyleft implementation belongs in
-Open questions until independently verified. Pin page/section where
+specifications / maintainer-accepted independent hardware dumps).
+MPL/GPL/LGPL implementations are leads: list them with the note
+"lead-only (copyleft)", and cite that source ID in the Source column
+of every fact row and quirk entry that rests on it. A fact whose only
+source is such a lead may back an Experimental scope only (ADR 0023);
+Verified scopes need a primary source or a maintainer-accepted
+independent hardware dump. A lead-only fact that
+conflicts with primary evidence, or that cannot be stated as a
+read-only fact, belongs in Open questions. Pin page/section where
 possible; otherwise add TODO(provenance).
 -->
 
@@ -46,7 +50,9 @@ chip ID registers, presence probes. Each fact tagged with a source ID.
 If parts of the hardware scope are unverified while the rest of the
 document is ready, add a scoped-enablement table here (columns:
 Scope, Status, Default enablement) following the per-family example
-in cpu-amd-zen-smn.md.
+in cpu-amd-zen-smn.md. A row whose default enablement is Experimental
+because it depends on lead-only facts names those facts (with their
+source IDs) in its Status column; a Verified row never depends on one.
 -->
 
 ## Register map (facts)
@@ -70,9 +76,12 @@ ordering, validity checks, and the exact decode formula with units.
 
 <!--
 Per-model deviations, errata, offsets. Each entry: factual statement +
-source note backed by a primary source. A quirk known only from a
-copyleft implementation must live in Open questions, not here, until
-independently verified.
+source note. A quirk backed by a primary source or a maintainer-accepted
+independent dump may serve Verified scopes. A read-only quirk known only from a
+copyleft implementation may appear here as a lead-only fact (source
+note "lead-only (copyleft)") serving Experimental scopes only
+(ADR 0023). A lead-only quirk that conflicts with primary evidence,
+or that is not a read-only fact, lives in Open questions instead.
 -->
 
 ## Safety notes
@@ -85,7 +94,9 @@ and what must never be written.
 ## Open questions
 
 <!--
-Anything not yet verified against a primary source, with what evidence
+Anything that cannot be stated as a tagged fact in the tables above
+(unverified and not eligible as a lead-only Experimental fact,
+conflicting sources, non-read-only behavior), with what evidence
 exists so far. Implementers must treat these as unresolved.
 At status-flip time every entry must be resolved or annotated as its
 first line with exactly:

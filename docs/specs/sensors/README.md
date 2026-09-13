@@ -19,7 +19,7 @@ relicense to GPL-3.0-or-later
 
 | Role | May read | Must not do |
 | --- | --- | --- |
-| Spec author ("dirty room") | Vendor datasheets and manuals (primary); public hardware specifications; independently collected hardware dumps; MPL/GPL/LGPL implementations **only as non-normative leads** | Copy code excerpts, code structure, or implementation identifier names into spec documents |
+| Spec author ("dirty room") | Vendor datasheets and manuals (primary); public hardware specifications; independently collected hardware dumps; MPL/GPL/LGPL implementations as leads, whose facts may back **Experimental** scopes only when tagged lead-only ([ADR 0023](../../adr/0023-copyleft-derived-facts-for-experimental-scopes.md)) | Copy code excerpts, code structure, or implementation identifier names into spec documents |
 | Implementer ("clean room") | `docs/specs/sensors/**` and this repository only | Read LibreHardwareMonitor / OpenHardwareMonitor / Linux kernel / lm-sensors sources, or any decompiled monitoring tool |
 
 Names that are part of a public API contract (for example PawnIO module
@@ -35,15 +35,24 @@ in spec documents.
   still needs to be pinned.
 - No code excerpts, no code structure, and no identifier names taken
   from copyrighted implementations.
-- MPL/GPL/LGPL implementations may be used **only as non-normative
-  leads**. Normative spec facts must be backed by vendor
-  documentation, public hardware specifications, or independently
-  collected hardware dumps. Copyleft sources consulted as leads must
-  still be listed in the document's Sources table, explicitly marked
-  non-normative; no fact may rest solely on them.
-- If a quirk is known only from a copyleft implementation, it must
-  stay in the document's **Open questions** section until
-  independently verified.
+- MPL/GPL/LGPL implementations are leads. A fact whose only source is
+  such an implementation is a **lead-only fact**: it may be normative
+  only for a scope whose default enablement is **Experimental**, and it
+  may never back a **Verified** scope
+  ([ADR 0023](../../adr/0023-copyleft-derived-facts-for-experimental-scopes.md)).
+  List the copyleft source in the Sources table with the note
+  `lead-only (copyleft)`, cite its ID on each lead-only fact row and
+  quirk entry, and name the lead-only facts, with their source IDs, in
+  the Status column
+  of the scoped-enablement row that depends on them. Verified scopes still require vendor documentation, public
+  hardware specifications, or maintainer-accepted independent hardware
+  dumps.
+- A lead-only fact that conflicts with a primary source or a
+  maintainer-accepted hardware dump moves to **Open questions**; the
+  primary evidence wins.
+  A quirk known only from a copyleft implementation that cannot be
+  expressed as a read-only fact for an Experimental scope stays in
+  Open questions until independently verified.
 - Anything uncertain goes in the document's **Open questions** section,
   not in the fact tables.
 - Read-only orientation: documents describe register *reads*. Writes
@@ -142,8 +151,11 @@ Checklist for the flipping PR (all items required):
       Example: `Non-blocking for Phase 1: package readout does not
       depend on this; only per-core readings would.` The phase name
       and justification stay in the Open questions section.
-- [ ] No normative fact rests solely on a copyleft source (re-check
-      the notes column of the Sources table).
+- [ ] Every fact that rests solely on a copyleft source is tagged
+      lead-only (Sources note `lead-only (copyleft)`, source ID on the
+      fact row) and is depended on only by scoped-enablement rows whose
+      default enablement is Experimental; no Verified scope depends on
+      one (re-check the notes column of the Sources table).
 - [ ] Scoped-enablement tables are consistent with the verification
       state of each row. A *scoped-enablement table* is the pattern
       for documents that are ready overall while specific hardware
