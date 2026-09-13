@@ -191,6 +191,7 @@ fn build_temperature_sample(
       TemperatureSample {
         cpu_temperature,
         sensor_temperatures,
+        cpu_package_thermal_status: None,
         availability,
         guidance_candidates,
       }
