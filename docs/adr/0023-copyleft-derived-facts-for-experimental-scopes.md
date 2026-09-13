@@ -47,8 +47,9 @@ implementation read by the spec-author role and restated as a fact.
 - Every lead-only fact is tagged: the copyleft source is listed in the
   document's Sources table with the note `lead-only (copyleft)`, the fact row
   cites that source ID, and the scoped-enablement row's Status names the
-  lead-only facts it depends on. A document whose Experimental scope rests on
-  lead-only facts can still be `Implementation-ready (rev N)`.
+  lead-only facts it depends on together with their source IDs. A document
+  whose Experimental scope rests on lead-only facts can still be
+  `Implementation-ready (rev N)`.
 - A lead-only scope graduates to Verified only when a primary source or a
   maintainer-accepted independent hardware dump confirms every fact the scope
   depends on; the revision history records the graduation.
