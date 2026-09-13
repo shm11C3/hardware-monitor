@@ -45,7 +45,9 @@ pub enum ExternalComponentSetupOutcome {
   AlreadyInstalled,
   Installed,
   RebootRequired,
-  /// The user declined the elevation prompt; nothing ran.
+  // No doc comments on variants: tauri-specta renders them as a multi-line
+  // union with trailing whitespace, which fails the whitespace gate.
+  // Cancelled: the user declined the elevation prompt; nothing ran.
   Cancelled,
   Failed,
 }

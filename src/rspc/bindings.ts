@@ -879,9 +879,7 @@ export type ExternalComponentRuntimeState = {
 	installLocation: string | null,
 };
 
-export type ExternalComponentSetupOutcome = "alreadyInstalled" | "installed" | "rebootRequired" | 
-// The user declined the elevation prompt; nothing ran.
-"cancelled" | "failed";
+export type ExternalComponentSetupOutcome = "alreadyInstalled" | "installed" | "rebootRequired" | "cancelled" | "failed";
 
 export type ExternalComponentSetupResult = {
 	component: ExternalComponent,
