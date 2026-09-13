@@ -6,8 +6,9 @@ use crate::infrastructure::providers::windows::cpu_temperature::{
 use crate::infrastructure::providers::windows::super_io_motherboard::MotherboardSensorReadout;
 use crate::log_warn;
 use crate::models::{
-  ExternalComponentGuidanceCandidate, MotherboardSensorCollection, PowerDraw,
-  SensorAvailability, SensorSupport, SensorTemperature, TemperatureSample,
+  CpuPackageThermalStatus, ExternalComponentGuidanceCandidate,
+  MotherboardSensorCollection, PowerDraw, SensorAvailability, SensorSupport,
+  SensorTemperature, TemperatureSample,
 };
 
 static MOTHERBOARD_SENSOR_FALLBACK_LOGGED: AtomicBool = AtomicBool::new(false);
