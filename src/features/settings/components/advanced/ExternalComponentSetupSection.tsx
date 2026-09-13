@@ -22,7 +22,7 @@ type ComponentEntry = {
 };
 
 /**
- * External Component Setup (ADR 0023): per-component state and the explicit
+ * External Component Setup (ADR 0024): per-component state and the explicit
  * install action. Windows only; other platforms keep the documentation link.
  */
 export const ExternalComponentSetupSection = () => {

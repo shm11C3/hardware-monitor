@@ -1,7 +1,7 @@
 //! Command-line modes of the application binary that run without the Tauri
 //! runtime.
 //!
-//! The only mode today is External Component Setup (ADR 0023): the Settings
+//! The only mode today is External Component Setup (ADR 0024): the Settings
 //! action launches the executable elevated in this mode and the Windows
 //! installer's custom action invokes it from its elevated context, so one
 //! Core code path serves both entry points.

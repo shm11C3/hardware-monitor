@@ -318,7 +318,7 @@ const buildInvokeHandlers = (
   get_external_component_guidance_candidates: () => [],
   defer_external_component_guidance_for_session: () => null,
   acknowledge_external_component_guidance_key: () => null,
-  // External Component Setup (ADR 0023): a machine with the PawnIO runtime
+  // External Component Setup (ADR 0024): a machine with the PawnIO runtime
   // installed and one module file still missing, so the Settings capture
   // shows the install action.
   get_external_component_setup_components: () => ["pawnio"],

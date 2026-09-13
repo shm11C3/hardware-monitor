@@ -11,7 +11,7 @@ Windows CPU package temperature collection through PawnIO requires a local
 PawnIO installation. HardwareVisualizer does not bundle PawnIO. It can install
 it only through External Component Setup, an explicit user action that
 downloads the pinned upstream release and verifies it before running the
-installer; see [ADR 0023](../adr/0023-external-component-setup.md).
+installer; see [ADR 0024](../adr/0024-external-component-setup.md).
 
 Required components:
 

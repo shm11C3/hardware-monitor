@@ -79,12 +79,13 @@ sensor implementations.
 
 Full rules: `docs/specs/sensors/README.md`. In short: vendor
 datasheets / public hardware specifications / independently collected
-dumps are the primary sources; MPL/GPL/LGPL implementations are
-**non-normative leads only** and may never be the sole basis of a
-normative fact; no code excerpts, structure, or identifiers from
-copyrighted implementations may enter the spec documents; every fact
-carries provenance. Use
-`.claude/agents/sensor-spec-author.md` for this role.
+dumps are the primary sources; MPL/GPL/LGPL implementations are leads,
+and a fact resting solely on one (a **lead-only fact**, tagged
+`lead-only (copyleft)`) may back an **Experimental** scope only, never
+a Verified one (`docs/adr/0023-copyleft-derived-facts-for-experimental-scopes.md`);
+no code excerpts, structure, or identifiers from copyrighted
+implementations may enter the spec documents; every fact carries
+provenance. Use `.claude/agents/sensor-spec-author.md` for this role.
 
 ## License policy
 
@@ -97,7 +98,10 @@ carries provenance. Use
 - Translating or porting MPL/GPL/LGPL implementation code remains
   prohibited even where those licenses are now compatible with
   GPL-3.0-or-later (carrying ported files under file-level MPL-2.0 was
-  considered and rejected in #1635).
+  considered and rejected in #1635). Restating a register fact learned
+  from such an implementation in a spec, tagged lead-only and confined
+  to Experimental scopes, is the spec-author allowance of ADR 0023; it
+  is not porting.
 - PawnIO is GPL-2.0 with an exception for independent programs
   communicating through its device IO control interface; PawnIOLib and
   the modules are LGPL-2.1-or-later. This repository calls them via

@@ -1,4 +1,4 @@
-//! App-side orchestration of External Component Setup (ADR 0023).
+//! App-side orchestration of External Component Setup (ADR 0024).
 //!
 //! The service never installs anything in the app process. It reads the
 //! component state through Core, and for a setup run it launches the current

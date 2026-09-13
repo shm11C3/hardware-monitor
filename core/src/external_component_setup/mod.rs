@@ -6,7 +6,7 @@
 //! OS-level setup steps behind the platform boundary. App owns the entry
 //! points (command-line mode, IPC, installer custom actions) and the UI.
 //!
-//! See `docs/adr/0023-external-component-setup.md` and
+//! See `docs/adr/0024-external-component-setup.md` and
 //! `docs/design/external-component-setup.md`.
 
 use serde::{Deserialize, Serialize};

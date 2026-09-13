@@ -47,8 +47,11 @@ existing plausibility-gated decode can be attempted without inventing an
 address, register map, or chip selection. Maintain verification status in the
 sensor specifications rather than routine UI readings. If an experimental
 attempt fails and an existing diagnostic is surfaced, that failure may identify
-the path as experimental. See
-[ADR 0011](adr/0011-experimental-sensor-enablement.md).
+the path as experimental. A specification may back such an experimental scope
+with facts learned from a copyleft monitoring implementation, tagged lead-only;
+verified scopes still need a primary source or an accepted hardware dump. See
+[ADR 0011](adr/0011-experimental-sensor-enablement.md) and
+[ADR 0023](adr/0023-copyleft-derived-facts-for-experimental-scopes.md).
 
 See [Backend Architecture](architecture/backend.md#add-a-new-hardware-data-source)
 and [Product Vocabulary](../CONTEXT.md#sensor-availability).

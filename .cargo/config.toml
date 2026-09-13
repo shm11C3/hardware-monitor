@@ -1,3 +1,24 @@
+[build]
+# Move Cargo's intermediate build artifacts (dependency rlibs, build-script
+# output such as the bundled DuckDB C++ build, incremental caches) out of each
+# checkout's target/ and into one machine-wide parent directory, so cleanup and
+# disk-usage checks do not need to walk every git worktree individually. Final
+# artifacts (binaries, bundles) still land in each checkout's own `target/`, so
+# Tauri and CI paths under `target/release` are unaffected.
+#
+# {workspace-path-hash} is REQUIRED, not cosmetic: Cargo does not fingerprint a
+# workspace's own path-based member packages (this crate's own `core` and
+# `src-tauri`) by absolute source path under build-dir the way it does under
+# target/. Two worktrees with the same package name and version but different
+# source content sharing a flat build-dir can silently serve one worktree's
+# compiled binary or test results to the other. This hash makes each distinct
+# workspace root get its own subtree, which also means this setting does NOT
+# dedupe dependency compilation across worktrees with diverging source (see
+# docs/development/local-build-cache.md for what benefit remains and for
+# cross-worktree dependency-compile sharing, which needs a content-addressed
+# tool such as sccache instead).
+build-dir = "{cargo-cache-home}/build/shared/{workspace-path-hash}"
+
 [alias]
 tauri-test = "test --workspace -- --test-threads=1 --nocapture"
 tauri-test-cov = "llvm-cov --workspace -- --test-threads=1 --nocapture"

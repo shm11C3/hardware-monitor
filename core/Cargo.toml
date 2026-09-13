@@ -50,7 +50,7 @@ duckdb = { version = "=1.10505.0", default-features = false, features = [
 ], optional = true }
 
 [target.'cfg(windows)'.dependencies]
-# External Component Setup (ADR 0023) downloads pinned upstream release
+# External Component Setup (ADR 0024) downloads pinned upstream release
 # assets and extracts module files. The TLS stack mirrors what
 # tauri-plugin-updater already compiles into the App (rustls + ring), so no
 # second TLS implementation enters the binary; `rustls` is listed directly so
