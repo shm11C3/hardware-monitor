@@ -4,6 +4,7 @@
 
 mod native_support;
 
+use std::path::Path;
 use std::time::Duration;
 
 use duckdb::Connection;
@@ -12,7 +13,8 @@ use hardviz_core::infrastructure::database::native_database::{
 };
 use hardviz_core::persistence::archive_data::ProcessStatData;
 use native_support::{
-  NativeFixture, app_native_schema, file_hash, read_only, sqlite_epoch_milliseconds_of,
+  NativeFixture, app_native_schema, file_hash, read_only, read_write,
+  sqlite_epoch_milliseconds_of,
 };
 use sqlx::{Executor, Row, SqlitePool};
 
@@ -66,6 +68,24 @@ async fn finalizes_every_domain_table_preserving_classes_ids_and_multiplicity() 
   assert!(fixture.work_directories().is_empty());
 
   let connection = read_only(&fixture.finalized);
+  assert_eq!(storage_header_version(&fixture.finalized), 64);
+  let recorded_storage_version: String = connection
+    .query_row(
+      "SELECT storage_version FROM __hv_native_metadata",
+      [],
+      |row| row.get(0),
+    )
+    .unwrap();
+  let engine_storage_version: String = connection
+    .query_row(
+      "SELECT tags['storage_version'] FROM duckdb_databases() \
+       WHERE database_name = current_database()",
+      [],
+      |row| row.get(0),
+    )
+    .unwrap();
+  assert_eq!(recorded_storage_version, "v1.0.0+");
+  assert_eq!(engine_storage_version, recorded_storage_version);
   // Tagged unions keep the integer/real distinction and the exact binary64 bits.
   assert_eq!(
     cpu_avg_union(&connection, i64::MIN),
@@ -131,6 +151,50 @@ async fn finalizes_every_domain_table_preserving_classes_ids_and_multiplicity() 
       ("cpu_avg".to_owned(), "UNION(i BIGINT, r DOUBLE)".to_owned()),
       ("cpu_temperature_avg".to_owned(), "DOUBLE".to_owned()),
     ]
+  );
+}
+
+#[tokio::test]
+async fn refuses_a_native_file_when_recorded_storage_version_disagrees() {
+  let fixture = seeded_native().await;
+  {
+    let connection = read_write(&fixture.finalized);
+    connection
+      .execute(
+        "UPDATE __hv_native_metadata SET storage_version = 'v1.2.0+'",
+        [],
+      )
+      .unwrap();
+    connection.execute_batch("CHECKPOINT").unwrap();
+  }
+
+  let error = fixture
+    .try_open(app_native_schema::NATIVE_SCHEMA_VERSION)
+    .await
+    .unwrap_err();
+  assert!(
+    matches!(error, NativeDatabaseError::StorageVersionMismatch { .. }),
+    "{error:?}"
+  );
+  assert!(matches!(
+    fixture.authority_state(),
+    hardviz_core::infrastructure::database::native_database::AuthorityState::Inconsistent {
+      reason: hardviz_core::infrastructure::database::native_database::AuthorityInconsistency::StorageVersionMismatch,
+      ..
+    }
+  ));
+}
+
+#[test]
+fn duckdb_lock_bumps_require_a_storage_format_review() {
+  let lock = include_str!("../../Cargo.lock");
+  assert!(
+    lock.contains("name = \"duckdb\"\nversion = \"1.10505.0\""),
+    "a DuckDB crate bump requires reviewing the pinned native storage format"
+  );
+  assert!(
+    lock.contains("name = \"libduckdb-sys\"\nversion = \"1.10505.0\""),
+    "a libduckdb-sys bump requires reviewing the pinned native storage format"
   );
 }
 
@@ -843,6 +907,13 @@ fn count_processes(connection: &Connection) -> i64 {
   connection
     .query_row("SELECT COUNT(*) FROM PROCESS_STATS", [], |row| row.get(0))
     .unwrap()
+}
+
+fn storage_header_version(path: &Path) -> u64 {
+  let bytes = std::fs::read(path).unwrap();
+  // DuckDB reserves the first idx_t bytes for the block header, then writes
+  // four magic bytes followed by the storage header version.
+  u64::from_le_bytes(bytes[12..20].try_into().unwrap())
 }
 
 async fn highest_process_id(

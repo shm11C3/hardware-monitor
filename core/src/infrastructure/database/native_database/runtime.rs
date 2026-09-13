@@ -10,12 +10,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
-use duckdb::{AccessMode, Config, Connection, OptionalExt, Transaction, params};
+use duckdb::{AccessMode, Connection, OptionalExt, Transaction, params};
 use tempfile::TempDir;
 use tokio::sync::{Mutex as AsyncMutex, RwLock, mpsc, oneshot};
 
 use super::NativeDatabaseError;
 use super::cell::quote_identifier;
+use super::compatibility::{native_config, verify_storage_version};
 use super::finalize::{
   FINALIZED_UNSELECTED, NATIVE_IDENTITY_TABLE, NATIVE_METADATA_TABLE, SELECTED,
 };
@@ -484,7 +485,7 @@ fn open_connections(
     .map_err(|error| NativeDatabaseError::Worker {
       message: format!("failed to create native spill directory: {error}"),
     })?;
-  let config = native_config()?;
+  let config = native_config(AccessMode::ReadWrite, true)?;
   let writer = Connection::open_with_flags(path, config)
     .map_err(|error| NativeDatabaseError::duckdb("open native database", error))?;
   super::configure_spill(&writer, spill.path())?;
@@ -537,15 +538,6 @@ fn run_lane(
   }
 }
 
-fn native_config() -> Result<Config, NativeDatabaseError> {
-  Config::default()
-    .access_mode(AccessMode::ReadWrite)
-    .and_then(|config| config.threads(2))
-    .and_then(|config| config.max_memory("128MB"))
-    .and_then(|config| config.enable_autoload_extension(false))
-    .map_err(|error| NativeDatabaseError::duckdb("configure native database", error))
-}
-
 fn validate_native_metadata(
   connection: &Connection,
   expected_version: u32,
@@ -562,17 +554,19 @@ fn validate_native_metadata(
   if present == 0 {
     return Err(NativeDatabaseError::Unfinalized);
   }
-  let row: Option<(String, i64)> = connection
+  let row: Option<(String, i64, String)> = connection
     .query_row(
-      &format!("SELECT state, schema_version FROM {NATIVE_METADATA_TABLE}"),
+      &format!(
+        "SELECT state, schema_version, storage_version FROM {NATIVE_METADATA_TABLE}"
+      ),
       [],
-      |row| Ok((row.get(0)?, row.get(1)?)),
+      |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
     )
     .optional()
     .map_err(|error| {
       NativeDatabaseError::duckdb("read the native schema metadata", error)
     })?;
-  let Some((state, actual)) = row else {
+  let Some((state, actual, storage_version)) = row else {
     return Err(NativeDatabaseError::Unfinalized);
   };
   // A selected database is the same finalized file with its authority
@@ -588,5 +582,6 @@ fn validate_native_metadata(
       actual,
     });
   }
+  verify_storage_version(connection, &storage_version)?;
   Ok(())
 }

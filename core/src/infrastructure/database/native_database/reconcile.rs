@@ -65,6 +65,7 @@ use super::NativeDatabaseError;
 use super::cell::{
   COPY_BATCH_ROWS, Cell, NativeColumnKind, RowMultisetDigest, quote_identifier,
 };
+use super::compatibility::verify_storage_version;
 use super::epoch::EpochMilliseconds;
 use super::finalize::{
   ColumnPlan, ColumnSource, FINALIZED_UNSELECTED, NATIVE_IDENTITY_TABLE,
@@ -326,14 +327,14 @@ fn require_reconcilable(
   native: &Connection,
   schema: &NativeSchemaDefinition,
 ) -> Result<String, NativeDatabaseError> {
-  let (state, version, recorded): (String, i64, String) = native
+  let (state, version, storage_version, recorded): (String, i64, String, String) = native
     .query_row(
       &format!(
-        "SELECT state, schema_version, source_schema_sha256 FROM {}",
+        "SELECT state, schema_version, storage_version, source_schema_sha256 FROM {}",
         quote_identifier(NATIVE_METADATA_TABLE)
       ),
       [],
-      |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+      |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
     )
     .map_err(|error| {
       NativeDatabaseError::duckdb("read the native metadata to reconcile", error)
@@ -352,6 +353,7 @@ fn require_reconcilable(
       actual: version,
     });
   }
+  verify_storage_version(native, &storage_version)?;
   Ok(recorded)
 }
 
@@ -918,18 +920,19 @@ fn verify_reconciled(
   tables: &mut [NativeReconciliationTableReport],
 ) -> Result<(), NativeDatabaseError> {
   let connection = open_database(native_path, AccessMode::ReadOnly, spill)?;
-  let (state, version): (String, i64) = connection
+  let (state, version, storage_version): (String, i64, String) = connection
     .query_row(
       &format!(
-        "SELECT state, schema_version FROM {}",
+        "SELECT state, schema_version, storage_version FROM {}",
         quote_identifier(NATIVE_METADATA_TABLE)
       ),
       [],
-      |row| Ok((row.get(0)?, row.get(1)?)),
+      |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
     )
     .map_err(|error| {
       NativeDatabaseError::duckdb("read the reopened reconciled metadata", error)
     })?;
+  verify_storage_version(&connection, &storage_version)?;
   if state != FINALIZED_UNSELECTED || version != i64::from(schema.version) {
     return Err(NativeDatabaseError::Verification {
       message: "the reopened native metadata does not match what was written".to_owned(),

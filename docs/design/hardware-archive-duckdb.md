@@ -86,6 +86,14 @@ installed runtime. File
 [compatibility](https://duckdb.org/docs/current/internals/storage) remains a
 separate versioning decision.
 
+The implementation pins newly written files to DuckDB's `v0.10.2` storage
+compatibility level, records the engine-reported storage tag beside
+`schema_version` in native metadata, and refuses a file whose recorded and
+opened-file versions disagree. Newer storage versions may improve compression,
+but adopting one is a deliberate one-way migration because older readers may
+no longer open the file; every DuckDB crate bump therefore requires an explicit
+storage-format review.
+
 Long Process results still need bounded pages and cancellation; vectorized SQL
 does not bound IPC output. Independent DuckDB instances need separate spill
 directories. Exact connection lifetime, checkpoint scheduling, and failure

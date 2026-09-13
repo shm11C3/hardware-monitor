@@ -16,6 +16,10 @@ pub enum NativeDatabaseError {
     "native database schema version {actual} is incompatible with expected version {expected}"
   )]
   IncompatibleSchema { expected: u32, actual: u32 },
+  #[error(
+    "native database storage version {actual:?} is incompatible with recorded version {expected:?}"
+  )]
+  StorageVersionMismatch { expected: String, actual: String },
   #[error("native database request cancellation may be attached to only one request")]
   CancellationAlreadyUsed,
   #[error("native database request was cancelled")]
