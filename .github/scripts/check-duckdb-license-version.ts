@@ -7,10 +7,10 @@ const notice = readFileSync(
 );
 
 const lockVersion = lockfile.match(
-  /name = "libduckdb-sys"\nversion = "([^"]+)"/,
+  /name = "libduckdb-sys"\r?\nversion = "([^"]+)"/,
 )?.[1];
 const coveredVersion = notice.match(
-  /^Covered libduckdb-sys version: `([^`]+)`$/m,
+  /^Covered libduckdb-sys version: `([^`]+)`\r?$/m,
 )?.[1];
 
 if (!lockVersion) {
