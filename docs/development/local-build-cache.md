@@ -76,20 +76,55 @@ What this configuration still buys:
 - Every worktree's intermediate artifacts live under one parent directory
   (`~/.cargo/build/shared/`), so checking total build-cache disk usage or
   wiping it is one command instead of walking every worktree individually.
-- Two worktrees that happen to be **on the same commit** (for example, a
-  review checkout of the exact branch under test) do share their subtree,
-  since the hash is based on path, not content, and identical path-based
-  packages with identical content fingerprint identically either way.
+- Rebuilding the **same worktree path** after deleting its own subtree (for
+  example after a `cargo clean` equivalent, or a machine restart) is a full
+  cache hit if its dependency versions are unchanged, since the hash is a
+  function of the workspace path, not its content. Two different worktree
+  directories never share a subtree this way, even when they happen to be
+  checked out to the same commit, because they are different paths.
 
-It does **not** reduce total disk usage across worktrees whose source differs,
-and it does not avoid recompiling shared third-party dependencies (DuckDB,
-sqlx, tokio, and the rest) on each diverging worktree. If that is what you
-need, use a content-addressed compiler cache instead: Cargo's own build-cache
-documentation recommends [sccache](https://github.com/mozilla/sccache) for
-sharing compiled dependencies across separate workspace checkouts, since it
-keys its cache by compiler invocation and preprocessed source content rather
-than by filesystem path, so it cannot repeat this bug. `sccache` is not
-configured in this repository as of this writing.
+It does **not** reduce total disk usage across worktrees whose source differs:
+each worktree's build-dir subtree still ends up close to full size (roughly 5
+to 7 GB with `duckdb-archive`), since Cargo still needs every dependency
+artifact physically present in that subtree to link against. Disk usage is
+bounded by the manual cleanup commands below, not automatically.
+
+### Optional: speed up rebuilds with sccache
+
+For the recompilation itself (not disk usage), Cargo's own build-cache
+documentation recommends [sccache](https://github.com/mozilla/sccache), a
+compiler-invocation cache that keys by preprocessed source content rather than
+filesystem path, so it cannot repeat the correctness bug above. This is a
+**per-machine developer convenience, not a repository setting**: enabling it
+project-wide would break anyone's (and CI's) build the moment sccache is not
+on their `PATH`, so configure it only in your own `~/.cargo/config.toml`, never
+in this repository's:
+
+```toml
+[build]
+rustc-wrapper = "sccache"
+
+[env]
+SCCACHE_DIR = { value = "/absolute/path/to/a/cache/dir", force = false }
+SCCACHE_CACHE_SIZE = { value = "20G", force = false }
+```
+
+Install with `brew install sccache` (or your platform's equivalent), then run
+`sccache --stop-server` once after first setting this up so a stale server
+process is not still holding an old configuration.
+
+Measured on 2026-09-13 with cargo 1.98.1 and sccache 0.17.0, building
+`hardviz-core` with `duckdb-archive` from two real worktrees on different
+branches: a cold build took 5 m 57 s; the second worktree, with sccache warm,
+took 5 m 03 s (about 15% faster). The improvement is real but modest, and
+uneven by language: Rust compilations hit the cache well (56%), but the
+DuckDB C/C++ build hit poorly (9%). This is a direct consequence of
+`{workspace-path-hash}`: it makes each worktree extract DuckDB's bundled
+source into its own absolute path, and that path is embedded in preprocessor
+output, which changes sccache's C/C++ cache key even though the underlying
+source is identical. sccache also adds its own cache directory on disk
+(capped by `SCCACHE_CACHE_SIZE` above); it does not shrink any worktree's own
+build-dir subtree.
 
 ## What changes for you
 
@@ -127,9 +162,10 @@ checkouts, including uncommitted work. Delete `target/debug` and
 `target/release` instead, or move the worktrees out first.
 
 Worktree hygiene matters as much as the cache. `git worktree remove` deletes
-the checkout but leaves nothing behind, since the checkout no longer owns a
-large `target/`. Drop registrations whose directories were deleted by hand
-with:
+the checkout, but its shared-cache subtree under `~/.cargo/build/shared/` is
+keyed by the now-gone path and is not cleaned up automatically; it sits there
+until the periodic `rm -rf ~/.cargo/build/shared` above reclaims it. Drop
+worktree registrations whose directories were deleted by hand with:
 
 ```bash
 git worktree prune
