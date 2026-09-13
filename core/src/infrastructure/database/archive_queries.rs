@@ -206,10 +206,10 @@ pub struct ArchiveRecord {
 }
 
 #[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
-struct AggregatedArchiveBucket {
-  timestamp: i64,
-  value: Option<f64>,
-  value_count: i64,
+pub(crate) struct AggregatedArchiveBucket {
+  pub(crate) timestamp: i64,
+  pub(crate) value: Option<f64>,
+  pub(crate) value_count: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
@@ -430,11 +430,11 @@ pub struct AmbientArchiveSeries {
 }
 
 #[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
-struct AggregatedAmbientBucket {
-  timestamp: i64,
-  ambient_avg: Option<f64>,
-  delta_avg: Option<f64>,
-  minute_count: i64,
+pub(crate) struct AggregatedAmbientBucket {
+  pub(crate) timestamp: i64,
+  pub(crate) ambient_avg: Option<f64>,
+  pub(crate) delta_avg: Option<f64>,
+  pub(crate) minute_count: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
@@ -610,7 +610,7 @@ async fn select_gpu_archive_series_from_pool(
 }
 
 #[derive(Debug, Clone, Copy)]
-struct ArchiveSeriesBounds {
+pub(crate) struct ArchiveSeriesBounds {
   first: i64,
   last: i64,
   end: i64,
@@ -620,7 +620,7 @@ struct ArchiveSeriesBounds {
 }
 
 impl ArchiveSeriesBounds {
-  fn new(
+  pub(crate) fn new(
     start: &DateTime<Utc>,
     end: &DateTime<Utc>,
     width: i64,
@@ -782,7 +782,7 @@ fn gpu_archive_series_sql(
   )
 }
 
-fn fill_archive_series(
+pub(crate) fn fill_archive_series(
   rows: Vec<AggregatedArchiveBucket>,
   bounds: ArchiveSeriesBounds,
 ) -> Vec<ArchiveSeriesPoint> {
@@ -830,7 +830,7 @@ fn fill_archive_series(
 /// convention is deliberately identical: a bucket nobody recorded comes
 /// back absent on both readings, so the lane breaks where the other lanes
 /// break instead of drawing a line through air nobody measured.
-fn fill_ambient_archive_series(
+pub(crate) fn fill_ambient_archive_series(
   rows: Vec<AggregatedAmbientBucket>,
   bounds: ArchiveSeriesBounds,
 ) -> Vec<AmbientArchiveBucket> {

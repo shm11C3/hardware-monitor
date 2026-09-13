@@ -45,6 +45,13 @@ pub enum NativeDatabaseError {
     destination: String,
   },
   #[error(
+    "{table}.{column} is NOT NULL and the reading is NaN, which SQLite refuses to store"
+  )]
+  NotANumberInRequiredColumn {
+    table: &'static str,
+    column: &'static str,
+  },
+  #[error(
     "NULL in required native column {table}.{column} at source row ordinal {row_ordinal}"
   )]
   NullInRequiredColumn {
@@ -61,6 +68,20 @@ pub enum NativeDatabaseError {
     column: &'static str,
     pid: i64,
     process_name: String,
+  },
+  #[error(
+    "stored {kind} in {table}.{column} is not a value the SQLite reader decodes: {value:?}"
+  )]
+  UndecodableStoredValue {
+    table: &'static str,
+    column: &'static str,
+    kind: &'static str,
+    value: String,
+  },
+  #[error("native archive series request is not answerable: {source}")]
+  ArchiveSeries {
+    #[source]
+    source: crate::infrastructure::database::archive_queries::ArchiveSeriesError,
   },
   #[error("native database finalization failed during {context}: {message}")]
   Finalization { context: String, message: String },

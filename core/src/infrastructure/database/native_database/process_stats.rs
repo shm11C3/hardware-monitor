@@ -11,6 +11,7 @@ use chrono::{DateTime, Duration, SecondsFormat, Utc};
 use duckdb::params;
 
 use super::NativeDatabaseError;
+use super::binding::required_real;
 use super::runtime::{NativeCancellation, NativeDatabase};
 use crate::infrastructure::database::archive_queries::ProcessStatRecord;
 use crate::persistence::archive_data::ProcessStatData;
@@ -62,7 +63,7 @@ pub async fn insert(
               id,
               i64::from(process.pid),
               process.process_name.as_str(),
-              f64::from(process.cpu_usage),
+              required_real(TABLE, "cpu_usage", f64::from(process.cpu_usage))?,
               i64::from(process.memory_usage),
               i64::from(process.execution_sec),
               stamp.as_str()

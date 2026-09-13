@@ -236,6 +236,65 @@ which is bit-identical everywhere. A sum beyond `i64` becomes a query error
 rather than a different number; SQLite abandons exact summation there too, and
 an `i32` `memory_usage` writer cannot reach it within a Retention Period.
 
+**Write-time timestamps and the cooling projections.** A native *writer* faces
+the mirror of the finalizer's problem: it has the `DateTime<Utc>`, but it must
+store the bytes sqlx would have stored (every timestamp comparison in these
+families is a byte-wise text comparison) *and* the key finalization would have
+derived from those bytes. Those two are not the same arithmetic.
+`timestamp_millis()` truncates; SQLite's date parser rounds a fractional second
+to the nearest millisecond, so a `.000500` microsecond stamp diverges from a
+`.000499` one only under SQLite's rule - measured at 1,788,221,700,001 against
+1,788,221,700,000, where `timestamp_millis()` gives both rows 1,788,221,700,000.
+Rather than re-deriving the rounding rule in Rust, where the tie lands on
+whichever side binary64 rounds `s*1000` to, the writer runs the same in-memory
+SQLite oracle the finalizer runs, once per write cycle on a blocking task. The
+key it produces is therefore the value finalization would have computed for the
+row, by construction rather than by agreement. A NULL back from the oracle is
+refused rather than stored: the text being converted is the writer's own
+rendering of a `DateTime<Utc>`, so a NULL would mean the two engines disagreed
+about our own output - a defect, not a missing reading.
+
+Three systematic differences, and nothing else, separate the native cooling and
+ambient/fan queries from their SQLite counterparts. Epoch keys are read from the
+stored `__hv_timestamp_epoch_ms` column instead of recomputed per row, which
+also removes the widened raw-TEXT brackets SQLite carries purely so its
+timestamp index can be range-scanned - a native stored key needs no such hint,
+and the brackets were chosen to be incapable of excluding a row the exact
+predicate keeps. Integer division is spelled `//`, because SQLite's `/` between
+integers truncates toward zero while DuckDB's `/` returns a DOUBLE; the two
+agree on every present-day epoch, so the choice is pinned against SQLite over
+pre-epoch values rather than left to a fixture that could not see it.
+`CAST(cpu_avg AS REAL)` goes through `union_extract` against the tagged
+`UNION(i BIGINT, r DOUBLE)` columns. The one place the native query reproduces a
+SQLite *approximation* on purpose is the pairable-ambient cursor's two-minute
+text bracket: it is the only clause whose answer depends on raw text comparison
+across writers, so it is transcribed rather than dropped, keeping the two
+engines identical even on a database hand-edited into mixed timestamp spellings.
+
+A fourth difference had to be removed rather than described. SQLite has no NaN:
+`sqlite3VdbeMemSetDouble` stores a bound IEEE NaN as NULL, so every SQLite
+writer here silently turns a NaN reading into a gap, and into a `NOT NULL`
+column it fails the insert outright. Both behaviours are measured against sqlx
+rather than taken from the documentation. A native writer binding the NaN
+straight through would change nullness - `AVG` would propagate it, `COUNT` would
+count it, and a lane would draw NaN where the same rows written through SQLite
+draw a break - so every real-valued bind goes through one shared helper that
+returns the absence SQLite would have stored, and a NaN bound for a `NOT NULL`
+column is refused with a typed error naming the column. `±Infinity` is a value
+in both engines and is deliberately left alone. The open question about DuckDB's
+`AVG` above is not confined to Process Stats: the ambient, fan and cooling
+averages read through the same `AVG(DOUBLE)`, so they carry the same binary64
+residue once one bucket's finite `f32` readings span more than about 2^53,
+which no collector this application ships can produce.
+
+One rolled-up day's six projections - daily, hourly, fan, Thermal Delta, and
+both co-variate shapes - are written in a single native transaction, as they are
+in SQLite. A committed daily row with its later projections missing is the
+half-written state the catch-up cursor would have to repair, and it cannot tell
+that case apart from a day that legitimately had none once the archive rows
+behind it age out; failing the day as a whole leaves the cursor unmoved so the
+next pass retries it.
+
 ## Remaining design questions
 
 - [#2089](https://github.com/shm11C3/HardwareVisualizer/issues/2089): native

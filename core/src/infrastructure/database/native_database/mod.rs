@@ -5,19 +5,34 @@
 //! when a caller asks, and the per-family functions run beside - never instead
 //! of - their SQLite counterparts until App lifecycle selection is implemented.
 
+pub mod ambient_archive;
+mod archive_sql;
+mod binding;
 mod cell;
+pub mod cooling_baseline;
+pub mod cooling_covariate_daily_summary;
+pub mod cooling_daily_summary;
+pub mod cooling_delta_baseline;
+pub mod cooling_fan_daily_summary;
+pub mod cooling_hourly_summary;
+pub mod cooling_rollup;
+pub mod cooling_thermal_delta_daily_summary;
 mod epoch;
 mod error;
+pub mod fan_archive;
 mod finalize;
 mod paging;
 pub mod process_stats;
 mod runtime;
 mod schema;
+mod stored_text;
+mod write_stamp;
 
 use std::path::Path;
 
 use duckdb::Connection;
 
+pub use cooling_rollup::DayRollup;
 pub use error::NativeDatabaseError;
 pub use finalize::{
   NativeFinalizationReport, NativeTableReport, finalize_candidate_database,
