@@ -2220,6 +2220,8 @@ dependencies = [
  "libloading 0.9.0",
  "nvapi",
  "regex",
+ "reqwest",
+ "rustls",
  "serde",
  "serde_json",
  "sha2",
@@ -2232,6 +2234,7 @@ dependencies = [
  "winapi",
  "windows 0.62.2",
  "wmi",
+ "zip 6.0.0",
 ]
 
 [[package]]
@@ -4618,6 +4621,7 @@ checksum = "62e0021ea2c22aed41653bc7e1419abb2c97e038ff2c33d0e1309e49a97deec0"
 dependencies = [
  "base64 0.22.1",
  "bytes",
+ "futures-channel",
  "futures-core",
  "futures-util",
  "http",

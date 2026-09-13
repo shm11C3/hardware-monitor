@@ -50,6 +50,24 @@ duckdb = { version = "=1.10505.0", default-features = false, features = [
 ], optional = true }
 
 [target.'cfg(windows)'.dependencies]
+# External Component Setup (ADR 0023) downloads pinned upstream release
+# assets and extracts module files. The TLS stack mirrors what
+# tauri-plugin-updater already compiles into the App (rustls + ring), so no
+# second TLS implementation enters the binary; `rustls` is listed directly so
+# the crypto provider is present when `hardviz-core` is built alone.
+reqwest = { version = "0.13.3", default-features = false, features = [
+    "blocking",
+    "rustls-no-provider",
+    "system-proxy",
+] }
+rustls = { version = "0.23", default-features = false, features = [
+    "ring",
+    "std",
+    "tls12",
+] }
+zip = { version = "6.0.0", default-features = false, features = [
+    "deflate-flate2-zlib-rs",
+] }
 wmi = "0.18.4"
 dxgi = "0.1.7"
 winapi = { version = "0.3", features = [

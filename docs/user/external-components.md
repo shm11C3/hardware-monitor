@@ -15,9 +15,11 @@ Temporary in-app detail links:
   `https://github.com/shm11C3/HardwareVisualizer/blob/develop/docs/user/external-components.md#smartctl`
 
 HardwareVisualizer can collect many hardware signals without optional external
-components. Some deeper sensor paths depend on tools or drivers that users must
-install separately. HardwareVisualizer does not download, install, bundle, or
-enable those components automatically.
+components. Some deeper sensor paths depend on tools or drivers that are
+installed separately. HardwareVisualizer never installs, bundles, or enables
+those components automatically. On Windows, External Component Setup can
+install PawnIO when you ask for it in Settings; see
+[Installing PawnIO from HardwareVisualizer](#installing-pawnio-from-hardwarevisualizer).
 
 External Component Guidance appears only after HardwareVisualizer tries to use
 an optional component, cannot use it, and fallback collection still leaves
@@ -54,9 +56,31 @@ PawnIO can provide Windows CPU readings from CPU-specific sensor paths:
   module.
 - AMD CPU package power through the AMDFamily17 RAPL module.
 
+### Installing PawnIO from HardwareVisualizer
+
+On Windows, **Settings → Advanced → Optional component setup** shows whether
+the PawnIO runtime and the module files HardwareVisualizer uses are present and
+offers **Install**. When you choose it, HardwareVisualizer:
+
+1. downloads the pinned PawnIO runtime installer and the pinned PawnIO.Modules
+   release from their official GitHub releases;
+2. verifies each download against the size and SHA-256 digest recorded in the
+   app, and discards it on a mismatch;
+3. asks Windows for administrator approval, then runs the runtime installer
+   unattended if the runtime is not installed yet;
+4. copies only the module files that are missing into the PawnIO install
+   directory. Existing files are never overwritten.
+
+Restart HardwareVisualizer afterwards. If Windows reports that a restart is
+required, restart Windows first.
+
+Uninstalling HardwareVisualizer never removes PawnIO or its module files.
+Remove PawnIO from Windows "Apps & features" if you no longer want it.
+
 ### Required User Setup
 
-For PawnIO-backed CPU package temperature or power collection, the machine needs:
+If you prefer to set up PawnIO yourself, for PawnIO-backed CPU package
+temperature or power collection the machine needs:
 
 - a working PawnIO driver/runtime installation;
 - `PawnIOLib.dll`, which is provided by the PawnIO runtime installation;

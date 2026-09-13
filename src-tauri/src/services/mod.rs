@@ -2,6 +2,7 @@ pub mod archive_history_service;
 pub mod background_image_service;
 pub mod cooling_insight_service;
 pub mod external_component_guidance_service;
+pub mod external_component_setup_service;
 pub mod gpu_service;
 pub mod hardware_service;
 pub mod language_service;

@@ -9,6 +9,7 @@ import { useTauriDialog } from "@/hooks/useTauriDialog";
 import { useTauriStore } from "@/hooks/useTauriStore";
 import { openURL } from "@/lib/openUrl";
 import { ElevatedStartupModeToggle } from "./ElevatedStartupModeToggle";
+import { ExternalComponentSetupSection } from "./ExternalComponentSetupSection";
 
 export const AdvancedSettings = () => {
   const { t, i18n } = useTranslation();
@@ -58,6 +59,7 @@ export const AdvancedSettings = () => {
             <Skeleton className="h-6 w-11 rounded-full" />
           )}
         </div>
+        <ExternalComponentSetupSection />
         <div className="flex w-full flex-col items-start gap-4 py-6 sm:flex-row sm:items-center sm:justify-between xl:w-1/2">
           <div className="space-y-0.5">
             <Label className="text-lg">

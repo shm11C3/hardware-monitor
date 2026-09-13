@@ -104,6 +104,37 @@ pub trait ProcessElevationPlatform: Send + Sync {
   fn relaunch_current_process_elevated(&self) -> Result<(), PlatformError>;
 }
 
+/// Result of launching the current executable elevated and waiting for it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ElevatedProcessRun {
+  /// The user declined the elevation prompt; nothing ran.
+  Declined,
+  /// The elevated process ran to completion.
+  Exited { exit_code: Option<i32> },
+}
+
+/// Trait that defines platform-specific External Component Setup operations.
+pub trait ExternalComponentSetupPlatform: Send + Sync {
+  /// Report the installed state of the component the plan describes.
+  fn external_component_setup_status(
+    &self,
+    plan: &crate::external_component_setup::ExternalComponentSetupPlan,
+  ) -> crate::external_component_setup::ExternalComponentSetupStatus;
+
+  /// Run the plan in the current process. The caller must already be
+  /// elevated where the platform requires it.
+  fn run_external_component_setup(
+    &self,
+    plan: &crate::external_component_setup::ExternalComponentSetupPlan,
+  ) -> crate::external_component_setup::ExternalComponentSetupResult;
+
+  /// Launch the current executable elevated with `args` and wait for exit.
+  fn run_current_executable_elevated(
+    &self,
+    args: &[String],
+  ) -> Result<ElevatedProcessRun, PlatformError>;
+}
+
 /// Trait that integrates all platform functionality
 pub trait Platform:
   MemoryPlatform
@@ -113,5 +144,6 @@ pub trait Platform:
   + SuperIoPlatform
   + SensorPlatform
   + ProcessElevationPlatform
+  + ExternalComponentSetupPlatform
 {
 }

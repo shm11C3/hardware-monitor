@@ -18,6 +18,8 @@ documentation.
 - [Hardware Archive migration lifecycle proposal](adr/0021-hardware-archive-migration-lifecycle.md)
 - [Native DuckDB direction decision](adr/0022-prioritize-native-duckdb-archive-qualification.md)
 - [Native DuckDB Hardware Archive Design Doc](design/hardware-archive-duckdb.md)
+- [External Component Setup decision](adr/0023-external-component-setup.md)
+- [External Component Setup Design Doc](design/external-component-setup.md)
 - [Native DuckDB distribution and durability evidence](development/hardware-archive-duckdb-distribution-evidence.md)
 - [Earlier SQLite chunk candidate](development/hardware-archive-storage-design.md)
 - [Hardware Archive investigation and work tracking](https://github.com/shm11C3/HardwareVisualizer/issues/2052)

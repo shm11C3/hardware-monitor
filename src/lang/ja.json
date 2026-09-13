@@ -760,6 +760,34 @@
         "elevatedStartupMode": {
           "name": "管理者として起動",
           "description": "昇格が必要なセンサーを使えるように、HardwareVisualizer を管理者権限で起動します。有効にすると Windows の承認後にアプリを再起動します。"
+        },
+        "externalComponentSetup": {
+          "title": "任意コンポーネントのセットアップ",
+          "description": "固定バージョンの公式リリースをダウンロードして検証し、Windows の管理者承認後にインストールします。操作なしにインストールされることはなく、HardwareVisualizer をアンインストールしても削除されません。",
+          "runtimeInstalled": "ランタイム: インストール済み（バージョン {{version}}）",
+          "runtimeInstalledUnknownVersion": "ランタイム: インストール済み",
+          "runtimeMissing": "ランタイム: 未インストール（セットアップでバージョン {{version}} を導入）",
+          "moduleFiles": "モジュールファイル: {{total}} 件中 {{present}} 件あり。",
+          "missingModuleFiles": "不足: {{files}}",
+          "install": "インストール",
+          "installMissing": "不足ファイルをインストール",
+          "complete": "インストール済み",
+          "running": "インストール中… Windows が管理者承認を求める場合があります。",
+          "statusError": "コンポーネントの状態を取得できませんでした。",
+          "restartDescription": "インストールしたコンポーネントを使うには HardwareVisualizer を再起動してください。",
+          "result": {
+            "installed": "{{component}} をインストールしました。新しいセンサーを使うには HardwareVisualizer を再起動してください。",
+            "rebootRequired": "{{component}} をインストールしましたが、ドライバーを使うには Windows の再起動が必要です。",
+            "alreadyInstalled": "{{component}} はすでにインストールされています。",
+            "cancelled": "管理者承認でキャンセルされたため、インストールしませんでした。",
+            "failed": "インストールに失敗しました: {{detail}}"
+          },
+          "components": {
+            "pawnio": {
+              "name": "PawnIO",
+              "description": "対応ハードウェアで CPU パッケージ温度と電力、マザーボードの温度とファン回転数を取得できるようにします。"
+            }
+          }
         }
       }
     },

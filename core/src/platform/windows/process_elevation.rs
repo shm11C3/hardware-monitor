@@ -1,9 +1,14 @@
 use crate::enums::error::PlatformError;
+use crate::platform::traits::ElevatedProcessRun;
 use std::ffi::{OsStr, OsString};
 use std::os::windows::ffi::OsStrExt;
-use windows::Win32::Foundation::CloseHandle;
+use windows::Win32::Foundation::{CloseHandle, ERROR_CANCELLED, HANDLE};
+use windows::Win32::System::Threading::{
+  GetExitCodeProcess, INFINITE, WaitForSingleObject,
+};
 use windows::Win32::UI::Shell::{
-  IsUserAnAdmin, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW, ShellExecuteExW,
+  IsUserAnAdmin, SEE_MASK_NOASYNC, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW,
+  ShellExecuteExW,
 };
 use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 use windows::core::PCWSTR;
@@ -13,12 +18,50 @@ pub fn is_process_elevated() -> Result<bool, PlatformError> {
 }
 
 pub fn relaunch_current_process_elevated() -> Result<(), PlatformError> {
+  let args = std::env::args_os().skip(1).collect::<Vec<_>>();
+  let launched = launch_current_executable_elevated(&args, "restart as administrator")?;
+
+  match launched {
+    Some(process) => {
+      let _ = unsafe { CloseHandle(process) };
+      Ok(())
+    }
+    // The existing restart contract reports a declined UAC prompt as a failure
+    // so the caller can roll back Elevated Startup Mode.
+    None => Err(PlatformError::fault(
+      "Failed to restart as administrator: the elevation prompt was declined",
+    )),
+  }
+}
+
+/// Launch the current executable elevated with `args`, wait for it to exit,
+/// and return its exit code. A declined UAC prompt is reported as
+/// [`ElevatedProcessRun::Declined`], not as an error.
+pub fn run_current_executable_elevated(
+  args: &[String],
+) -> Result<ElevatedProcessRun, PlatformError> {
+  let args = args.iter().map(OsString::from).collect::<Vec<_>>();
+  let Some(process) = launch_current_executable_elevated(&args, "run as administrator")?
+  else {
+    return Ok(ElevatedProcessRun::Declined);
+  };
+
+  let exit_code = wait_for_exit_code(process);
+  let _ = unsafe { CloseHandle(process) };
+  Ok(ElevatedProcessRun::Exited { exit_code })
+}
+
+/// Returns the process handle, or `None` when the user declined the prompt.
+fn launch_current_executable_elevated(
+  args: &[OsString],
+  action: &str,
+) -> Result<Option<HANDLE>, PlatformError> {
   let exe_path = std::env::current_exe().map_err(|e| {
     PlatformError::fault(format!("Failed to obtain executable file path: {e}"))
   })?;
-  let params = std::env::args_os()
-    .skip(1)
-    .map(|arg| quote_windows_arg(&arg))
+  let params = args
+    .iter()
+    .map(|arg| quote_windows_arg(arg))
     .collect::<Vec<_>>()
     .join(" ");
 
@@ -28,7 +71,7 @@ pub fn relaunch_current_process_elevated() -> Result<(), PlatformError> {
 
   let mut execute_info = SHELLEXECUTEINFOW {
     cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
-    fMask: SEE_MASK_NOCLOSEPROCESS,
+    fMask: SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC,
     lpVerb: PCWSTR(verb.as_ptr()),
     lpFile: PCWSTR(file.as_ptr()),
     lpParameters: PCWSTR(parameters.as_ptr()),
@@ -36,15 +79,28 @@ pub fn relaunch_current_process_elevated() -> Result<(), PlatformError> {
     ..Default::default()
   };
 
-  unsafe { ShellExecuteExW(&mut execute_info) }.map_err(|e| {
-    PlatformError::fault(format!("Failed to restart as administrator: {e}"))
-  })?;
-
-  if !execute_info.hProcess.is_invalid() {
-    let _ = unsafe { CloseHandle(execute_info.hProcess) };
+  if let Err(e) = unsafe { ShellExecuteExW(&mut execute_info) } {
+    if e.code() == ERROR_CANCELLED.to_hresult() {
+      return Ok(None);
+    }
+    return Err(PlatformError::fault(format!("Failed to {action}: {e}")));
   }
 
-  Ok(())
+  if execute_info.hProcess.is_invalid() {
+    return Err(PlatformError::fault(format!(
+      "Failed to {action}: no process handle was returned"
+    )));
+  }
+
+  Ok(Some(execute_info.hProcess))
+}
+
+fn wait_for_exit_code(process: HANDLE) -> Option<i32> {
+  let _ = unsafe { WaitForSingleObject(process, INFINITE) };
+  let mut exit_code: u32 = 0;
+  unsafe { GetExitCodeProcess(process, &mut exit_code) }
+    .ok()
+    .map(|()| exit_code as i32)
 }
 
 fn os_wide_null(value: &OsStr) -> Vec<u16> {

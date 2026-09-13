@@ -3,8 +3,9 @@ use crate::models::hardware::{
   GpuMemoryUsage, GraphicInfo, MemoryInfo, NetworkInfo, SuperIoChipIdDiagnostics,
 };
 use crate::platform::traits::{
-  GpuPlatform, GpuUsageRaw, MemoryPlatform, MotherboardPlatform, NetworkPlatform,
-  Platform, ProcessElevationPlatform, SensorPlatform, SuperIoPlatform,
+  ElevatedProcessRun, ExternalComponentSetupPlatform, GpuPlatform, GpuUsageRaw,
+  MemoryPlatform, MotherboardPlatform, NetworkPlatform, Platform,
+  ProcessElevationPlatform, SensorPlatform, SuperIoPlatform,
 };
 use async_trait::async_trait;
 
@@ -102,6 +103,36 @@ impl ProcessElevationPlatform for LinuxPlatform {
   fn relaunch_current_process_elevated(&self) -> Result<(), PlatformError> {
     Err(PlatformError::unsupported(
       "Elevated Startup Mode is only supported on Windows.",
+    ))
+  }
+}
+
+impl ExternalComponentSetupPlatform for LinuxPlatform {
+  fn external_component_setup_status(
+    &self,
+    plan: &crate::external_component_setup::ExternalComponentSetupPlan,
+  ) -> crate::external_component_setup::ExternalComponentSetupStatus {
+    crate::external_component_setup::ExternalComponentSetupStatus::unsupported_platform(
+      plan,
+    )
+  }
+
+  fn run_external_component_setup(
+    &self,
+    plan: &crate::external_component_setup::ExternalComponentSetupPlan,
+  ) -> crate::external_component_setup::ExternalComponentSetupResult {
+    crate::external_component_setup::ExternalComponentSetupResult::failed(
+      plan.component,
+      "External Component Setup is available on Windows only.",
+    )
+  }
+
+  fn run_current_executable_elevated(
+    &self,
+    _args: &[String],
+  ) -> Result<ElevatedProcessRun, PlatformError> {
+    Err(PlatformError::unsupported(
+      "Elevated process launch is only supported on Windows.",
     ))
   }
 }

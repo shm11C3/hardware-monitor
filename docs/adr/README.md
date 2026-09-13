@@ -43,3 +43,4 @@ ADR status describes decision maturity, not implementation or release status.
 - [0020 Relicense to GPL-3.0-or-later](0020-relicense-to-gpl-3.0-or-later.md)
 - [0021 Hardware Archive Migration Lifecycle](0021-hardware-archive-migration-lifecycle.md)
 - [0022 Prefer Native DuckDB for Hardware Archives](0022-prioritize-native-duckdb-archive-qualification.md)
+- [0023 External Component Setup](0023-external-component-setup.md)
