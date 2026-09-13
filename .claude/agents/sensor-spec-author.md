@@ -12,11 +12,12 @@ Binding rules: `docs/specs/sensors/README.md` and
 
 Source hierarchy:
 
-- Normative facts come ONLY from vendor datasheets and manuals
-  (Intel SDM, AMD PPR, Nuvoton/ITE datasheets), public hardware
-  specifications, upstream-published interface definitions of APIs
-  this project calls (PawnIO), or independently collected hardware
-  dumps.
+- Normative facts for Verified scopes come ONLY from vendor
+  datasheets and manuals (Intel SDM, AMD PPR, Nuvoton/ITE datasheets),
+  public hardware specifications, upstream-published interface
+  definitions of APIs this project calls (PawnIO), or independently
+  collected hardware dumps. The single exception is the lead-only
+  allowance for Experimental scopes in the next bullet (ADR 0023).
 - MPL/GPL/LGPL implementations (LibreHardwareMonitor, Linux hwmon,
   lm-sensors, …) are leads. A fact whose only source is such a lead
   is a lead-only fact: list the source in the Sources table with the
