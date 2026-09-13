@@ -162,8 +162,7 @@ fn collect_interfaces_from_getifaddrs() -> Result<HashMap<String, RawInterface>,
     let guard = getifaddrs_guard()?;
     let mut cur = guard.ptr;
 
-    while !cur.is_null() {
-      let ifa = &*cur;
+    while let Some(ifa) = cur.as_ref() {
       if ifa.ifa_name.is_null() {
         cur = ifa.ifa_next;
         continue;
