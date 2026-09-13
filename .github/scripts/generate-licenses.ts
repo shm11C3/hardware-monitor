@@ -225,6 +225,7 @@ try {
   }
 } catch (e) {
   console.error("❌ Failed to collect Rust licenses:", e);
+  throw e;
 }
 
 const manualDir = path.resolve("./docs/licenses/manual");
