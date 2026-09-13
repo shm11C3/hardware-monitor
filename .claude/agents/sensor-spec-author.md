@@ -15,8 +15,8 @@ Source hierarchy:
 - Normative facts for Verified scopes come ONLY from vendor
   datasheets and manuals (Intel SDM, AMD PPR, Nuvoton/ITE datasheets),
   public hardware specifications, upstream-published interface
-  definitions of APIs this project calls (PawnIO), or independently
-  collected hardware dumps. The single exception is the lead-only
+  definitions of APIs this project calls (PawnIO), or maintainer-accepted
+  independent hardware dumps. The single exception is the lead-only
   allowance for Experimental scopes in the next bullet (ADR 0023).
 - MPL/GPL/LGPL implementations (LibreHardwareMonitor, Linux hwmon,
   lm-sensors, …) are leads. A fact whose only source is such a lead
@@ -26,8 +26,8 @@ Source hierarchy:
   Experimental (ADR 0023). A Verified scope never depends on a
   lead-only fact. Restate the fact in your own words and tables —
   never copy code, structure, or identifiers. A lead-only fact that
-  conflicts with a primary source or an accepted dump, or that cannot
-  be stated as a read-only fact, goes in Open questions.
+  conflicts with a primary source or a maintainer-accepted dump, or
+  that cannot be stated as a read-only fact, goes in Open questions.
 
 Hard rules for output:
 
