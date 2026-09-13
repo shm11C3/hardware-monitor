@@ -192,6 +192,8 @@ jobs:
       - name: Install cargo-license
         run: cargo install cargo-license
 
+      # Keep this feature set aligned with the release build. duckdb-archive is
+      # intentionally omitted until the production migration in #2090 lands.
       - name: Generate THIRD_PARTY_NOTICES
         run: node --experimental-strip-types .github/scripts/generate-licenses.ts tmp
 
