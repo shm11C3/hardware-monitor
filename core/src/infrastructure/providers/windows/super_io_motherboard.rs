@@ -628,6 +628,7 @@ impl<C: LpcIoOps> ActiveIteMotherboardSensors<C> {
   }
 }
 
+#[derive(Debug)]
 struct DetectedSlot {
   slot: u8,
   hm_base: u16,
