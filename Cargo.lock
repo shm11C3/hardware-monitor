@@ -1277,6 +1277,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dirs"
+version = "7.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d57d423b3c82e89b9a24ca3091fee61f456a26edbd28d26c65906f4bc1dcd8f"
+dependencies = [
+ "dirs-sys 0.5.0",
+]
+
+[[package]]
 name = "dirs-sys"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2209,7 +2218,7 @@ dependencies = [
  "btleplug",
  "chrono",
  "core-foundation 0.10.1",
- "dirs 6.0.0",
+ "dirs 7.0.0",
  "duckdb",
  "dxgi",
  "futures",
@@ -2242,7 +2251,7 @@ dependencies = [
  "base64 0.23.1",
  "chrono",
  "core-foundation 0.10.1",
- "dirs 6.0.0",
+ "dirs 7.0.0",
  "dxgi",
  "hardviz-core",
  "image",
@@ -3829,7 +3838,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d8fae84b431384b68627d0f9b3b1245fcf9f46f6c0e3dc902e9dce64edd1967"
 dependencies = [
  "libc",
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7478,7 +7487,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
