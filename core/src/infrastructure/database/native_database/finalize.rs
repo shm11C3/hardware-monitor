@@ -17,10 +17,14 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use duckdb::types::Value;
-use duckdb::{AccessMode, Config, Connection, appender_params_from_iter};
+use duckdb::{AccessMode, Connection, appender_params_from_iter};
 
 use super::NativeDatabaseError;
 use super::cell::{Cell, NativeColumnKind, RowMultisetDigest, quote_identifier};
+use super::compatibility::{
+  NATIVE_STORAGE_VERSION_TAG, engine_storage_version, native_config,
+  verify_storage_version,
+};
 use super::epoch::EpochMilliseconds;
 use super::paging::{PagedReader, ReadColumn};
 use super::schema::{NativeIdentityMode, NativeSchemaDefinition};
@@ -181,14 +185,18 @@ fn finalize(
       open_database(candidate_path, AccessMode::ReadOnly, &candidate_spill)?;
     source_schema_sha256 = read_candidate_provenance(&candidate)?;
     require_every_candidate_table_is_declared(&candidate, &schema)?;
-    let destination_database =
-      open_database(&database_path, AccessMode::ReadWrite, &destination_spill)?;
+    let destination_database = open_database_with_storage_version(
+      &database_path,
+      AccessMode::ReadWrite,
+      &destination_spill,
+    )?;
     destination_database
       .execute_batch(schema.sql)
       .map_err(|error| NativeDatabaseError::duckdb("create the native schema", error))?;
     destination_database
       .execute_batch(&format!(
         "CREATE TABLE {} (state VARCHAR NOT NULL, schema_version BIGINT NOT NULL, \
+         storage_version VARCHAR NOT NULL, \
          source_candidate_path VARCHAR NOT NULL, source_schema_sha256 VARCHAR NOT NULL, \
          source_rows BIGINT NOT NULL, reconciled BOOLEAN NOT NULL); \
          CREATE TABLE {} (table_name VARCHAR PRIMARY KEY, column_name VARCHAR NOT NULL, \
@@ -220,12 +228,20 @@ fn finalize(
     })?;
 
     write_identities(&candidate, &destination_database, &schema)?;
+    let storage_version = engine_storage_version(&destination_database)?;
+    if storage_version != NATIVE_STORAGE_VERSION_TAG {
+      return Err(NativeDatabaseError::StorageVersionMismatch {
+        expected: NATIVE_STORAGE_VERSION_TAG.to_owned(),
+        actual: storage_version,
+      });
+    }
     write_metadata(
       &destination_database,
       &schema,
       candidate_path,
       &source_schema_sha256,
       total_rows,
+      NATIVE_STORAGE_VERSION_TAG,
     )?;
     destination_database
       .execute_batch("CHECKPOINT")
@@ -854,6 +870,7 @@ fn write_metadata(
   candidate_path: &Path,
   source_schema_sha256: &str,
   total_rows: u64,
+  storage_version: &str,
 ) -> Result<(), NativeDatabaseError> {
   let rows = i64::try_from(total_rows).map_err(|_| {
     NativeDatabaseError::finalization(
@@ -864,12 +881,13 @@ fn write_metadata(
   destination
     .execute(
       &format!(
-        "INSERT INTO {} VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO {} VALUES (?, ?, ?, ?, ?, ?, ?)",
         quote_identifier(NATIVE_METADATA_TABLE)
       ),
       duckdb::params![
         FINALIZED_UNSELECTED,
         i64::from(schema.version),
+        storage_version,
         candidate_path.to_string_lossy().as_ref(),
         source_schema_sha256,
         rows,
@@ -892,18 +910,20 @@ fn verify_finalized(
   copied: &[CopiedTable],
 ) -> Result<Vec<NativeTableReport>, NativeDatabaseError> {
   let connection = open_database(database_path, AccessMode::ReadOnly, spill)?;
-  let (state, version, digest): (String, i64, String) = connection
-    .query_row(
-      &format!(
-        "SELECT state, schema_version, source_schema_sha256 FROM {}",
-        quote_identifier(NATIVE_METADATA_TABLE)
-      ),
-      [],
-      |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-    )
-    .map_err(|error| {
-      NativeDatabaseError::duckdb("read the reopened native metadata", error)
-    })?;
+  let (state, version, storage_version, digest): (String, i64, String, String) =
+    connection
+      .query_row(
+        &format!(
+          "SELECT state, schema_version, storage_version, source_schema_sha256 FROM {}",
+          quote_identifier(NATIVE_METADATA_TABLE)
+        ),
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+      )
+      .map_err(|error| {
+        NativeDatabaseError::duckdb("read the reopened native metadata", error)
+      })?;
+  verify_storage_version(&connection, &storage_version)?;
   if state != FINALIZED_UNSELECTED
     || version != i64::from(schema.version)
     || digest != source_schema_sha256
@@ -1104,14 +1124,24 @@ pub(super) fn open_database(
   access_mode: AccessMode,
   spill: &Path,
 ) -> Result<Connection, NativeDatabaseError> {
-  let config = Config::default()
-    .access_mode(access_mode)
-    .and_then(|config| config.threads(2))
-    .and_then(|config| config.max_memory("128MB"))
-    .and_then(|config| config.enable_autoload_extension(false))
-    .map_err(|error| {
-      NativeDatabaseError::duckdb("configure a finalization database", error)
-    })?;
+  open_database_with_pin(path, access_mode, spill, false)
+}
+
+pub(super) fn open_database_with_storage_version(
+  path: &Path,
+  access_mode: AccessMode,
+  spill: &Path,
+) -> Result<Connection, NativeDatabaseError> {
+  open_database_with_pin(path, access_mode, spill, true)
+}
+
+fn open_database_with_pin(
+  path: &Path,
+  access_mode: AccessMode,
+  spill: &Path,
+  pin_storage_version: bool,
+) -> Result<Connection, NativeDatabaseError> {
+  let config = native_config(access_mode, pin_storage_version)?;
   let connection = Connection::open_with_flags(path, config).map_err(|error| {
     NativeDatabaseError::duckdb("open a finalization database", error)
   })?;

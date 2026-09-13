@@ -65,14 +65,15 @@ use super::NativeDatabaseError;
 use super::cell::{
   COPY_BATCH_ROWS, Cell, NativeColumnKind, RowMultisetDigest, quote_identifier,
 };
+use super::compatibility::{require_storage_version_column, verify_storage_version};
 use super::epoch::EpochMilliseconds;
 use super::finalize::{
   ColumnPlan, ColumnSource, FINALIZED_UNSELECTED, NATIVE_IDENTITY_TABLE,
   NATIVE_METADATA_TABLE, SOURCE_ORDINAL_COLUMN, TableColumn, append_staging, count_rows,
   create_staging_sql, derive_epoch_milliseconds, insert_from_staging_sql, open_database,
-  plan_columns, read_candidate_provenance, read_columns, read_primary_key,
-  require_every_candidate_table_is_declared, require_no_wal, stage_cell,
-  write_identities,
+  open_database_with_storage_version, plan_columns, read_candidate_provenance,
+  read_columns, read_primary_key, require_every_candidate_table_is_declared,
+  require_no_wal, stage_cell, write_identities,
 };
 use super::paging::{PagedReader, ReadColumn};
 use super::schema::NativeSchemaDefinition;
@@ -213,7 +214,11 @@ fn reconcile(
     let candidate =
       open_database(candidate_path, AccessMode::ReadOnly, &candidate_spill)?;
     source_schema_sha256 = read_candidate_provenance(&candidate)?;
-    let native = open_database(native_path, AccessMode::ReadWrite, &native_spill)?;
+    let native = open_database_with_storage_version(
+      native_path,
+      AccessMode::ReadWrite,
+      &native_spill,
+    )?;
     previous_source_schema_sha256 = require_reconcilable(&native, &schema)?;
     require_every_candidate_table_is_declared(&candidate, &schema)?;
 
@@ -352,6 +357,20 @@ fn require_reconcilable(
       actual: version,
     });
   }
+  require_storage_version_column(native, NATIVE_METADATA_TABLE)?;
+  let storage_version: String = native
+    .query_row(
+      &format!(
+        "SELECT storage_version FROM {}",
+        quote_identifier(NATIVE_METADATA_TABLE)
+      ),
+      [],
+      |row| row.get(0),
+    )
+    .map_err(|error| {
+      NativeDatabaseError::duckdb("read the native metadata to reconcile", error)
+    })?;
+  verify_storage_version(native, &storage_version)?;
   Ok(recorded)
 }
 
@@ -930,6 +949,20 @@ fn verify_reconciled(
     .map_err(|error| {
       NativeDatabaseError::duckdb("read the reopened reconciled metadata", error)
     })?;
+  require_storage_version_column(&connection, NATIVE_METADATA_TABLE)?;
+  let storage_version: String = connection
+    .query_row(
+      &format!(
+        "SELECT storage_version FROM {}",
+        quote_identifier(NATIVE_METADATA_TABLE)
+      ),
+      [],
+      |row| row.get(0),
+    )
+    .map_err(|error| {
+      NativeDatabaseError::duckdb("read the reopened reconciled metadata", error)
+    })?;
+  verify_storage_version(&connection, &storage_version)?;
   if state != FINALIZED_UNSELECTED || version != i64::from(schema.version) {
     return Err(NativeDatabaseError::Verification {
       message: "the reopened native metadata does not match what was written".to_owned(),

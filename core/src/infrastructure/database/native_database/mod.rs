@@ -9,6 +9,7 @@ pub mod ambient_archive;
 mod archive_sql;
 mod binding;
 mod cell;
+mod compatibility;
 pub mod cooling_baseline;
 pub mod cooling_covariate_daily_summary;
 pub mod cooling_daily_summary;

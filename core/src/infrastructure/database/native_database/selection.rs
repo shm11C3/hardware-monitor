@@ -41,8 +41,13 @@ use serde::{Deserialize, Serialize};
 
 use super::NativeDatabaseError;
 use super::cell::quote_identifier;
+use super::compatibility::{
+  engine_storage_version, has_storage_version_column, require_storage_version_column,
+  verify_storage_version,
+};
 use super::finalize::{
-  FINALIZED_UNSELECTED, NATIVE_METADATA_TABLE, SELECTED, open_database, require_no_wal,
+  FINALIZED_UNSELECTED, NATIVE_METADATA_TABLE, SELECTED, open_database,
+  open_database_with_storage_version, require_no_wal,
 };
 use super::reconcile::NativeReconciliationReport;
 
@@ -175,11 +180,18 @@ pub enum NativeMetadataFacts {
   Present {
     state: NativeState,
     schema_version: u32,
+    storage_version: String,
+    engine_storage_version: String,
     source_schema_sha256: String,
     /// The row count the file records, compared against the marker's so a
     /// database restored from a different backup than its marker is reported
     /// rather than trusted.
     source_rows: u64,
+  },
+  /// A finalized file from before storage-version metadata was introduced.
+  Legacy {
+    state: NativeState,
+    schema_version: u32,
   },
 }
 
@@ -212,6 +224,9 @@ pub enum AuthorityInconsistency {
   /// A selected database built for a schema version this build does not run -
   /// the downgrade case.
   SchemaVersionMismatch,
+  /// A finalized file predating the storage-version metadata contract.
+  StorageVersionMetadataMissing,
+  StorageVersionMismatch,
   MarkerDisagreesWithNativeDatabase,
   /// The repairable gap: the selection committed, the marker did not land.
   SelectedWithoutMarker,
@@ -285,10 +300,21 @@ fn select(
   // synced and the marker is written: Windows refuses to reopen, rename or
   // delete a file another instance still holds.
   {
-    let connection =
-      open_database(&paths.native_database, AccessMode::ReadWrite, spill.path())?;
-    let (state, schema_version, source_schema_sha256, source_rows, reconciled) =
-      read_metadata_row(&connection)?;
+    let connection = open_database_with_storage_version(
+      &paths.native_database,
+      AccessMode::ReadWrite,
+      spill.path(),
+    )?;
+    require_storage_version_column(&connection, NATIVE_METADATA_TABLE)?;
+    let (
+      state,
+      schema_version,
+      storage_version,
+      source_schema_sha256,
+      source_rows,
+      reconciled,
+    ) = read_metadata_row(&connection)?;
+    verify_storage_version(&connection, &storage_version)?;
     if state != FINALIZED_UNSELECTED {
       return Err(NativeDatabaseError::UnexpectedState {
         operation: "selected",
@@ -366,8 +392,10 @@ pub fn repair_authority_marker(
   let marker = {
     let connection =
       open_database(&paths.native_database, AccessMode::ReadOnly, spill.path())?;
-    let (state, schema_version, source_schema_sha256, source_rows, _) =
+    require_storage_version_column(&connection, NATIVE_METADATA_TABLE)?;
+    let (state, schema_version, storage_version, source_schema_sha256, source_rows, _) =
       read_metadata_row(&connection)?;
+    verify_storage_version(&connection, &storage_version)?;
     if state != SELECTED {
       return Err(NativeDatabaseError::UnexpectedState {
         operation: "repaired into a selection marker",
@@ -387,8 +415,8 @@ pub fn repair_authority_marker(
   Ok(marker)
 }
 
-/// The metadata row, as `(state, schema_version, source_schema_sha256,
-/// source_rows, reconciled)`.
+/// The metadata row, as `(state, schema_version, storage_version,
+/// source_schema_sha256, source_rows, reconciled)`.
 /// Selection reads and updates one metadata row, so its spill never holds
 /// anything. It goes in the system temporary directory rather than beside the
 /// databases: a directory named with the conversion work prefix, left behind by
@@ -405,11 +433,11 @@ fn selection_spill() -> Result<tempfile::TempDir, NativeDatabaseError> {
 
 fn read_metadata_row(
   connection: &Connection,
-) -> Result<(String, i64, String, i64, bool), NativeDatabaseError> {
+) -> Result<(String, i64, String, String, i64, bool), NativeDatabaseError> {
   connection
     .query_row(
       &format!(
-        "SELECT state, schema_version, source_schema_sha256, source_rows, \
+        "SELECT state, schema_version, storage_version, source_schema_sha256, source_rows, \
          reconciled FROM {}",
         quote_identifier(NATIVE_METADATA_TABLE)
       ),
@@ -421,6 +449,7 @@ fn read_metadata_row(
           row.get(2)?,
           row.get(3)?,
           row.get(4)?,
+          row.get(5)?,
         ))
       },
     )
@@ -574,9 +603,42 @@ fn observe_native_metadata(path: &Path) -> NativeMetadataFacts {
   let Ok(connection) = open_database(path, AccessMode::ReadOnly, spill.path()) else {
     return NativeMetadataFacts::Unreadable;
   };
-  let Ok((state, schema_version, source_schema_sha256, source_rows, _)) =
+  let Ok(has_storage_version) =
+    has_storage_version_column(&connection, NATIVE_METADATA_TABLE)
+  else {
+    return NativeMetadataFacts::Unreadable;
+  };
+  if !has_storage_version {
+    let legacy_metadata: Result<(String, i64), _> = connection.query_row(
+      &format!(
+        "SELECT state, schema_version FROM {}",
+        quote_identifier(NATIVE_METADATA_TABLE)
+      ),
+      [],
+      |row| Ok((row.get(0)?, row.get(1)?)),
+    );
+    let Ok((state, schema_version)) = legacy_metadata else {
+      return NativeMetadataFacts::Unreadable;
+    };
+    let state = match state.as_str() {
+      FINALIZED_UNSELECTED => NativeState::FinalizedUnselected,
+      SELECTED => NativeState::Selected,
+      _ => return NativeMetadataFacts::Unreadable,
+    };
+    let Ok(schema_version) = u32::try_from(schema_version) else {
+      return NativeMetadataFacts::Unreadable;
+    };
+    return NativeMetadataFacts::Legacy {
+      state,
+      schema_version,
+    };
+  }
+  let Ok((state, schema_version, storage_version, source_schema_sha256, source_rows, _)) =
     read_metadata_row(&connection)
   else {
+    return NativeMetadataFacts::Unreadable;
+  };
+  let Ok(engine_storage_version) = engine_storage_version(&connection) else {
     return NativeMetadataFacts::Unreadable;
   };
   let state = match state.as_str() {
@@ -593,6 +655,8 @@ fn observe_native_metadata(path: &Path) -> NativeMetadataFacts {
   NativeMetadataFacts::Present {
     state,
     schema_version,
+    storage_version,
+    engine_storage_version,
     source_schema_sha256,
     source_rows,
   }
@@ -606,6 +670,15 @@ pub fn inspect_authority(facts: &AuthorityFacts) -> AuthorityState {
     recovery: AuthorityRecovery::StopAndReport,
   };
 
+  if let NativeMetadataFacts::Present {
+    storage_version,
+    engine_storage_version,
+    ..
+  } = &facts.native_metadata
+    && storage_version != engine_storage_version
+  {
+    return stop(AuthorityInconsistency::StorageVersionMismatch);
+  }
   match &facts.marker {
     MarkerFacts::Unreadable => stop(AuthorityInconsistency::MarkerUnreadable),
     MarkerFacts::Present(marker) => {
@@ -615,11 +688,25 @@ pub fn inspect_authority(facts: &AuthorityFacts) -> AuthorityState {
       if marker.native_database_file_name != facts.native_database_file_name {
         return stop(AuthorityInconsistency::MarkerNamesAnotherDatabase);
       }
+      if let NativeMetadataFacts::Legacy {
+        state,
+        schema_version,
+      } = &facts.native_metadata
+      {
+        if *state == NativeState::FinalizedUnselected {
+          return stop(AuthorityInconsistency::MarkerAheadOfNativeState);
+        }
+        if *schema_version != facts.expected_schema_version {
+          return stop(AuthorityInconsistency::SchemaVersionMismatch);
+        }
+        return stop(AuthorityInconsistency::StorageVersionMetadataMissing);
+      }
       let NativeMetadataFacts::Present {
         state,
         schema_version,
         source_schema_sha256,
         source_rows,
+        ..
       } = &facts.native_metadata
       else {
         return stop(AuthorityInconsistency::NativeMetadataUnreadable);
@@ -674,6 +761,13 @@ pub fn inspect_authority(facts: &AuthorityFacts) -> AuthorityState {
             AuthorityState::FinalizedUnselected
           }
         }
+        NativeMetadataFacts::Legacy { schema_version, .. } => {
+          if *schema_version != facts.expected_schema_version {
+            stop(AuthorityInconsistency::SchemaVersionMismatch)
+          } else {
+            stop(AuthorityInconsistency::StorageVersionMetadataMissing)
+          }
+        }
         NativeMetadataFacts::Absent => {
           if facts.work_directory_present {
             AuthorityState::ConversionInProgress { resumable: false }
@@ -711,6 +805,8 @@ mod tests {
       native_metadata: NativeMetadataFacts::Present {
         state: NativeState::Selected,
         schema_version: 1,
+        storage_version: "v1.0.0+".to_owned(),
+        engine_storage_version: "v1.0.0+".to_owned(),
         source_schema_sha256: "abc".to_owned(),
         source_rows: 10,
       },
@@ -728,6 +824,22 @@ mod tests {
   #[test]
   fn a_marker_and_an_agreeing_selected_database_is_the_only_selected_state() {
     assert_eq!(inspect_authority(&facts()), AuthorityState::NativeSelected);
+  }
+
+  #[test]
+  fn a_native_storage_version_disagreement_stops_authority_inspection() {
+    let mut observed = facts();
+    if let NativeMetadataFacts::Present {
+      engine_storage_version,
+      ..
+    } = &mut observed.native_metadata
+    {
+      *engine_storage_version = "v1.2.0+".to_owned();
+    }
+    assert_eq!(
+      inspect_authority(&observed),
+      inconsistent(AuthorityInconsistency::StorageVersionMismatch)
+    );
   }
 
   #[test]
@@ -755,6 +867,8 @@ mod tests {
     observed.native_metadata = NativeMetadataFacts::Present {
       state: NativeState::FinalizedUnselected,
       schema_version: 1,
+      storage_version: "v1.0.0+".to_owned(),
+      engine_storage_version: "v1.0.0+".to_owned(),
       source_schema_sha256: "abc".to_owned(),
       source_rows: 10,
     };
@@ -845,6 +959,8 @@ mod tests {
     observed.native_metadata = NativeMetadataFacts::Present {
       state: NativeState::FinalizedUnselected,
       schema_version: 1,
+      storage_version: "v1.0.0+".to_owned(),
+      engine_storage_version: "v1.0.0+".to_owned(),
       source_schema_sha256: "abc".to_owned(),
       source_rows: 10,
     };
@@ -865,6 +981,8 @@ mod tests {
     observed.native_metadata = NativeMetadataFacts::Present {
       state: NativeState::Selected,
       schema_version: 1,
+      storage_version: "v1.0.0+".to_owned(),
+      engine_storage_version: "v1.0.0+".to_owned(),
       source_schema_sha256: "different".to_owned(),
       source_rows: 10,
     };
@@ -879,6 +997,8 @@ mod tests {
     observed.native_metadata = NativeMetadataFacts::Present {
       state: NativeState::Selected,
       schema_version: 1,
+      storage_version: "v1.0.0+".to_owned(),
+      engine_storage_version: "v1.0.0+".to_owned(),
       source_schema_sha256: "abc".to_owned(),
       source_rows: 11,
     };
@@ -893,6 +1013,8 @@ mod tests {
     observed.native_metadata = NativeMetadataFacts::Present {
       state: NativeState::FinalizedUnselected,
       schema_version: 1,
+      storage_version: "v1.0.0+".to_owned(),
+      engine_storage_version: "v1.0.0+".to_owned(),
       source_schema_sha256: "abc".to_owned(),
       source_rows: 10,
     };

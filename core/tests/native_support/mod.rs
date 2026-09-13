@@ -187,6 +187,13 @@ pub fn read_only(path: &Path) -> duckdb::Connection {
   duckdb::Connection::open_with_flags(path, config).unwrap()
 }
 
+pub fn read_write(path: &Path) -> duckdb::Connection {
+  let config = duckdb::Config::default()
+    .access_mode(duckdb::AccessMode::ReadWrite)
+    .unwrap();
+  duckdb::Connection::open_with_flags(path, config).unwrap()
+}
+
 /// The production epoch-millisecond adapter,
 /// `archive_queries::sqlite_epoch_milliseconds_of`, restated so a test can run
 /// it against SQLite independently of the finalizer. It is `pub(crate)` in Core,
