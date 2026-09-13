@@ -27,10 +27,11 @@ Implementation-ready").
 Primary sources first (vendor datasheets / manuals / public hardware
 specifications / maintainer-accepted independent hardware dumps).
 MPL/GPL/LGPL implementations are leads: list them with the note
-"lead-only (copyleft)". A fact whose only source is such a lead may
-back an Experimental scope only (ADR 0023); Verified scopes need a
-primary source or a maintainer-accepted independent hardware dump. A
-lead-only fact that
+"lead-only (copyleft)", and cite that source ID in the Source column
+of every fact row and quirk entry that rests on it. A fact whose only
+source is such a lead may back an Experimental scope only (ADR 0023);
+Verified scopes need a primary source or a maintainer-accepted
+independent hardware dump. A lead-only fact that
 conflicts with primary evidence, or that cannot be stated as a
 read-only fact, belongs in Open questions. Pin page/section where
 possible; otherwise add TODO(provenance).
@@ -49,7 +50,9 @@ chip ID registers, presence probes. Each fact tagged with a source ID.
 If parts of the hardware scope are unverified while the rest of the
 document is ready, add a scoped-enablement table here (columns:
 Scope, Status, Default enablement) following the per-family example
-in cpu-amd-zen-smn.md.
+in cpu-amd-zen-smn.md. A row whose default enablement is Experimental
+because it depends on lead-only facts names those facts (with their
+source IDs) in its Status column; a Verified row never depends on one.
 -->
 
 ## Register map (facts)
