@@ -25,11 +25,12 @@ Implementation-ready").
 
 <!--
 Primary sources first (vendor datasheets / manuals / public hardware
-specifications / independently collected hardware dumps).
+specifications / maintainer-accepted independent hardware dumps).
 MPL/GPL/LGPL implementations are leads: list them with the note
 "lead-only (copyleft)". A fact whose only source is such a lead may
 back an Experimental scope only (ADR 0023); Verified scopes need a
-primary source or an accepted hardware dump. A lead-only fact that
+primary source or a maintainer-accepted independent hardware dump. A
+lead-only fact that
 conflicts with primary evidence, or that cannot be stated as a
 read-only fact, belongs in Open questions. Pin page/section where
 possible; otherwise add TODO(provenance).
@@ -72,8 +73,8 @@ ordering, validity checks, and the exact decode formula with units.
 
 <!--
 Per-model deviations, errata, offsets. Each entry: factual statement +
-source note. A quirk backed by a primary source or an accepted dump
-may serve Verified scopes. A read-only quirk known only from a
+source note. A quirk backed by a primary source or a maintainer-accepted
+independent dump may serve Verified scopes. A read-only quirk known only from a
 copyleft implementation may appear here as a lead-only fact (source
 note "lead-only (copyleft)") serving Experimental scopes only
 (ADR 0023). A lead-only quirk that conflicts with primary evidence,

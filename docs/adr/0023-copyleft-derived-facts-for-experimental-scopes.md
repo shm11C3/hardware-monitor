@@ -56,8 +56,8 @@ implementation read by the spec-author role and restated as a fact.
   primary evidence wins and the lead-only fact moves to Open questions.
 - Lead-only facts describe reads. The read-only policy, the plausibility
   gates, the mutex conventions, and the failure diagnostics of ADR 0011 apply
-  unchanged; an Experimental scope built on lead-only facts is still attempted
-  best-effort and still reports a failed attempt as experimental.
+  unchanged; an Experimental scope built on lead-only facts is still attempted on a
+  best-effort basis and still reports a failed attempt as experimental.
 
 Everything else in the clean-room process is unchanged:
 

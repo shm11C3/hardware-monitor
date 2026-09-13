@@ -44,9 +44,11 @@ in spec documents.
   `lead-only (copyleft)`, cite its ID on each lead-only fact row, and
   name the lead-only facts in the scoped-enablement row that depends
   on them. Verified scopes still require vendor documentation, public
-  hardware specifications, or independently collected hardware dumps.
-- A lead-only fact that conflicts with a primary source or an accepted
-  hardware dump moves to **Open questions**; the primary evidence wins.
+  hardware specifications, or maintainer-accepted independent hardware
+  dumps.
+- A lead-only fact that conflicts with a primary source or a
+  maintainer-accepted hardware dump moves to **Open questions**; the
+  primary evidence wins.
   A quirk known only from a copyleft implementation that cannot be
   expressed as a read-only fact for an Experimental scope stays in
   Open questions until independently verified.
