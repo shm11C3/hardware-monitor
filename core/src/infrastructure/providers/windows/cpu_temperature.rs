@@ -7,13 +7,14 @@ pub use super::cpu_identity::{CpuIdentity, CpuVendor};
 use super::cpu_identity::{cpuid_leaf, detect_cpu_identity};
 use super::cpu_temperature_decode::{
   CpuTemperatureDecodeError, decode_amd_zen_package_temperature,
-  decode_intel_package_temperature, decode_intel_temperature_target,
+  decode_intel_package_temperature, decode_intel_package_thermal_status,
+  decode_intel_temperature_target,
 };
 use super::pawn_io::{
   ACCESS_PCI_MUTEX, NamedMutex, PawnIoClient, PawnIoDiscovery, PawnIoInitError,
   PawnIoModule, open_shared_intel_msr,
 };
-use crate::models::SensorEnablement;
+use crate::models::{CpuPackageThermalStatus, SensorEnablement};
 use crate::{log_debug, log_warn};
 
 const PAWNIO_MUTEX_TIMEOUT: Duration = Duration::from_millis(50);
@@ -160,6 +161,7 @@ pub struct CpuTemperatureDiagnostics {
 pub struct CpuPackageTemperature {
   pub temperature_celsius: f32,
   pub source: CpuTemperatureSource,
+  pub thermal_status: Option<CpuPackageThermalStatus>,
 }
 
 enum ActiveCpuTemperatureSource {
@@ -323,12 +325,15 @@ impl CpuTemperatureSampler {
         enablement: _,
       }) => read_shared_msr(client, IA32_PACKAGE_THERM_STATUS)
         .and_then(|status| {
+          let thermal_status = decode_intel_package_thermal_status(status);
           decode_intel_package_temperature(*target_celsius, status)
+            .map(|temperature| (temperature, thermal_status))
             .map_err(format_decode_error)
         })
-        .map(|temperature| CpuPackageTemperature {
+        .map(|(temperature, thermal_status)| CpuPackageTemperature {
           temperature_celsius: temperature,
           source: CpuTemperatureSource::IntelDtsPackageMsr,
+          thermal_status: Some(thermal_status),
         })
         .map_err(|reason| CpuPackageTemperatureError::Unavailable { reason, enablement }),
       Some(ActiveCpuTemperatureSource::Amd {
@@ -345,6 +350,7 @@ impl CpuTemperatureSampler {
           .map(|temperature| CpuPackageTemperature {
             temperature_celsius: temperature,
             source: CpuTemperatureSource::AmdZenSmnTctl,
+            thermal_status: None,
           }),
         Err(reason) => Err(reason),
       }

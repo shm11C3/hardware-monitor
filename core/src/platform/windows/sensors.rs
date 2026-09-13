@@ -142,6 +142,7 @@ fn build_temperature_sample(
       TemperatureSample {
         cpu_temperature: Some(sample.temperature_celsius),
         sensor_temperatures,
+        cpu_package_thermal_status: sample.thermal_status,
         availability: SensorAvailability::Available,
         guidance_candidates: Vec::new(),
       }
@@ -306,6 +307,11 @@ mod tests {
         crate::infrastructure::providers::windows::cpu_temperature::CpuPackageTemperature {
           temperature_celsius: 61.25,
           source: crate::infrastructure::providers::windows::cpu_temperature::CpuTemperatureSource::IntelDtsPackageMsr,
+          thermal_status: Some(crate::models::CpuPackageThermalStatus {
+            thermal_status: true,
+            prochot_or_forcepr_asserted: false,
+            power_limitation_status: true,
+          }),
         },
       ),
       vec![SensorTemperature {
@@ -315,6 +321,14 @@ mod tests {
     );
 
     assert_eq!(sample.cpu_temperature, Some(61.25));
+    assert_eq!(
+      sample.cpu_package_thermal_status,
+      Some(crate::models::CpuPackageThermalStatus {
+        thermal_status: true,
+        prochot_or_forcepr_asserted: false,
+        power_limitation_status: true,
+      })
+    );
     assert_eq!(
       sample.sensor_temperatures[0].name,
       "CPU Package (PawnIO Intel DTS)"
@@ -329,6 +343,7 @@ mod tests {
       Ok(CpuPackageTemperature {
         temperature_celsius: 63.5,
         source: CpuTemperatureSource::AmdZenSmnTctl,
+        thermal_status: None,
       }),
       Vec::new(),
     );

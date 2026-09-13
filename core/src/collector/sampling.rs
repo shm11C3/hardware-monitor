@@ -196,6 +196,7 @@ pub fn build_metrics_snapshot(
     cpu_power_support,
     processes: system_sample.processes.clone(),
     cpu_temperature: temperature_sample.cpu_temperature.map(|t| t.round()),
+    cpu_package_thermal_status: temperature_sample.cpu_package_thermal_status,
     sensor_temperatures: temperature_sample
       .sensor_temperatures
       .iter()
@@ -662,6 +663,11 @@ mod tests {
     };
     let temps = TemperatureSample {
       cpu_temperature: Some(49.95),
+      cpu_package_thermal_status: Some(crate::models::CpuPackageThermalStatus {
+        thermal_status: false,
+        prochot_or_forcepr_asserted: true,
+        power_limitation_status: true,
+      }),
       sensor_temperatures: vec![
         SensorTemperature {
           name: "CPUZ".into(),
@@ -685,6 +691,10 @@ mod tests {
       &[],
     );
     assert_eq!(snap.cpu_temperature, Some(50.0));
+    assert_eq!(
+      snap.cpu_package_thermal_status,
+      temps.cpu_package_thermal_status
+    );
     assert_eq!(
       snap.sensor_temperatures,
       vec![
@@ -761,6 +771,7 @@ mod tests {
     );
     let temps = TemperatureSample {
       cpu_temperature: None,
+      cpu_package_thermal_status: None,
       sensor_temperatures: vec![],
       availability: SensorAvailability::unavailable(
         "PawnIO unavailable; ACPI thermal zones unavailable".to_string(),
