@@ -218,7 +218,7 @@ async fn refuses_legacy_native_metadata_with_an_explicit_compatibility_error() {
 
 #[test]
 fn duckdb_lock_bumps_require_a_storage_format_review() {
-  let lock = include_str!("../../Cargo.lock");
+  let lock = include_str!("../../Cargo.lock").replace("\r\n", "\n");
   assert!(
     lock.contains("name = \"duckdb\"\nversion = \"1.10505.0\""),
     "a DuckDB crate bump requires reviewing the pinned native storage format"
