@@ -41,9 +41,13 @@ use serde::{Deserialize, Serialize};
 
 use super::NativeDatabaseError;
 use super::cell::quote_identifier;
-use super::compatibility::{engine_storage_version, verify_storage_version};
+use super::compatibility::{
+  engine_storage_version, has_storage_version_column, require_storage_version_column,
+  verify_storage_version,
+};
 use super::finalize::{
-  FINALIZED_UNSELECTED, NATIVE_METADATA_TABLE, SELECTED, open_database, require_no_wal,
+  FINALIZED_UNSELECTED, NATIVE_METADATA_TABLE, SELECTED, open_database,
+  open_database_with_storage_version, require_no_wal,
 };
 use super::reconcile::NativeReconciliationReport;
 
@@ -184,6 +188,11 @@ pub enum NativeMetadataFacts {
     /// rather than trusted.
     source_rows: u64,
   },
+  /// A finalized file from before storage-version metadata was introduced.
+  Legacy {
+    state: NativeState,
+    schema_version: u32,
+  },
 }
 
 /// Everything [`inspect_authority`] is allowed to look at, gathered by
@@ -215,6 +224,8 @@ pub enum AuthorityInconsistency {
   /// A selected database built for a schema version this build does not run -
   /// the downgrade case.
   SchemaVersionMismatch,
+  /// A finalized file predating the storage-version metadata contract.
+  StorageVersionMetadataMissing,
   StorageVersionMismatch,
   MarkerDisagreesWithNativeDatabase,
   /// The repairable gap: the selection committed, the marker did not land.
@@ -289,8 +300,12 @@ fn select(
   // synced and the marker is written: Windows refuses to reopen, rename or
   // delete a file another instance still holds.
   {
-    let connection =
-      open_database(&paths.native_database, AccessMode::ReadWrite, spill.path())?;
+    let connection = open_database_with_storage_version(
+      &paths.native_database,
+      AccessMode::ReadWrite,
+      spill.path(),
+    )?;
+    require_storage_version_column(&connection, NATIVE_METADATA_TABLE)?;
     let (
       state,
       schema_version,
@@ -377,6 +392,7 @@ pub fn repair_authority_marker(
   let marker = {
     let connection =
       open_database(&paths.native_database, AccessMode::ReadOnly, spill.path())?;
+    require_storage_version_column(&connection, NATIVE_METADATA_TABLE)?;
     let (state, schema_version, storage_version, source_schema_sha256, source_rows, _) =
       read_metadata_row(&connection)?;
     verify_storage_version(&connection, &storage_version)?;
@@ -587,6 +603,36 @@ fn observe_native_metadata(path: &Path) -> NativeMetadataFacts {
   let Ok(connection) = open_database(path, AccessMode::ReadOnly, spill.path()) else {
     return NativeMetadataFacts::Unreadable;
   };
+  let Ok(has_storage_version) =
+    has_storage_version_column(&connection, NATIVE_METADATA_TABLE)
+  else {
+    return NativeMetadataFacts::Unreadable;
+  };
+  if !has_storage_version {
+    let legacy_metadata: Result<(String, i64), _> = connection.query_row(
+      &format!(
+        "SELECT state, schema_version FROM {}",
+        quote_identifier(NATIVE_METADATA_TABLE)
+      ),
+      [],
+      |row| Ok((row.get(0)?, row.get(1)?)),
+    );
+    let Ok((state, schema_version)) = legacy_metadata else {
+      return NativeMetadataFacts::Unreadable;
+    };
+    let state = match state.as_str() {
+      FINALIZED_UNSELECTED => NativeState::FinalizedUnselected,
+      SELECTED => NativeState::Selected,
+      _ => return NativeMetadataFacts::Unreadable,
+    };
+    let Ok(schema_version) = u32::try_from(schema_version) else {
+      return NativeMetadataFacts::Unreadable;
+    };
+    return NativeMetadataFacts::Legacy {
+      state,
+      schema_version,
+    };
+  }
   let Ok((state, schema_version, storage_version, source_schema_sha256, source_rows, _)) =
     read_metadata_row(&connection)
   else {
@@ -633,7 +679,6 @@ pub fn inspect_authority(facts: &AuthorityFacts) -> AuthorityState {
   {
     return stop(AuthorityInconsistency::StorageVersionMismatch);
   }
-
   match &facts.marker {
     MarkerFacts::Unreadable => stop(AuthorityInconsistency::MarkerUnreadable),
     MarkerFacts::Present(marker) => {
@@ -642,6 +687,19 @@ pub fn inspect_authority(facts: &AuthorityFacts) -> AuthorityState {
       }
       if marker.native_database_file_name != facts.native_database_file_name {
         return stop(AuthorityInconsistency::MarkerNamesAnotherDatabase);
+      }
+      if let NativeMetadataFacts::Legacy {
+        state,
+        schema_version,
+      } = &facts.native_metadata
+      {
+        if *state == NativeState::FinalizedUnselected {
+          return stop(AuthorityInconsistency::MarkerAheadOfNativeState);
+        }
+        if *schema_version != facts.expected_schema_version {
+          return stop(AuthorityInconsistency::SchemaVersionMismatch);
+        }
+        return stop(AuthorityInconsistency::StorageVersionMetadataMissing);
       }
       let NativeMetadataFacts::Present {
         state,
@@ -701,6 +759,13 @@ pub fn inspect_authority(facts: &AuthorityFacts) -> AuthorityState {
             AuthorityState::ConversionInProgress { resumable: true }
           } else {
             AuthorityState::FinalizedUnselected
+          }
+        }
+        NativeMetadataFacts::Legacy { schema_version, .. } => {
+          if *schema_version != facts.expected_schema_version {
+            stop(AuthorityInconsistency::SchemaVersionMismatch)
+          } else {
+            stop(AuthorityInconsistency::StorageVersionMetadataMissing)
           }
         }
         NativeMetadataFacts::Absent => {

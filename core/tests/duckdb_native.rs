@@ -185,6 +185,37 @@ async fn refuses_a_native_file_when_recorded_storage_version_disagrees() {
   ));
 }
 
+#[tokio::test]
+async fn refuses_legacy_native_metadata_with_an_explicit_compatibility_error() {
+  let fixture = seeded_native().await;
+  {
+    let connection = read_write(&fixture.finalized);
+    connection
+      .execute(
+        "ALTER TABLE __hv_native_metadata DROP COLUMN storage_version",
+        [],
+      )
+      .unwrap();
+    connection.execute_batch("CHECKPOINT").unwrap();
+  }
+
+  let error = fixture
+    .try_open(app_native_schema::NATIVE_SCHEMA_VERSION)
+    .await
+    .unwrap_err();
+  assert!(
+    matches!(error, NativeDatabaseError::StorageVersionMetadataMissing),
+    "{error:?}"
+  );
+  assert!(matches!(
+    fixture.authority_state(),
+    hardviz_core::infrastructure::database::native_database::AuthorityState::Inconsistent {
+      reason: hardviz_core::infrastructure::database::native_database::AuthorityInconsistency::StorageVersionMetadataMissing,
+      ..
+    }
+  ));
+}
+
 #[test]
 fn duckdb_lock_bumps_require_a_storage_format_review() {
   let lock = include_str!("../../Cargo.lock");

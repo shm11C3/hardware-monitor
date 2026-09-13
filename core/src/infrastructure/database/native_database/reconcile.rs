@@ -65,15 +65,15 @@ use super::NativeDatabaseError;
 use super::cell::{
   COPY_BATCH_ROWS, Cell, NativeColumnKind, RowMultisetDigest, quote_identifier,
 };
-use super::compatibility::verify_storage_version;
+use super::compatibility::{require_storage_version_column, verify_storage_version};
 use super::epoch::EpochMilliseconds;
 use super::finalize::{
   ColumnPlan, ColumnSource, FINALIZED_UNSELECTED, NATIVE_IDENTITY_TABLE,
   NATIVE_METADATA_TABLE, SOURCE_ORDINAL_COLUMN, TableColumn, append_staging, count_rows,
   create_staging_sql, derive_epoch_milliseconds, insert_from_staging_sql, open_database,
-  plan_columns, read_candidate_provenance, read_columns, read_primary_key,
-  require_every_candidate_table_is_declared, require_no_wal, stage_cell,
-  write_identities,
+  open_database_with_storage_version, plan_columns, read_candidate_provenance,
+  read_columns, read_primary_key, require_every_candidate_table_is_declared,
+  require_no_wal, stage_cell, write_identities,
 };
 use super::paging::{PagedReader, ReadColumn};
 use super::schema::NativeSchemaDefinition;
@@ -214,7 +214,11 @@ fn reconcile(
     let candidate =
       open_database(candidate_path, AccessMode::ReadOnly, &candidate_spill)?;
     source_schema_sha256 = read_candidate_provenance(&candidate)?;
-    let native = open_database(native_path, AccessMode::ReadWrite, &native_spill)?;
+    let native = open_database_with_storage_version(
+      native_path,
+      AccessMode::ReadWrite,
+      &native_spill,
+    )?;
     previous_source_schema_sha256 = require_reconcilable(&native, &schema)?;
     require_every_candidate_table_is_declared(&candidate, &schema)?;
 
@@ -327,14 +331,14 @@ fn require_reconcilable(
   native: &Connection,
   schema: &NativeSchemaDefinition,
 ) -> Result<String, NativeDatabaseError> {
-  let (state, version, storage_version, recorded): (String, i64, String, String) = native
+  let (state, version, recorded): (String, i64, String) = native
     .query_row(
       &format!(
-        "SELECT state, schema_version, storage_version, source_schema_sha256 FROM {}",
+        "SELECT state, schema_version, source_schema_sha256 FROM {}",
         quote_identifier(NATIVE_METADATA_TABLE)
       ),
       [],
-      |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+      |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
     )
     .map_err(|error| {
       NativeDatabaseError::duckdb("read the native metadata to reconcile", error)
@@ -353,6 +357,19 @@ fn require_reconcilable(
       actual: version,
     });
   }
+  require_storage_version_column(native, NATIVE_METADATA_TABLE)?;
+  let storage_version: String = native
+    .query_row(
+      &format!(
+        "SELECT storage_version FROM {}",
+        quote_identifier(NATIVE_METADATA_TABLE)
+      ),
+      [],
+      |row| row.get(0),
+    )
+    .map_err(|error| {
+      NativeDatabaseError::duckdb("read the native metadata to reconcile", error)
+    })?;
   verify_storage_version(native, &storage_version)?;
   Ok(recorded)
 }
@@ -920,14 +937,27 @@ fn verify_reconciled(
   tables: &mut [NativeReconciliationTableReport],
 ) -> Result<(), NativeDatabaseError> {
   let connection = open_database(native_path, AccessMode::ReadOnly, spill)?;
-  let (state, version, storage_version): (String, i64, String) = connection
+  let (state, version): (String, i64) = connection
     .query_row(
       &format!(
-        "SELECT state, schema_version, storage_version FROM {}",
+        "SELECT state, schema_version FROM {}",
         quote_identifier(NATIVE_METADATA_TABLE)
       ),
       [],
-      |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+      |row| Ok((row.get(0)?, row.get(1)?)),
+    )
+    .map_err(|error| {
+      NativeDatabaseError::duckdb("read the reopened reconciled metadata", error)
+    })?;
+  require_storage_version_column(&connection, NATIVE_METADATA_TABLE)?;
+  let storage_version: String = connection
+    .query_row(
+      &format!(
+        "SELECT storage_version FROM {}",
+        quote_identifier(NATIVE_METADATA_TABLE)
+      ),
+      [],
+      |row| row.get(0),
     )
     .map_err(|error| {
       NativeDatabaseError::duckdb("read the reopened reconciled metadata", error)

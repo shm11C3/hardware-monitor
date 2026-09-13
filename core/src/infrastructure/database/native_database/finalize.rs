@@ -1127,7 +1127,7 @@ pub(super) fn open_database(
   open_database_with_pin(path, access_mode, spill, false)
 }
 
-fn open_database_with_storage_version(
+pub(super) fn open_database_with_storage_version(
   path: &Path,
   access_mode: AccessMode,
   spill: &Path,

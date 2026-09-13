@@ -16,7 +16,9 @@ use tokio::sync::{Mutex as AsyncMutex, RwLock, mpsc, oneshot};
 
 use super::NativeDatabaseError;
 use super::cell::quote_identifier;
-use super::compatibility::{native_config, verify_storage_version};
+use super::compatibility::{
+  native_config, require_storage_version_column, verify_storage_version,
+};
 use super::finalize::{
   FINALIZED_UNSELECTED, NATIVE_IDENTITY_TABLE, NATIVE_METADATA_TABLE, SELECTED,
 };
@@ -554,19 +556,17 @@ fn validate_native_metadata(
   if present == 0 {
     return Err(NativeDatabaseError::Unfinalized);
   }
-  let row: Option<(String, i64, String)> = connection
+  let row: Option<(String, i64)> = connection
     .query_row(
-      &format!(
-        "SELECT state, schema_version, storage_version FROM {NATIVE_METADATA_TABLE}"
-      ),
+      &format!("SELECT state, schema_version FROM {NATIVE_METADATA_TABLE}"),
       [],
-      |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+      |row| Ok((row.get(0)?, row.get(1)?)),
     )
     .optional()
     .map_err(|error| {
       NativeDatabaseError::duckdb("read the native schema metadata", error)
     })?;
-  let Some((state, actual, storage_version)) = row else {
+  let Some((state, actual)) = row else {
     return Err(NativeDatabaseError::Unfinalized);
   };
   // A selected database is the same finalized file with its authority
@@ -582,6 +582,16 @@ fn validate_native_metadata(
       actual,
     });
   }
+  require_storage_version_column(connection, NATIVE_METADATA_TABLE)?;
+  let storage_version: String = connection
+    .query_row(
+      &format!("SELECT storage_version FROM {NATIVE_METADATA_TABLE}"),
+      [],
+      |row| row.get(0),
+    )
+    .map_err(|error| {
+      NativeDatabaseError::duckdb("read the native schema metadata", error)
+    })?;
   verify_storage_version(connection, &storage_version)?;
   Ok(())
 }

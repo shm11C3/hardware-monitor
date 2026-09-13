@@ -20,6 +20,8 @@ pub enum NativeDatabaseError {
     "native database storage version {actual:?} is incompatible with recorded version {expected:?}"
   )]
   StorageVersionMismatch { expected: String, actual: String },
+  #[error("native database metadata does not record a storage version")]
+  StorageVersionMetadataMissing,
   #[error("native database request cancellation may be attached to only one request")]
   CancellationAlreadyUsed,
   #[error("native database request was cancelled")]

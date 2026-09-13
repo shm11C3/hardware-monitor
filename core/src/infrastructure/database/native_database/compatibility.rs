@@ -66,3 +66,31 @@ pub(super) fn verify_storage_version(
   }
   Ok(())
 }
+
+pub(super) fn has_storage_version_column(
+  connection: &Connection,
+  metadata_table: &str,
+) -> Result<bool, NativeDatabaseError> {
+  let present: i64 = connection
+    .query_row(
+      "SELECT count(*) FROM information_schema.columns \
+       WHERE table_name = ? AND column_name = 'storage_version'",
+      [metadata_table],
+      |row| row.get(0),
+    )
+    .map_err(|error| {
+      NativeDatabaseError::duckdb("check native metadata compatibility", error)
+    })?;
+  Ok(present != 0)
+}
+
+pub(super) fn require_storage_version_column(
+  connection: &Connection,
+  metadata_table: &str,
+) -> Result<(), NativeDatabaseError> {
+  if has_storage_version_column(connection, metadata_table)? {
+    Ok(())
+  } else {
+    Err(NativeDatabaseError::StorageVersionMetadataMissing)
+  }
+}
