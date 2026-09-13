@@ -41,8 +41,9 @@ in spec documents.
   may never back a **Verified** scope
   ([ADR 0023](../../adr/0023-copyleft-derived-facts-for-experimental-scopes.md)).
   List the copyleft source in the Sources table with the note
-  `lead-only (copyleft)`, cite its ID on each lead-only fact row, and
-  name the lead-only facts, with their source IDs, in the Status column
+  `lead-only (copyleft)`, cite its ID on each lead-only fact row and
+  quirk entry, and name the lead-only facts, with their source IDs, in
+  the Status column
   of the scoped-enablement row that depends on them. Verified scopes still require vendor documentation, public
   hardware specifications, or maintainer-accepted independent hardware
   dumps.

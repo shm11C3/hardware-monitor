@@ -45,8 +45,9 @@ implementation read by the spec-author role and restated as a fact.
 - A lead-only fact may be normative for a scope whose default enablement is
   **Experimental**. It may not back a **Verified** scope.
 - Every lead-only fact is tagged: the copyleft source is listed in the
-  document's Sources table with the note `lead-only (copyleft)`, the fact row
-  cites that source ID, and the scoped-enablement row's Status names the
+  document's Sources table with the note `lead-only (copyleft)`, each fact
+  row and quirk entry that rests on it cites that source ID, and the
+  scoped-enablement row's Status names the
   lead-only facts it depends on together with their source IDs. A document
   whose Experimental scope rests on lead-only facts can still be
   `Implementation-ready (rev N)`.
