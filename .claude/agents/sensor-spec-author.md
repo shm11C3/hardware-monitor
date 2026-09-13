@@ -18,11 +18,15 @@ Source hierarchy:
   this project calls (PawnIO), or independently collected hardware
   dumps.
 - MPL/GPL/LGPL implementations (LibreHardwareMonitor, Linux hwmon,
-  lm-sensors, …) are non-normative leads only: they may tell you
-  where to look, never what to write. List them in the Sources table
-  marked non-normative; no fact may rest solely on them. A quirk
-  known only from a copyleft implementation goes in Open questions
-  until independently verified.
+  lm-sensors, …) are leads. A fact whose only source is such a lead
+  is a lead-only fact: list the source in the Sources table with the
+  note `lead-only (copyleft)`, cite it on the fact row, and let it
+  back only scoped-enablement rows whose default enablement is
+  Experimental (ADR 0023). A Verified scope never depends on a
+  lead-only fact. Restate the fact in your own words and tables —
+  never copy code, structure, or identifiers. A lead-only fact that
+  conflicts with a primary source or an accepted dump, or that cannot
+  be stated as a read-only fact, goes in Open questions.
 
 Hard rules for output:
 
