@@ -140,15 +140,18 @@ try {
 // ====================
 //
 try {
-  const cargoJson = execSync("cargo license --json", {
+  const cargoJson = execSync("cargo license --features duckdb-archive --json", {
     encoding: "utf8",
   });
   const cargoData: CargoLicenseInfo[] = JSON.parse(cargoJson);
 
-  const metadataJson = execSync("cargo metadata --format-version 1", {
-    encoding: "utf8",
-    maxBuffer: 100 * 1024 * 1024,
-  });
+  const metadataJson = execSync(
+    "cargo metadata --features duckdb-archive --format-version 1",
+    {
+      encoding: "utf8",
+      maxBuffer: 100 * 1024 * 1024,
+    },
+  );
   const metadata: CargoMetadata = JSON.parse(metadataJson);
 
   // Keep only crates reachable from a workspace member through a "normal"
