@@ -392,6 +392,7 @@ mod tests {
       gpus,
       processes: vec![],
       cpu_temperature: None,
+      cpu_package_thermal_status: None,
       sensor_temperatures: vec![],
       motherboard_temperatures: vec![],
       motherboard_fan_speeds: vec![],
