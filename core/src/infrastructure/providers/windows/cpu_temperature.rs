@@ -68,6 +68,7 @@ pub enum CpuPackageTemperatureError {
   Unavailable {
     reason: String,
     enablement: SensorEnablement,
+    thermal_status: Option<CpuPackageThermalStatus>,
   },
   Internal(String),
 }
@@ -305,6 +306,7 @@ impl CpuTemperatureSampler {
           inactive_error: Some(CpuPackageTemperatureError::Unavailable {
             reason,
             enablement: candidate.enablement,
+            thermal_status: None,
           }),
           sample_failure_logged: false,
         }
@@ -324,18 +326,14 @@ impl CpuTemperatureSampler {
         target_celsius,
         enablement: _,
       }) => read_shared_msr(client, IA32_PACKAGE_THERM_STATUS)
+        .map_err(|reason| CpuPackageTemperatureError::Unavailable {
+          reason,
+          enablement,
+          thermal_status: None,
+        })
         .and_then(|status| {
-          let thermal_status = decode_intel_package_thermal_status(status);
-          decode_intel_package_temperature(*target_celsius, status)
-            .map(|temperature| (temperature, thermal_status))
-            .map_err(format_decode_error)
-        })
-        .map(|(temperature, thermal_status)| CpuPackageTemperature {
-          temperature_celsius: temperature,
-          source: CpuTemperatureSource::IntelDtsPackageMsr,
-          thermal_status: Some(thermal_status),
-        })
-        .map_err(|reason| CpuPackageTemperatureError::Unavailable { reason, enablement }),
+          decode_intel_package_temperature_sample(*target_celsius, status, enablement)
+        }),
       Some(ActiveCpuTemperatureSource::Amd {
         client,
         tctl_offset_celsius,
@@ -354,7 +352,11 @@ impl CpuTemperatureSampler {
           }),
         Err(reason) => Err(reason),
       }
-      .map_err(|reason| CpuPackageTemperatureError::Unavailable { reason, enablement }),
+      .map_err(|reason| CpuPackageTemperatureError::Unavailable {
+        reason,
+        enablement,
+        thermal_status: None,
+      }),
       None => Err(self.inactive_error.clone().unwrap_or_else(|| {
         CpuPackageTemperatureError::Internal(
           "CPU package temperature unavailable".to_string(),
@@ -441,6 +443,25 @@ fn read_shared_msr(client: &Arc<Mutex<PawnIoClient>>, msr: u64) -> Result<u64, S
     .lock()
     .map_err(|_| "shared IntelMSR client lock poisoned".to_string())?
     .read_msr(msr)
+}
+
+fn decode_intel_package_temperature_sample(
+  target_celsius: u32,
+  package_therm_status: u64,
+  enablement: SensorEnablement,
+) -> Result<CpuPackageTemperature, CpuPackageTemperatureError> {
+  let thermal_status = Some(decode_intel_package_thermal_status(package_therm_status));
+  decode_intel_package_temperature(target_celsius, package_therm_status)
+    .map(|temperature| CpuPackageTemperature {
+      temperature_celsius: temperature,
+      source: CpuTemperatureSource::IntelDtsPackageMsr,
+      thermal_status,
+    })
+    .map_err(|error| CpuPackageTemperatureError::Unavailable {
+      reason: format_decode_error(error),
+      enablement,
+      thermal_status,
+    })
 }
 
 fn format_decode_error(error: CpuTemperatureDecodeError) -> String {
@@ -550,6 +571,7 @@ mod tests {
     let error = CpuPackageTemperatureError::Unavailable {
       reason: "CPU temperature decode failed".to_string(),
       enablement: SensorEnablement::Experimental,
+      thermal_status: None,
     };
 
     assert_eq!(
@@ -560,8 +582,33 @@ mod tests {
     let verified_error = CpuPackageTemperatureError::Unavailable {
       reason: "CPU temperature decode failed".to_string(),
       enablement: SensorEnablement::Verified,
+      thermal_status: None,
     };
     assert_eq!(verified_error.to_string(), "CPU temperature decode failed");
+  }
+
+  #[test]
+  fn intel_temperature_decode_failure_preserves_live_thermal_status() {
+    let package_therm_status = (127 << 16) | (1 << 0) | (1 << 2) | (1 << 10);
+    let error = decode_intel_package_temperature_sample(
+      100,
+      package_therm_status,
+      SensorEnablement::Verified,
+    )
+    .expect_err("the temperature readout should be invalid");
+
+    assert_eq!(
+      error,
+      CpuPackageTemperatureError::Unavailable {
+        reason: "CPU temperature decode failed: ImplausibleIntelPackageTemperature { temperature: -27, target: 100 }".to_string(),
+        enablement: SensorEnablement::Verified,
+        thermal_status: Some(CpuPackageThermalStatus {
+          thermal_status: true,
+          prochot_or_forcepr_asserted: true,
+          power_limitation_status: true,
+        }),
+      }
+    );
   }
 
   #[test]
