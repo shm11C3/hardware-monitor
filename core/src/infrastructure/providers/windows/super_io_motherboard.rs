@@ -30,6 +30,7 @@ pub(crate) const ITE_EXPERIMENTAL_NON_COMPONENT_FAILURE_PREFIX: &str =
   "Experimental IT8728F/EX motherboard temperature path failed: hardware state";
 pub(crate) const NUVOTON_EXPERIMENTAL_FAILURE_PREFIX: &str =
   "Experimental NCT6796D/NCT6796D-E motherboard sensor path failed";
+const NUVOTON_CONFIGURATION_EXIT_FAILURE_CONTEXT: &str = "Nuvoton config exit failed";
 const ITE_CONFIGURATION_EXIT_FAILURE_CONTEXT: &str = "configuration exit failed";
 const ITE_EC_AUTHORIZATION_PROBE_FAILURE_CONTEXT: &str =
   "EC port authorization probe failed";
@@ -364,7 +365,8 @@ impl<C: LpcIoOps> ActiveNuvotonMotherboardSensors<C> {
     match (result, exit_result) {
       (Ok(value), Ok(())) => Ok(value),
       (Ok(value), Err(exit_error)) => {
-        let reason = format!("Nuvoton config exit failed: {exit_error}");
+        let reason =
+          format!("{NUVOTON_CONFIGURATION_EXIT_FAILURE_CONTEXT}: {exit_error}");
         if value.as_ref().is_some_and(|slot| slot.experimental) {
           Err(nuvoton_experimental_failure(reason))
         } else {
@@ -829,12 +831,16 @@ fn nuvoton_experimental_failure(reason: impl AsRef<str>) -> String {
 }
 
 fn is_retryable_init_error(reason: &str) -> bool {
+  let requires_nuvoton_rediscovery = reason
+    .starts_with(NUVOTON_EXPERIMENTAL_FAILURE_PREFIX)
+    && reason.contains(NUVOTON_CONFIGURATION_EXIT_FAILURE_CONTEXT);
   let requires_ite_rediscovery = reason.starts_with(ITE_EXPERIMENTAL_FAILURE_PREFIX)
     && (reason.contains(ITE_EC_AUTHORIZATION_PROBE_FAILURE_CONTEXT)
       || reason.contains(ITE_CONFIGURATION_EXIT_FAILURE_CONTEXT));
 
   reason.contains("timed out waiting for mutex")
     || reason.contains("failed waiting for mutex")
+    || requires_nuvoton_rediscovery
     || requires_ite_rediscovery
 }
 
@@ -1396,6 +1402,15 @@ mod tests {
   fn ite_configuration_exit_failure_requires_rediscovery() {
     let error = ite_experimental_failure(format!(
       "{ITE_CONFIGURATION_EXIT_FAILURE_CONTEXT}: simulated exit failure"
+    ));
+
+    assert!(is_retryable_init_error(&error));
+  }
+
+  #[test]
+  fn nuvoton_experimental_configuration_exit_failure_requires_rediscovery() {
+    let error = nuvoton_experimental_failure(format!(
+      "{NUVOTON_CONFIGURATION_EXIT_FAILURE_CONTEXT}: simulated exit failure"
     ));
 
     assert!(is_retryable_init_error(&error));

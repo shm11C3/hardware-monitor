@@ -309,7 +309,7 @@ observation beyond those facts. (S1, S7, S9)
   `LpcIO`; running it before config discovery returned `0x80070490` and
   left normal HM ports unauthorized. (S7)
 - Read-only HM base availability is board-variable in current evidence:
-  S7 observed `0x0000`, S9 observed `0x0A00`. Rev 5 does not use the
+  S7 observed `0x0000`, S9 observed `0x0A00`. Rev 6 does not use the
   read-only HM path. (S7, S9)
 
 ## Safety notes
