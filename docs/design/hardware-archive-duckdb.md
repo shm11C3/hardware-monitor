@@ -367,8 +367,16 @@ place. A high-water path would need a second, hand-maintained declaration of
 which tables may lose rows, and it would save nothing, because the mandated
 reopen verification reads every row back either way. All fifteen tables, the
 re-imported identity high-water marks and the metadata row are written in one
-transaction, so an interruption - including a cell the stable column cannot
-hold, discovered on the last table - leaves the previous database untouched.
+transaction, so a failure before the commit - including a cell the stable column
+cannot hold, discovered on the last table - rolls back and leaves the previous
+database untouched.
+
+After the commit the new rows are durable, and the checkpoint and the reopen
+verification that follow are not part of that atomic step: an interruption there
+leaves a reconciled database whose verification never ran. That state cannot be
+selected, because the proof selection requires is the value the interrupted call
+never returned; the next run reconciles against a fresh candidate and verifies
+again before anything can become authoritative.
 
 **What guards against a migration that ran in between.** The candidate's
 `source_schema_sha256` looks like a schema digest but is recomputed after the
