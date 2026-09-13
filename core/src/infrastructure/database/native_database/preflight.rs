@@ -12,12 +12,11 @@
 //!
 //! # What this budget deliberately does not cover
 //!
-//! The SQLite source is kept until a later verified startup retires it, and
-//! whether it is then renamed in place or copied aside is an open maintainer
-//! question. A rename is atomic and free; a copy is safer against a downgraded
-//! older build but needs another whole source's worth of space. The budget
-//! below assumes the rename, so if the copy is chosen this formula has to gain
-//! a fourth term.
+//! The SQLite source is kept until a later verified startup retires it by
+//! renaming it in place (decided 2026-09-13: atomic and free; a copy would only
+//! protect a downgraded older build, and downgrade behavior is deferred by
+//! #2052). The budget below therefore has no term for a second copy of the
+//! source.
 
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};

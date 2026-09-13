@@ -28,9 +28,9 @@
 //! # What is deliberately not here
 //!
 //! Retiring the SQLite source once a later startup has verified the selection
-//! is App lifecycle work, and whether that source is renamed in place or copied
-//! aside is still an open maintainer question ([`super::preflight`] budgets no
-//! second copy of it). Nothing in this module removes or renames the source.
+//! is App lifecycle work: the source is renamed in place (decided 2026-09-13;
+//! [`super::preflight`] budgets no second copy of it). Nothing in this module
+//! removes or renames the source.
 
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;

@@ -428,12 +428,15 @@ unknowable.
   adapters, database owner lifetime, cancellation and retention.
 - [#2090](https://github.com/shm11C3/HardwareVisualizer/issues/2090):
   supported-platform packaging and application resource evidence. Reconciliation
-  and durable selection are settled above; what is still open is whether the
-  SQLite source is renamed in place or copied aside when a later verified
-  startup retires it. A rename is atomic and free but lets a downgraded older
-  build create a fresh empty database; a copy is safe but needs another whole
-  source's worth of disk, which the preflight does not currently budget. The App
-  lifecycle owner needs this decided.
+  and durable selection are settled above. Retiring the SQLite source after a
+  later verified startup is decided as a **rename in place** (2026-09-13): it
+  is atomic and needs no extra disk, which is what the space preflight already
+  budgets. A copy would only protect a downgraded older build from starting on
+  an empty database, and downgrade behavior is deferred by
+  [#2052](https://github.com/shm11C3/HardwareVisualizer/issues/2052); the
+  current build's authority marker already refuses to create an empty database
+  when the native file is missing. The App lifecycle owner implements the
+  rename.
 - [#2084](https://github.com/shm11C3/HardwareVisualizer/issues/2084) and
   [#2085](https://github.com/shm11C3/HardwareVisualizer/issues/2085) retain the
   investigation evidence for unresolved lifecycle and delivery choices.
