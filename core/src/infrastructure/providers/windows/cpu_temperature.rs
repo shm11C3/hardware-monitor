@@ -80,6 +80,7 @@ impl fmt::Display for CpuPackageTemperatureError {
       Self::Unavailable {
         reason,
         enablement: SensorEnablement::Experimental,
+        ..
       } => write!(
         f,
         "experimental CPU package temperature attempt failed: {reason}"
