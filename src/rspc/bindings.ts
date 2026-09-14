@@ -114,6 +114,14 @@ export const commands = {
 	refreshStorageDevices: () => typedError<StorageHealthRecord[], string>(__TAURI_INVOKE("refresh_storage_devices")),
 	getExternalComponentGuidanceCandidates: (view: ExternalComponentGuidanceView) => typedError<ExternalComponentGuidanceCandidate[], string>(__TAURI_INVOKE("get_external_component_guidance_candidates", { view })),
 	deferExternalComponentGuidanceForSession: (key: string) => typedError<null, string>(__TAURI_INVOKE("defer_external_component_guidance_for_session", { key })),
+	/**
+	 *  Components that HardwareVisualizer can set up on the user's request, in
+	 *  display order.
+	 */
+	getExternalComponentSetupComponents: () => __TAURI_INVOKE<ExternalComponent[]>("get_external_component_setup_components"),
+	getExternalComponentSetupStatus: (component: ExternalComponent) => typedError<ExternalComponentSetupStatus, string>(__TAURI_INVOKE("get_external_component_setup_status", { component })),
+	// Run External Component Setup in an elevated child process and wait for it.
+	runExternalComponentSetup: (component: ExternalComponent) => typedError<ExternalComponentSetupResult, string>(__TAURI_INVOKE("run_external_component_setup", { component })),
 	// ## Get an aggregated CPU/RAM archive series
 	getDataArchiveSeries: (hardwareType: DataArchiveHardwareType, dataStats: ArchiveDataStats, start: string, end: string, bucketWidthMs: number, bucketTimestamp: ArchiveBucketTimestamp) => typedError<ArchiveSeriesPoint[], string>(__TAURI_INVOKE("get_data_archive_series", { hardwareType, dataStats, start, end, bucketWidthMs, bucketTimestamp })),
 	// ## Get an aggregated GPU archive series
@@ -858,7 +866,58 @@ export type ExternalComponentGuidanceSettings = {
 
 export type ExternalComponentGuidanceView = "dashboard" | "cpuDetail" | "storageHealth";
 
+export type ExternalComponentModuleFileState = {
+	fileName: string,
+	present: boolean,
+};
+
 export type ExternalComponentReasonKind = "missing" | "permission" | "misconfigured" | "failed";
+
+export type ExternalComponentRuntimeInstallState = "notInstalled" | "installed" | "unknown";
+
+export type ExternalComponentRuntimeState = {
+	state: ExternalComponentRuntimeInstallState,
+	version: string | null,
+	installLocation: string | null,
+	// Why the state is unknown, when it is.
+	detail: string | null,
+};
+
+export type ExternalComponentSetupFailureStage = "stateUnknown" | "stagingDirectory" | "downloadRuntime" | "verifyRuntime" | "startInstaller" | "installerExit" | "downloadModules" | "verifyModules" | "archiveContents" | "placeModules" | "incomplete" | "unsupportedPlatform" | "panicked" | "other";
+
+export type ExternalComponentSetupOutcome = "alreadyInstalled" | "installed" | "rebootRequired" | "cancelled" | "failed";
+
+export type ExternalComponentSetupResult = {
+	component: ExternalComponent,
+	outcome: ExternalComponentSetupOutcome,
+	// Present for `failed` outcomes.
+	failureStage: ExternalComponentSetupFailureStage | null,
+	/**
+	 *  Free-text detail known to the app process (never taken from the
+	 *  elevated child, which reports through its exit code only).
+	 */
+	detail: string | null,
+	// The state after the run, so the UI does not need a second call.
+	status: ExternalComponentSetupStatus,
+};
+
+export type ExternalComponentSetupStatus = {
+	component: ExternalComponent,
+	support: ExternalComponentSetupSupport,
+	runtime: ExternalComponentRuntimeState,
+	moduleFiles: ExternalComponentModuleFileState[],
+	pinnedRuntimeVersion: string,
+	pinnedModulesVersion: string,
+	// True when nothing is left for setup to do.
+	complete: boolean,
+	/**
+	 *  Why setup cannot run right now (unsupported platform or an uncertain
+	 *  state), or `None` when it can.
+	 */
+	setupBlocker: string | null,
+};
+
+export type ExternalComponentSetupSupport = "supported" | "unsupportedPlatform";
 
 export type ExternalComponentUsage = "cpuPackageTemperature" | "motherboardSensors" | "storageHealth";
 

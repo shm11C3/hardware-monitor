@@ -7,9 +7,11 @@ The clean-room implementation remains derived from the pinned
 
 ## CPU Package Temperature
 
-Windows CPU package temperature collection through PawnIO requires an existing
-local PawnIO installation. HardwareVisualizer does not install, bundle, or
-bootstrap PawnIO.
+Windows CPU package temperature collection through PawnIO requires a local
+PawnIO installation. HardwareVisualizer does not bundle PawnIO. It can install
+it only through External Component Setup, an explicit user action that
+downloads the pinned upstream release and verifies it before running the
+installer; see [ADR 0024](../adr/0024-external-component-setup.md).
 
 Required components:
 
@@ -20,9 +22,10 @@ Required components:
   - AMD Family 17h / 19h package temperature path: signed `RyzenSMU.bin`.
 
 The CPU-specific module blob is not installed by the PawnIO runtime itself.
-Users must download a release asset from
-<https://github.com/namazso/PawnIO.Modules/releases>, extract the module blob,
-and place the required file under `C:\Program Files\PawnIO`.
+External Component Setup places the missing module files from the pinned
+PawnIO.Modules release; users who set up PawnIO by hand download a release
+asset from <https://github.com/namazso/PawnIO.Modules/releases>, extract the
+module blob, and place the required file under `C:\Program Files\PawnIO`.
 
 Production setup should use the signed `.bin` module files. An `.amx` file is
 only an optional fallback for an unrestricted PawnIO driver in Windows
@@ -105,9 +108,10 @@ startup action.
 
 The following are not covered by this runtime checklist:
 
-- Installing PawnIO.
+- The External Component Setup mechanism itself (pinned artifacts, download,
+  verification, installer option); it is owned by
+  [`docs/design/external-component-setup.md`](../design/external-component-setup.md).
 - Bundling `PawnIOLib.dll` or module blobs.
-- Driver installer integration or bootstrapper work.
 - AMD Family 1Ah / Zen 5 *verified* temperature enablement (it is enabled
   experimentally in the current implementation; verification against a
   primary source is still future work).
@@ -116,5 +120,7 @@ The following are not covered by this runtime checklist:
 - Super I/O chips outside the scoped NCT6799D read path.
 - Fan control, PWM writes, voltage sensors, and embedded-controller sensors.
 
-If a future release bundles PawnIO components, update the Windows third-party
-notices and release packaging documentation before shipping those artifacts.
+HardwareVisualizer downloads PawnIO components at setup time and does not
+redistribute them. If a future release bundles PawnIO components instead,
+update the Windows third-party notices and release packaging documentation
+before shipping those artifacts.

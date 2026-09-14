@@ -217,3 +217,7 @@ _Avoid_: Cooling baseline, reference temperature, calibration
 **External Component Guidance**:
 A user-facing notice shown after hardware collection tries and cannot use an optional external runtime component, and fallback collection still leaves user-visible hardware data unavailable.
 _Avoid_: Startup dependency check, install prompt, dependency error, missing component alert
+
+**External Component Setup**:
+The explicit, user-initiated action in which HardwareVisualizer downloads a pinned upstream release of an optional external component, verifies it, and installs it with the user's elevation consent, from the installer or from Settings.
+_Avoid_: Auto-install, bundled driver, dependency bootstrap, silent install, first-run setup

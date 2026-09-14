@@ -235,8 +235,9 @@ mod tests {
   };
   use crate::models::{MotherboardSensorSample, SensorAvailability};
   use crate::platform::traits::{
-    GpuPlatform, GpuUsageRaw, MemoryPlatform, MotherboardPlatform, NetworkPlatform,
-    ProcessElevationPlatform, SensorPlatform, SuperIoPlatform,
+    ElevatedProcessRun, ExternalComponentSetupPlatform, GpuPlatform, GpuUsageRaw,
+    MemoryPlatform, MotherboardPlatform, NetworkPlatform, ProcessElevationPlatform,
+    SensorPlatform, SuperIoPlatform,
   };
   use async_trait::async_trait;
   use std::sync::Arc;
@@ -341,6 +342,35 @@ mod tests {
     }
 
     fn relaunch_current_process_elevated(&self) -> Result<(), PlatformError> {
+      Err(PlatformError::unsupported("fake"))
+    }
+  }
+
+  impl ExternalComponentSetupPlatform for FakePlatform {
+    fn external_component_setup_status(
+      &self,
+      plan: &crate::external_component_setup::ExternalComponentSetupPlan,
+    ) -> crate::external_component_setup::ExternalComponentSetupStatus {
+      crate::external_component_setup::ExternalComponentSetupStatus::unsupported_platform(
+        plan,
+      )
+    }
+
+    fn run_external_component_setup(
+      &self,
+      plan: &crate::external_component_setup::ExternalComponentSetupPlan,
+    ) -> crate::external_component_setup::ExternalComponentSetupResult {
+      crate::external_component_setup::ExternalComponentSetupResult::failed(
+        plan.component,
+        crate::external_component_setup::SetupFailureStage::Other,
+        "fake",
+      )
+    }
+
+    fn run_current_executable_elevated(
+      &self,
+      _args: &[String],
+    ) -> Result<ElevatedProcessRun, PlatformError> {
       Err(PlatformError::unsupported("fake"))
     }
   }

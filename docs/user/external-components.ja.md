@@ -11,7 +11,7 @@
 - smartctl:
   `https://github.com/shm11C3/HardwareVisualizer/blob/develop/docs/user/external-components.ja.md#smartctl`
 
-HardwareVisualizer は、多くのハードウェア情報を任意の外部コンポーネントなしで取得できます。一部のより深いセンサー経路では、ユーザーが別途インストールする必要があるツールやドライバーに依存します。HardwareVisualizer は、それらのコンポーネントを自動でダウンロード、インストール、同梱、有効化しません。
+HardwareVisualizer は、多くのハードウェア情報を任意の外部コンポーネントなしで取得できます。一部のより深いセンサー経路では、別途インストールされるツールやドライバーに依存します。HardwareVisualizer は、それらのコンポーネントを自動でインストール、同梱、有効化することはありません。Windows では、設定画面から求めた場合に限り External Component Setup が PawnIO をインストールできます。[HardwareVisualizer から PawnIO をインストールする](#hardwarevisualizer-から-pawnio-をインストールする) を参照してください。
 
 External Component Guidance は、HardwareVisualizer が任意コンポーネントを使おうとして使えず、さらにフォールバック取得でもユーザーに表示するハードウェア情報が不足する場合にだけ表示されます。フォールバック取得で必要な情報を取得できた場合、アプリはこの案内を表示しません。
 
@@ -40,9 +40,22 @@ PawnIO は、CPU ごとのセンサー経路から Windows の CPU 情報を取�
 - Ryzen SMU モジュール経由の AMD Family 17h / Family 19h パッケージ温度
 - AMDFamily17 RAPL モジュール経由の AMD CPU パッケージ電力
 
+### HardwareVisualizer から PawnIO をインストールする
+
+Windows では、**設定 → 高度な設定 → 任意コンポーネントのセットアップ** に PawnIO ランタイムと HardwareVisualizer が使うモジュールファイルの有無が表示され、**インストール** を選べます。選ぶと HardwareVisualizer は次を行います。
+
+1. 固定バージョンの PawnIO ランタイムインストーラーと PawnIO.Modules リリースを、それぞれの公式 GitHub リリースからダウンロードします。
+2. 各ダウンロードをアプリに記録されたサイズと SHA-256 ダイジェストで検証し、一致しなければ破棄します。
+3. Windows の管理者承認を求めたうえで、ランタイムが未インストールの場合だけインストーラーを無人モードで実行します。
+4. 不足しているモジュールファイルだけを PawnIO のインストール先へコピーします。既存のファイルは上書きしません。
+
+完了後は HardwareVisualizer を再起動してください。Windows の再起動が必要と表示された場合は、先に Windows を再起動します。
+
+HardwareVisualizer をアンインストールしても PawnIO やモジュールファイルは削除されません。不要になった場合は Windows の「アプリと機能」から PawnIO を削除してください。
+
 ### ユーザー側で必要な準備
 
-PawnIO 経由で CPU パッケージ温度または電力を取得するには、対象の PC に次のものが必要です。
+手動で準備する場合、PawnIO 経由で CPU パッケージ温度または電力を取得するには、対象の PC に次のものが必要です。
 
 - 正しく動作する PawnIO driver/runtime
 - PawnIO runtime に含まれる `PawnIOLib.dll`

@@ -4,8 +4,9 @@ use crate::models::hardware::{
   SuperIoChipIdDiagnostics,
 };
 use crate::platform::traits::{
-  GpuPlatform, GpuUsageRaw, MemoryPlatform, MotherboardPlatform, NetworkPlatform,
-  Platform, ProcessElevationPlatform, SensorPlatform, SuperIoPlatform,
+  ElevatedProcessRun, ExternalComponentSetupPlatform, GpuPlatform, GpuUsageRaw,
+  MemoryPlatform, MotherboardPlatform, NetworkPlatform, Platform,
+  ProcessElevationPlatform, SensorPlatform, SuperIoPlatform,
 };
 use async_trait::async_trait;
 
@@ -104,6 +105,29 @@ impl ProcessElevationPlatform for WindowsPlatform {
 
   fn relaunch_current_process_elevated(&self) -> Result<(), PlatformError> {
     process_elevation::relaunch_current_process_elevated()
+  }
+}
+
+impl ExternalComponentSetupPlatform for WindowsPlatform {
+  fn external_component_setup_status(
+    &self,
+    plan: &crate::external_component_setup::ExternalComponentSetupPlan,
+  ) -> crate::external_component_setup::ExternalComponentSetupStatus {
+    crate::external_component_setup::windows::status(plan)
+  }
+
+  fn run_external_component_setup(
+    &self,
+    plan: &crate::external_component_setup::ExternalComponentSetupPlan,
+  ) -> crate::external_component_setup::ExternalComponentSetupResult {
+    crate::external_component_setup::windows::run(plan)
+  }
+
+  fn run_current_executable_elevated(
+    &self,
+    args: &[String],
+  ) -> Result<ElevatedProcessRun, PlatformError> {
+    process_elevation::run_current_executable_elevated(args)
   }
 }
 

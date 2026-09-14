@@ -8,6 +8,7 @@ pub use hardviz_core::{log_debug, log_error, log_info, log_internal, log_warn};
 
 mod adapters;
 mod app;
+pub mod cli;
 mod commands;
 mod enums;
 mod infrastructure;
@@ -26,6 +27,7 @@ use commands::ambient_sensor;
 use commands::background_image;
 use commands::cooling_insight;
 use commands::external_component_guidance;
+use commands::external_component_setup;
 use commands::hardware;
 use commands::settings;
 use commands::system;
@@ -96,6 +98,9 @@ fn build_specta_builder() -> Builder<Wry> {
       hardware::refresh_storage_devices,
       external_component_guidance::get_external_component_guidance_candidates,
       external_component_guidance::defer_external_component_guidance_for_session,
+      external_component_setup::get_external_component_setup_components,
+      external_component_setup::get_external_component_setup_status,
+      external_component_setup::run_external_component_setup,
       hardware::get_data_archive_series,
       hardware::get_gpu_archive_series,
       hardware::get_fan_archive_series,
@@ -261,6 +266,22 @@ fn setup_environmental_sensors(
 pub fn export_bindings() {
   let builder = build_specta_builder().typed_error_impl(TYPED_ERROR_IMPL);
   export_typescript_bindings(&builder);
+}
+
+/// Run a command-line mode when the process was started with one.
+///
+/// Returns the exit code to terminate with, or `None` for a normal launch.
+/// Called before any Tauri runtime is created so the elevated setup child
+/// never competes with the running app for the single-instance lock.
+pub fn run_cli_mode_if_requested() -> Option<i32> {
+  match cli::parse_cli_mode(std::env::args()) {
+    Ok(Some(mode)) => Some(cli::run_cli_mode(mode)),
+    Ok(None) => None,
+    Err(error) => {
+      eprintln!("invalid command line: {error:?}");
+      Some(2)
+    }
+  }
 }
 
 pub fn run() {

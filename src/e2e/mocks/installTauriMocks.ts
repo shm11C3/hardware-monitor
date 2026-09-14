@@ -196,11 +196,33 @@ const readCoolingObservationOverride = (): CoolingObservationOverride => {
     : null;
 };
 
+const externalComponentSetupStatus = () => ({
+  component: "pawnio",
+  support: "supported",
+  runtime: {
+    state: "installed",
+    version: "2.2.0",
+    installLocation: "C:\\Program Files\\PawnIO",
+    detail: null,
+  },
+  moduleFiles: [
+    { fileName: "IntelMSR.bin", present: true },
+    { fileName: "RyzenSMU.bin", present: true },
+    { fileName: "AMDFamily17.bin", present: true },
+    { fileName: "LpcIO.bin", present: false },
+  ],
+  pinnedRuntimeVersion: "2.2.0",
+  pinnedModulesVersion: "0.2.8",
+  complete: false,
+  setupBlocker: null,
+});
+
 /**
  * Dispatch table mapping invoke commands to their mocked handlers:
  * Tauri plugin commands (`plugin:<name>|<command>`) and generated
  * tauri-specta commands (raw or typedError-boxed by the bindings).
  */
+
 const buildInvokeHandlers = (
   store: Map<string, unknown>,
   eventListeners: Map<string, Set<number>>,
@@ -298,6 +320,18 @@ const buildInvokeHandlers = (
   get_external_component_guidance_candidates: () => [],
   defer_external_component_guidance_for_session: () => null,
   acknowledge_external_component_guidance_key: () => null,
+  // External Component Setup (ADR 0024): a machine with the PawnIO runtime
+  // installed and one module file still missing, so the Settings capture
+  // shows the install action.
+  get_external_component_setup_components: () => ["pawnio"],
+  get_external_component_setup_status: () => externalComponentSetupStatus(),
+  run_external_component_setup: () => ({
+    component: "pawnio",
+    outcome: "cancelled",
+    failureStage: null,
+    detail: null,
+    status: externalComponentSetupStatus(),
+  }),
   get_background_images: () => [],
   get_network_info: () => [],
   // No pending update — keeps the updater UI out of captures.

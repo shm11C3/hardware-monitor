@@ -760,6 +760,52 @@
         "elevatedStartupMode": {
           "name": "Run as administrator on startup",
           "description": "Start HardwareVisualizer with administrator privileges for sensors that require elevated access. Enabling this restarts the app after Windows approval."
+        },
+        "externalComponentSetup": {
+          "title": "Optional component setup",
+          "description": "Downloads the pinned upstream release, verifies it, and installs it after Windows asks for administrator approval. Nothing is installed without your action, and uninstalling HardwareVisualizer never removes it.",
+          "runtimeInstalled": "Runtime installed (version {{version}})",
+          "runtimeInstalledUnknownVersion": "Runtime installed",
+          "runtimeMissing": "Runtime not installed (setup installs version {{version}})",
+          "moduleFiles": "Module files: {{present}} of {{total}} present.",
+          "missingModuleFiles": "Missing: {{files}}",
+          "install": "Install",
+          "installMissing": "Install missing files",
+          "complete": "Installed",
+          "running": "Installing… Windows may ask for administrator approval.",
+          "statusError": "The component state could not be read.",
+          "runtimeUnknown": "The runtime state could not be determined.",
+          "setupBlocked": "Setup is unavailable until the state can be read: {{detail}}",
+          "failureStage": {
+            "stateUnknown": "The current state could not be determined, so nothing was changed.",
+            "stagingDirectory": "The protected staging directory could not be created.",
+            "downloadRuntime": "The runtime installer could not be downloaded.",
+            "verifyRuntime": "The downloaded runtime installer did not match its expected digest.",
+            "startInstaller": "The runtime installer could not be started.",
+            "installerExit": "The runtime installer reported an error.",
+            "downloadModules": "The module files could not be downloaded.",
+            "verifyModules": "The downloaded module archive did not match its expected digest.",
+            "archiveContents": "The module archive does not contain the required files.",
+            "placeModules": "The module files could not be placed in the install directory.",
+            "incomplete": "Setup finished, but the component is still not complete.",
+            "unsupportedPlatform": "Setup is not available on this platform.",
+            "panicked": "The setup process stopped unexpectedly.",
+            "other": "Setup failed."
+          },
+          "restartDescription": "Restart HardwareVisualizer to start using the newly installed component.",
+          "result": {
+            "installed": "{{component}} was installed. Restart HardwareVisualizer to use the new sensors.",
+            "rebootRequired": "{{component}} was installed, but Windows must restart before the driver can be used.",
+            "alreadyInstalled": "{{component}} is already installed.",
+            "cancelled": "Installation was cancelled at the administrator prompt.",
+            "failed": "Installation failed: {{detail}}"
+          },
+          "components": {
+            "pawnio": {
+              "name": "PawnIO",
+              "description": "Enables CPU package temperature and power, and motherboard temperatures and fan speeds on supported hardware."
+            }
+          }
         }
       }
     },
