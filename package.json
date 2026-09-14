@@ -94,7 +94,7 @@
     "lucide-react": "^1.39.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "react-error-boundary": "^6.1.3",
+    "react-error-boundary": "^6.1.5",
     "react-hook-form": "^7.86.0",
     "react-i18next": "^17.0.13",
     "recharts": "^3.10.1",
