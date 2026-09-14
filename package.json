@@ -55,7 +55,7 @@
     "tailwindcss": "^4.1.17",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
-    "vitest": "^4.0.8"
+    "vitest": "^5.0.0"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
