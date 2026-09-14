@@ -231,6 +231,8 @@ jobs:
 
       - name: Cache DuckDB build
         uses: ./.github/actions/cache-duckdb
+        with:
+          cache-key: core-lint
 
       - name: Check Core clippy
         run: cargo clippy -p hardviz-core --features duckdb-archive --all-targets -- -D warnings
@@ -261,6 +263,8 @@ jobs:
 
       - name: Cache DuckDB build
         uses: ./.github/actions/cache-duckdb
+        with:
+          cache-key: core-test
 
       - name: Run Core tests
         run: cargo test -p hardviz-core --features duckdb-archive -- --test-threads=1 --nocapture
@@ -289,6 +293,8 @@ jobs:
 
       - name: Cache DuckDB build
         uses: ./.github/actions/cache-duckdb
+        with:
+          cache-key: tauri-lint
 
       - name: Check Tauri clippy
         run: cargo clippy -p hardware_visualizer --features duckdb-archive --all-targets -- -D warnings
