@@ -200,9 +200,10 @@ const externalComponentSetupStatus = () => ({
   component: "pawnio",
   support: "supported",
   runtime: {
-    installed: true,
+    state: "installed",
     version: "2.2.0",
     installLocation: "C:\\Program Files\\PawnIO",
+    detail: null,
   },
   moduleFiles: [
     { fileName: "IntelMSR.bin", present: true },
@@ -213,6 +214,7 @@ const externalComponentSetupStatus = () => ({
   pinnedRuntimeVersion: "2.2.0",
   pinnedModulesVersion: "0.2.8",
   complete: false,
+  setupBlocker: null,
 });
 
 /**
@@ -326,9 +328,8 @@ const buildInvokeHandlers = (
   run_external_component_setup: () => ({
     component: "pawnio",
     outcome: "cancelled",
+    failureStage: null,
     detail: null,
-    runtimeInstalled: false,
-    moduleFilesPlaced: [],
     status: externalComponentSetupStatus(),
   }),
   get_background_images: () => [],

@@ -48,8 +48,8 @@ flowchart LR
   Settings[Settings action] -->|launch elevated, wait| CLI
   CLI[hardware-visualizer.exe<br/>--external-component-setup pawnio] --> Core
   Core[Core setup plan<br/>download, verify, install] --> Upstream[(Pinned upstream<br/>release assets)]
-  Core --> Result[Result file + exit code]
-  Result --> Settings
+  Core --> Exit[Exit code]
+  Exit --> Settings
 ```
 
 ### Ownership
@@ -60,9 +60,9 @@ flowchart LR
 | Detection of the installed runtime and module files | Core, behind the platform trait |
 | Download, digest verification, running the runtime installer, extracting module files | Core Windows platform implementation |
 | Launching the current executable elevated and waiting for it | Core Windows platform implementation (generalizes the existing relaunch path) |
-| Command-line dispatch of the setup mode, result file, exit code | App (`src-tauri/src/cli`) |
+| Command-line dispatch of the setup mode and its exit code | App (`src-tauri/src/cli`) |
 | Typed IPC, wire DTOs, Settings UI, restart prompt, copy | App and frontend |
-| Installer dialogs, properties, custom actions, uninstall notice | App bundle configuration (`src-tauri/windows/`) |
+| Installer dialogs, properties, custom actions, uninstall notice (planned, #2118 and #2119) | App bundle configuration (`src-tauri/windows/`) |
 
 Nothing in this feature touches the clean-room sensor files. The setup module
 reads the same registry value and module file names the provider documents,
@@ -70,35 +70,46 @@ but it does not read registers or share code with the provider.
 
 ### Setup plan for PawnIO
 
-1. Resolve the runtime state. If the uninstall registry key exists, the
-   runtime is present and step 3 is skipped.
+1. Resolve the runtime state from the uninstall registry key. A present key
+   means installed and step 3 is skipped; `ERROR_FILE_NOT_FOUND` means
+   absent; any other failure is unknown state and stops the run without
+   changing anything.
 2. Resolve the module state. The plan lists the module files the app can use:
    `IntelMSR.bin`, `RyzenSMU.bin`, `AMDFamily17.bin`, `LpcIO.bin`. A file is
-   present when it exists under any known PawnIO root.
-3. Download `PawnIO_setup.exe` to a private temporary directory, verify size
-   and SHA-256, run it with `-install -silent`, and map the exit code: `0`
-   installed, `3010` installed with restart required, anything else failed.
+   present when it exists under any known PawnIO root; a root that cannot be
+   read is unknown state, not absence.
+3. Create an administrator-only staging directory under `%SystemRoot%\Temp`
+   (protected DACL, random name), download `PawnIO_setup.exe` into it, verify
+   size and SHA-256, hold the file open with a share mode that denies write
+   and delete while it runs with `-install -silent`, and map the exit code:
+   `0` installed, `3010` installed with restart required, anything else
+   failed.
 4. When at least one module file is missing, download the pinned modules zip,
-   verify it, and extract only the missing files into the install location
-   resolved from the registry (fallback `%ProgramFiles%\PawnIO`). Existing
-   files are left untouched.
-5. Write a JSON result (`installed`, `alreadyInstalled`, `rebootRequired`,
-   `failed` with detail) to the result file the caller passed and exit with a
-   matching code.
+   verify it, and place only the missing files into the install location
+   resolved from the registry (fallback `%ProgramFiles%\PawnIO`). Each file
+   is written to a sibling partial file and linked into its final name; the
+   link fails when the name already exists, so existing files are never
+   replaced and a partial file never carries the final name.
+5. Re-read the state. Report success only when the component is complete
+   (or the installer asked for a restart), then exit with a code that encodes
+   the outcome: `0` installed, `3010` restart required, `10`-`21` the stage
+   that failed, `1` other. The caller derives the outcome from the exit code
+   of the process handle it owns; no result file exists.
 
 Every step is best-effort for the caller: a failed setup leaves the app
 installed and its fallbacks unchanged.
 
 ### Entry points
 
-- **Settings → Advanced → External components.** On Windows, each supported
-  component shows its state (runtime installed or not, which module files are
-  present) and an action button. The action launches the executable elevated
-  with the setup arguments and a result-file path, waits for exit, reads the
-  result, refreshes the state, and shows the restart prompt on success. If
-  the user declines the UAC prompt, the result is `cancelled` and nothing is
-  shown as an error.
-- **MSI.** A WiX fragment adds a dialog with one checkbox per component,
+- **Settings → Advanced → External components (implemented).** On Windows,
+  each supported component shows its state (runtime installed, not installed,
+  or unknown; which module files are present) and an action button that is
+  disabled while the state is unknown. The action launches the executable
+  elevated with the setup arguments, waits for exit, maps the exit code,
+  refreshes the state, and shows the restart prompt on success. If the user
+  declines the UAC prompt, the result is `cancelled` and nothing is shown as
+  an error. One run per component is allowed at a time.
+- **MSI (planned, #2118).** A WiX fragment will add a dialog with one checkbox per component,
   inserted between the install-directory and the ready dialogs by overriding
   Tauri's `Publish` events with a higher order. The checkbox binds to a public
   property (`EXTERNAL_COMPONENT_PAWNIO`) that the dialog defaults to `1`; the
@@ -107,11 +118,11 @@ installed and its fallbacks unchanged.
   A deferred custom action after `InstallFiles` runs the installed executable
   in setup mode with `Return="ignore"`, so a setup failure never fails the
   product install.
-- **NSIS.** The `installerHooks` file uses `NSIS_HOOK_POSTINSTALL` to ask one
+- **NSIS (planned, #2118).** The `installerHooks` file will use `NSIS_HOOK_POSTINSTALL` to ask one
   Yes/No question per component (default Yes) when the installer is not
   silent, and runs the installed executable in setup mode. `/S` installs skip
   the question; a documented `/EXTERNAL_COMPONENT_PAWNIO=1` switch opts in.
-- **Uninstall.** `NSIS_HOOK_PREUNINSTALL` shows a notice when the PawnIO
+- **Uninstall (planned, #2119).** `NSIS_HOOK_PREUNINSTALL` will show a notice when the PawnIO
   registry key exists and the uninstall is interactive. The MSI adds a notice
   dialog in the same UI fragment before the remove-confirmation dialog. Neither
   path runs the PawnIO uninstaller or deletes module files.

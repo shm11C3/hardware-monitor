@@ -11,6 +11,7 @@ import { useTauriDialog } from "@/hooks/useTauriDialog";
 import {
   commands,
   type ExternalComponent,
+  type ExternalComponentSetupFailureStage,
   type ExternalComponentSetupResult,
   type ExternalComponentSetupStatus,
 } from "@/rspc/bindings";
@@ -91,11 +92,7 @@ export const ExternalComponentSetupSection = () => {
       if (result.data.outcome === "installed") {
         setRestartDialogOpen(true);
       } else if (result.data.outcome === "failed") {
-        await error(
-          t("pages.settings.advanced.externalComponentSetup.result.failed", {
-            detail: result.data.detail ?? "",
-          }),
-        );
+        await error(failureMessage(t, result.data));
       }
     } finally {
       setRunningComponent(null);
@@ -141,6 +138,55 @@ export const ExternalComponentSetupSection = () => {
   );
 };
 
+type Translate = ReturnType<typeof useTranslation>["t"];
+
+const FAILURE_STAGE_KEYS = {
+  stateUnknown:
+    "pages.settings.advanced.externalComponentSetup.failureStage.stateUnknown",
+  stagingDirectory:
+    "pages.settings.advanced.externalComponentSetup.failureStage.stagingDirectory",
+  downloadRuntime:
+    "pages.settings.advanced.externalComponentSetup.failureStage.downloadRuntime",
+  verifyRuntime:
+    "pages.settings.advanced.externalComponentSetup.failureStage.verifyRuntime",
+  startInstaller:
+    "pages.settings.advanced.externalComponentSetup.failureStage.startInstaller",
+  installerExit:
+    "pages.settings.advanced.externalComponentSetup.failureStage.installerExit",
+  downloadModules:
+    "pages.settings.advanced.externalComponentSetup.failureStage.downloadModules",
+  verifyModules:
+    "pages.settings.advanced.externalComponentSetup.failureStage.verifyModules",
+  archiveContents:
+    "pages.settings.advanced.externalComponentSetup.failureStage.archiveContents",
+  placeModules:
+    "pages.settings.advanced.externalComponentSetup.failureStage.placeModules",
+  incomplete:
+    "pages.settings.advanced.externalComponentSetup.failureStage.incomplete",
+  unsupportedPlatform:
+    "pages.settings.advanced.externalComponentSetup.failureStage.unsupportedPlatform",
+  other: "pages.settings.advanced.externalComponentSetup.failureStage.other",
+} as const satisfies Record<ExternalComponentSetupFailureStage, string>;
+
+/**
+ * The elevated setup process reports only an exit code, so the stage is the
+ * user-facing explanation; free-text detail exists only for failures the app
+ * process itself detected.
+ */
+const failureMessage = (
+  t: Translate,
+  result: ExternalComponentSetupResult,
+): string => {
+  const stage = t(FAILURE_STAGE_KEYS[result.failureStage ?? "other"]);
+  return result.detail
+    ? t("pages.settings.advanced.externalComponentSetup.result.failed", {
+        detail: `${stage} (${result.detail})`,
+      })
+    : t("pages.settings.advanced.externalComponentSetup.result.failed", {
+        detail: stage,
+      });
+};
+
 /** Copy keys per component; a component without copy has no setup plan. */
 const componentCopyKeys = (component: ExternalComponent) => {
   switch (component) {
@@ -179,9 +225,33 @@ const ComponentCard = ({
   const missingFiles =
     status?.moduleFiles.filter((f) => !f.present).map((f) => f.fileName) ?? [];
 
-  const actionLabel = status?.runtime.installed
-    ? t("pages.settings.advanced.externalComponentSetup.installMissing")
-    : t("pages.settings.advanced.externalComponentSetup.install");
+  const actionLabel =
+    status?.runtime.state === "installed"
+      ? t("pages.settings.advanced.externalComponentSetup.installMissing")
+      : t("pages.settings.advanced.externalComponentSetup.install");
+
+  const runtimeLine = (setupStatus: ExternalComponentSetupStatus): string => {
+    switch (setupStatus.runtime.state) {
+      case "installed":
+        return setupStatus.runtime.version
+          ? t(
+              "pages.settings.advanced.externalComponentSetup.runtimeInstalled",
+              { version: setupStatus.runtime.version },
+            )
+          : t(
+              "pages.settings.advanced.externalComponentSetup.runtimeInstalledUnknownVersion",
+            );
+      case "notInstalled":
+        return t(
+          "pages.settings.advanced.externalComponentSetup.runtimeMissing",
+          { version: setupStatus.pinnedRuntimeVersion },
+        );
+      case "unknown":
+        return t(
+          "pages.settings.advanced.externalComponentSetup.runtimeUnknown",
+        );
+    }
+  };
 
   const resultMessage = (setupResult: ExternalComponentSetupResult): string => {
     switch (setupResult.outcome) {
@@ -205,12 +275,11 @@ const ComponentCard = ({
           "pages.settings.advanced.externalComponentSetup.result.cancelled",
         );
       case "failed":
-        return t(
-          "pages.settings.advanced.externalComponentSetup.result.failed",
-          { detail: setupResult.detail ?? "" },
-        );
+        return failureMessage(t, setupResult);
     }
   };
+
+  const blocked = status !== null && status.setupBlocker !== null;
 
   return (
     <div className="rounded-md border border-border p-4">
@@ -228,21 +297,7 @@ const ComponentCard = ({
             </p>
           ) : (
             <ul className="text-sm">
-              <li>
-                {status.runtime.installed
-                  ? status.runtime.version
-                    ? t(
-                        "pages.settings.advanced.externalComponentSetup.runtimeInstalled",
-                        { version: status.runtime.version },
-                      )
-                    : t(
-                        "pages.settings.advanced.externalComponentSetup.runtimeInstalledUnknownVersion",
-                      )
-                  : t(
-                      "pages.settings.advanced.externalComponentSetup.runtimeMissing",
-                      { version: status.pinnedRuntimeVersion },
-                    )}
-              </li>
+              <li>{runtimeLine(status)}</li>
               <li>
                 {t(
                   "pages.settings.advanced.externalComponentSetup.moduleFiles",
@@ -261,6 +316,14 @@ const ComponentCard = ({
                   </span>
                 )}
               </li>
+              {blocked && (
+                <li className="text-destructive">
+                  {t(
+                    "pages.settings.advanced.externalComponentSetup.setupBlocked",
+                    { detail: status.setupBlocker },
+                  )}
+                </li>
+              )}
             </ul>
           )}
         </div>
@@ -269,7 +332,7 @@ const ComponentCard = ({
           <Button
             type="button"
             variant={status.complete ? "secondary" : "default"}
-            disabled={status.complete || disabled}
+            disabled={status.complete || blocked || disabled}
             onClick={onSetup}
           >
             {running ? (

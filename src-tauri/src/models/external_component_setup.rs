@@ -4,6 +4,10 @@ use specta::Type;
 
 use super::external_component_guidance::ExternalComponent;
 
+// No doc comments on enum variants in this file: tauri-specta renders them
+// as a multi-line union with trailing whitespace, which the CI whitespace
+// gate rejects.
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub enum ExternalComponentSetupSupport {
@@ -11,12 +15,22 @@ pub enum ExternalComponentSetupSupport {
   UnsupportedPlatform,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum ExternalComponentRuntimeInstallState {
+  NotInstalled,
+  Installed,
+  Unknown,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ExternalComponentRuntimeState {
-  pub installed: bool,
+  pub state: ExternalComponentRuntimeInstallState,
   pub version: Option<String>,
   pub install_location: Option<String>,
+  /// Why the state is unknown, when it is.
+  pub detail: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -37,6 +51,9 @@ pub struct ExternalComponentSetupStatus {
   pub pinned_modules_version: String,
   /// True when nothing is left for setup to do.
   pub complete: bool,
+  /// Why setup cannot run right now (unsupported platform or an uncertain
+  /// state), or `None` when it can.
+  pub setup_blocker: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -45,11 +62,26 @@ pub enum ExternalComponentSetupOutcome {
   AlreadyInstalled,
   Installed,
   RebootRequired,
-  // No doc comments on variants: tauri-specta renders them as a multi-line
-  // union with trailing whitespace, which fails the whitespace gate.
-  // Cancelled: the user declined the elevation prompt; nothing ran.
   Cancelled,
   Failed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum ExternalComponentSetupFailureStage {
+  StateUnknown,
+  StagingDirectory,
+  DownloadRuntime,
+  VerifyRuntime,
+  StartInstaller,
+  InstallerExit,
+  DownloadModules,
+  VerifyModules,
+  ArchiveContents,
+  PlaceModules,
+  Incomplete,
+  UnsupportedPlatform,
+  Other,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -57,9 +89,11 @@ pub enum ExternalComponentSetupOutcome {
 pub struct ExternalComponentSetupResult {
   pub component: ExternalComponent,
   pub outcome: ExternalComponentSetupOutcome,
+  /// Present for `failed` outcomes.
+  pub failure_stage: Option<ExternalComponentSetupFailureStage>,
+  /// Free-text detail known to the app process (never taken from the
+  /// elevated child, which reports through its exit code only).
   pub detail: Option<String>,
-  pub runtime_installed: bool,
-  pub module_files_placed: Vec<String>,
   /// The state after the run, so the UI does not need a second call.
   pub status: ExternalComponentSetupStatus,
 }
@@ -67,20 +101,31 @@ pub struct ExternalComponentSetupResult {
 impl From<core_setup::ExternalComponentSetupStatus> for ExternalComponentSetupStatus {
   fn from(src: core_setup::ExternalComponentSetupStatus) -> Self {
     let complete = src.is_complete();
+    let setup_blocker = src.setup_blocker();
     let runtime = match src.runtime {
       core_setup::RuntimeInstallState::NotInstalled => ExternalComponentRuntimeState {
-        installed: false,
+        state: ExternalComponentRuntimeInstallState::NotInstalled,
         version: None,
         install_location: None,
+        detail: None,
       },
       core_setup::RuntimeInstallState::Installed {
         version,
         install_location,
       } => ExternalComponentRuntimeState {
-        installed: true,
+        state: ExternalComponentRuntimeInstallState::Installed,
         version,
         install_location: install_location.map(|path| path.display().to_string()),
+        detail: None,
       },
+      core_setup::RuntimeInstallState::Unknown { detail } => {
+        ExternalComponentRuntimeState {
+          state: ExternalComponentRuntimeInstallState::Unknown,
+          version: None,
+          install_location: None,
+          detail: Some(detail),
+        }
+      }
     };
 
     Self {
@@ -105,36 +150,58 @@ impl From<core_setup::ExternalComponentSetupStatus> for ExternalComponentSetupSt
       pinned_runtime_version: src.pinned_runtime_version,
       pinned_modules_version: src.pinned_modules_version,
       complete,
+      setup_blocker,
+    }
+  }
+}
+
+impl From<core_setup::SetupFailureStage> for ExternalComponentSetupFailureStage {
+  fn from(value: core_setup::SetupFailureStage) -> Self {
+    match value {
+      core_setup::SetupFailureStage::StateUnknown => Self::StateUnknown,
+      core_setup::SetupFailureStage::StagingDirectory => Self::StagingDirectory,
+      core_setup::SetupFailureStage::DownloadRuntime => Self::DownloadRuntime,
+      core_setup::SetupFailureStage::VerifyRuntime => Self::VerifyRuntime,
+      core_setup::SetupFailureStage::StartInstaller => Self::StartInstaller,
+      core_setup::SetupFailureStage::InstallerExit => Self::InstallerExit,
+      core_setup::SetupFailureStage::DownloadModules => Self::DownloadModules,
+      core_setup::SetupFailureStage::VerifyModules => Self::VerifyModules,
+      core_setup::SetupFailureStage::ArchiveContents => Self::ArchiveContents,
+      core_setup::SetupFailureStage::PlaceModules => Self::PlaceModules,
+      core_setup::SetupFailureStage::Incomplete => Self::Incomplete,
+      core_setup::SetupFailureStage::UnsupportedPlatform => Self::UnsupportedPlatform,
+      core_setup::SetupFailureStage::Other => Self::Other,
     }
   }
 }
 
 impl ExternalComponentSetupResult {
-  pub fn from_core(
-    src: core_setup::ExternalComponentSetupResult,
+  pub fn from_outcome(
+    outcome: core_setup::ExternalComponentSetupOutcome,
     status: core_setup::ExternalComponentSetupStatus,
   ) -> Self {
-    let (outcome, detail) = match src.outcome {
+    let (outcome, failure_stage, detail) = match outcome {
       core_setup::ExternalComponentSetupOutcome::AlreadyInstalled => {
-        (ExternalComponentSetupOutcome::AlreadyInstalled, None)
+        (ExternalComponentSetupOutcome::AlreadyInstalled, None, None)
       }
       core_setup::ExternalComponentSetupOutcome::Installed => {
-        (ExternalComponentSetupOutcome::Installed, None)
+        (ExternalComponentSetupOutcome::Installed, None, None)
       }
       core_setup::ExternalComponentSetupOutcome::RebootRequired => {
-        (ExternalComponentSetupOutcome::RebootRequired, None)
+        (ExternalComponentSetupOutcome::RebootRequired, None, None)
       }
-      core_setup::ExternalComponentSetupOutcome::Failed { detail } => {
-        (ExternalComponentSetupOutcome::Failed, Some(detail))
-      }
+      core_setup::ExternalComponentSetupOutcome::Failed { stage, detail } => (
+        ExternalComponentSetupOutcome::Failed,
+        Some(stage.into()),
+        Some(detail),
+      ),
     };
 
     Self {
-      component: src.component.into(),
+      component: status.component.into(),
       outcome,
+      failure_stage,
       detail,
-      runtime_installed: src.runtime_installed,
-      module_files_placed: src.module_files_placed,
       status: status.into(),
     }
   }
@@ -143,23 +210,8 @@ impl ExternalComponentSetupResult {
     Self {
       component: status.component.into(),
       outcome: ExternalComponentSetupOutcome::Cancelled,
+      failure_stage: None,
       detail: None,
-      runtime_installed: false,
-      module_files_placed: Vec::new(),
-      status: status.into(),
-    }
-  }
-
-  pub fn failed(
-    status: core_setup::ExternalComponentSetupStatus,
-    detail: impl Into<String>,
-  ) -> Self {
-    Self {
-      component: status.component.into(),
-      outcome: ExternalComponentSetupOutcome::Failed,
-      detail: Some(detail.into()),
-      runtime_installed: false,
-      module_files_placed: Vec::new(),
       status: status.into(),
     }
   }
@@ -193,9 +245,13 @@ mod tests {
       wire.support,
       ExternalComponentSetupSupport::UnsupportedPlatform
     );
-    assert!(!wire.runtime.installed);
+    assert_eq!(
+      wire.runtime.state,
+      ExternalComponentRuntimeInstallState::NotInstalled
+    );
     assert_eq!(wire.module_files.len(), 4);
     assert!(!wire.complete);
+    assert!(wire.setup_blocker.is_some());
     assert_eq!(wire.pinned_runtime_version, "2.2.0");
   }
 
@@ -214,27 +270,56 @@ mod tests {
 
     let wire: ExternalComponentSetupStatus = status.into();
 
-    assert!(wire.runtime.installed);
+    assert_eq!(
+      wire.runtime.state,
+      ExternalComponentRuntimeInstallState::Installed
+    );
     assert_eq!(wire.runtime.version.as_deref(), Some("2.2.0"));
     assert_eq!(
       wire.runtime.install_location.as_deref(),
       Some(r"C:\Program Files\PawnIO")
     );
     assert!(wire.complete);
+    assert_eq!(wire.setup_blocker, None);
   }
 
   #[test]
-  fn maps_failed_core_result_with_detail() {
+  fn unknown_runtime_state_carries_detail_and_blocks_setup() {
+    let mut status =
+      core_setup::ExternalComponentSetupStatus::unsupported_platform(plan());
+    status.support = core_setup::ExternalComponentSetupSupport::Supported;
+    status.runtime = core_setup::RuntimeInstallState::Unknown {
+      detail: "registry unavailable".to_string(),
+    };
+
+    let wire: ExternalComponentSetupStatus = status.into();
+
+    assert_eq!(
+      wire.runtime.state,
+      ExternalComponentRuntimeInstallState::Unknown
+    );
+    assert_eq!(wire.runtime.detail.as_deref(), Some("registry unavailable"));
+    assert!(wire.setup_blocker.unwrap().contains("registry unavailable"));
+  }
+
+  #[test]
+  fn maps_failed_outcome_with_stage_and_detail() {
     let status = core_setup::ExternalComponentSetupStatus::unsupported_platform(plan());
-    let core_result = core_setup::ExternalComponentSetupResult::failed(
-      CoreComponent::Pawnio,
-      "download failed",
+
+    let wire = ExternalComponentSetupResult::from_outcome(
+      core_setup::ExternalComponentSetupOutcome::failed(
+        core_setup::SetupFailureStage::VerifyRuntime,
+        "digest mismatch",
+      ),
+      status,
     );
 
-    let wire = ExternalComponentSetupResult::from_core(core_result, status);
-
     assert_eq!(wire.outcome, ExternalComponentSetupOutcome::Failed);
-    assert_eq!(wire.detail.as_deref(), Some("download failed"));
+    assert_eq!(
+      wire.failure_stage,
+      Some(ExternalComponentSetupFailureStage::VerifyRuntime)
+    );
+    assert_eq!(wire.detail.as_deref(), Some("digest mismatch"));
   }
 
   #[test]
@@ -244,6 +329,7 @@ mod tests {
     let wire = ExternalComponentSetupResult::cancelled(status);
 
     assert_eq!(wire.outcome, ExternalComponentSetupOutcome::Cancelled);
+    assert_eq!(wire.failure_stage, None);
     assert_eq!(wire.detail, None);
   }
 }

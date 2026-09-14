@@ -774,6 +774,23 @@
           "complete": "インストール済み",
           "running": "インストール中… Windows が管理者承認を求める場合があります。",
           "statusError": "コンポーネントの状態を取得できませんでした。",
+          "runtimeUnknown": "ランタイムの状態を判定できませんでした。",
+          "setupBlocked": "状態を読み取れるまでセットアップは実行できません: {{detail}}",
+          "failureStage": {
+            "stateUnknown": "現在の状態を判定できなかったため、何も変更していません。",
+            "stagingDirectory": "保護された作業ディレクトリを作成できませんでした。",
+            "downloadRuntime": "ランタイムのインストーラーをダウンロードできませんでした。",
+            "verifyRuntime": "ダウンロードしたランタイムのインストーラーが期待するダイジェストと一致しませんでした。",
+            "startInstaller": "ランタイムのインストーラーを起動できませんでした。",
+            "installerExit": "ランタイムのインストーラーがエラーを報告しました。",
+            "downloadModules": "モジュールファイルをダウンロードできませんでした。",
+            "verifyModules": "ダウンロードしたモジュールアーカイブが期待するダイジェストと一致しませんでした。",
+            "archiveContents": "モジュールアーカイブに必要なファイルが含まれていません。",
+            "placeModules": "モジュールファイルをインストール先に配置できませんでした。",
+            "incomplete": "セットアップは終了しましたが、コンポーネントはまだ完全ではありません。",
+            "unsupportedPlatform": "このプラットフォームではセットアップを利用できません。",
+            "other": "セットアップに失敗しました。"
+          },
           "restartDescription": "インストールしたコンポーネントを使うには HardwareVisualizer を再起動してください。",
           "result": {
             "installed": "{{component}} をインストールしました。新しいセンサーを使うには HardwareVisualizer を再起動してください。",

@@ -873,20 +873,30 @@ export type ExternalComponentModuleFileState = {
 
 export type ExternalComponentReasonKind = "missing" | "permission" | "misconfigured" | "failed";
 
+export type ExternalComponentRuntimeInstallState = "notInstalled" | "installed" | "unknown";
+
 export type ExternalComponentRuntimeState = {
-	installed: boolean,
+	state: ExternalComponentRuntimeInstallState,
 	version: string | null,
 	installLocation: string | null,
+	// Why the state is unknown, when it is.
+	detail: string | null,
 };
+
+export type ExternalComponentSetupFailureStage = "stateUnknown" | "stagingDirectory" | "downloadRuntime" | "verifyRuntime" | "startInstaller" | "installerExit" | "downloadModules" | "verifyModules" | "archiveContents" | "placeModules" | "incomplete" | "unsupportedPlatform" | "other";
 
 export type ExternalComponentSetupOutcome = "alreadyInstalled" | "installed" | "rebootRequired" | "cancelled" | "failed";
 
 export type ExternalComponentSetupResult = {
 	component: ExternalComponent,
 	outcome: ExternalComponentSetupOutcome,
+	// Present for `failed` outcomes.
+	failureStage: ExternalComponentSetupFailureStage | null,
+	/**
+	 *  Free-text detail known to the app process (never taken from the
+	 *  elevated child, which reports through its exit code only).
+	 */
 	detail: string | null,
-	runtimeInstalled: boolean,
-	moduleFilesPlaced: string[],
 	// The state after the run, so the UI does not need a second call.
 	status: ExternalComponentSetupStatus,
 };
@@ -900,6 +910,11 @@ export type ExternalComponentSetupStatus = {
 	pinnedModulesVersion: string,
 	// True when nothing is left for setup to do.
 	complete: boolean,
+	/**
+	 *  Why setup cannot run right now (unsupported platform or an uncertain
+	 *  state), or `None` when it can.
+	 */
+	setupBlocker: string | null,
 };
 
 export type ExternalComponentSetupSupport = "supported" | "unsupportedPlatform";

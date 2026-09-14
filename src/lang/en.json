@@ -774,6 +774,23 @@
           "complete": "Installed",
           "running": "Installing… Windows may ask for administrator approval.",
           "statusError": "The component state could not be read.",
+          "runtimeUnknown": "The runtime state could not be determined.",
+          "setupBlocked": "Setup is unavailable until the state can be read: {{detail}}",
+          "failureStage": {
+            "stateUnknown": "The current state could not be determined, so nothing was changed.",
+            "stagingDirectory": "The protected staging directory could not be created.",
+            "downloadRuntime": "The runtime installer could not be downloaded.",
+            "verifyRuntime": "The downloaded runtime installer did not match its expected digest.",
+            "startInstaller": "The runtime installer could not be started.",
+            "installerExit": "The runtime installer reported an error.",
+            "downloadModules": "The module files could not be downloaded.",
+            "verifyModules": "The downloaded module archive did not match its expected digest.",
+            "archiveContents": "The module archive does not contain the required files.",
+            "placeModules": "The module files could not be placed in the install directory.",
+            "incomplete": "Setup finished, but the component is still not complete.",
+            "unsupportedPlatform": "Setup is not available on this platform.",
+            "other": "Setup failed."
+          },
           "restartDescription": "Restart HardwareVisualizer to start using the newly installed component.",
           "result": {
             "installed": "{{component}} was installed. Restart HardwareVisualizer to use the new sensors.",

@@ -4,16 +4,18 @@
 //! The only mode today is External Component Setup (ADR 0024): the Settings
 //! action launches the executable elevated in this mode and the Windows
 //! installer's custom action invokes it from its elevated context, so one
-//! Core code path serves both entry points.
+//! Core code path serves both entry points. The mode reports through its
+//! exit code only; it never writes a result anywhere the caller could have
+//! redirected.
 
-use std::path::PathBuf;
-
-use hardviz_core::external_component_setup::{ExternalComponentSetupResult, setup_plan};
+use hardviz_core::external_component_setup::{
+  ExternalComponentSetupOutcome, ExternalComponentSetupResult, SetupFailureStage,
+  setup_plan,
+};
 use hardviz_core::models::ExternalComponent;
 use hardviz_core::platform::factory::PlatformFactory;
 
 pub const EXTERNAL_COMPONENT_SETUP_FLAG: &str = "--external-component-setup";
-pub const RESULT_FILE_FLAG: &str = "--result-file";
 
 /// Stable command-line identifiers for components with a setup plan.
 pub fn component_cli_id(component: ExternalComponent) -> &'static str {
@@ -33,10 +35,7 @@ fn component_from_cli_id(id: &str) -> Option<ExternalComponent> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CliMode {
-  ExternalComponentSetup {
-    component: ExternalComponent,
-    result_file: Option<PathBuf>,
-  },
+  ExternalComponentSetup { component: ExternalComponent },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -53,46 +52,27 @@ where
 {
   let mut args = args.into_iter().map(|arg| arg.as_ref().to_string());
   let mut component = None;
-  let mut result_file = None;
 
   while let Some(arg) = args.next() {
-    match arg.as_str() {
-      EXTERNAL_COMPONENT_SETUP_FLAG => {
-        let id = args
-          .next()
-          .ok_or(CliParseError::MissingValue(EXTERNAL_COMPONENT_SETUP_FLAG))?;
-        component =
-          Some(component_from_cli_id(&id).ok_or(CliParseError::UnknownComponent(id))?);
-      }
-      RESULT_FILE_FLAG => {
-        result_file = Some(PathBuf::from(
-          args
-            .next()
-            .ok_or(CliParseError::MissingValue(RESULT_FILE_FLAG))?,
-        ));
-      }
-      _ => {}
+    if arg == EXTERNAL_COMPONENT_SETUP_FLAG {
+      let id = args
+        .next()
+        .ok_or(CliParseError::MissingValue(EXTERNAL_COMPONENT_SETUP_FLAG))?;
+      component =
+        Some(component_from_cli_id(&id).ok_or(CliParseError::UnknownComponent(id))?);
     }
   }
 
-  Ok(component.map(|component| CliMode::ExternalComponentSetup {
-    component,
-    result_file,
-  }))
+  Ok(component.map(|component| CliMode::ExternalComponentSetup { component }))
 }
 
 /// Run a command-line mode to completion and return the process exit code.
 pub fn run_cli_mode(mode: CliMode) -> i32 {
   match mode {
-    CliMode::ExternalComponentSetup {
-      component,
-      result_file,
-    } => {
+    CliMode::ExternalComponentSetup { component } => {
       let result = run_external_component_setup(component);
-      if let Some(path) = result_file
-        && let Err(e) = write_result_file(&path, &result)
-      {
-        eprintln!("failed to write {}: {e}", path.display());
+      if let ExternalComponentSetupOutcome::Failed { stage, detail } = &result.outcome {
+        eprintln!("external component setup failed at {stage:?}: {detail}");
       }
       result.exit_code()
     }
@@ -105,21 +85,18 @@ fn run_external_component_setup(
   let Some(plan) = setup_plan(component) else {
     return ExternalComponentSetupResult::failed(
       component,
+      SetupFailureStage::Other,
       "this component has no External Component Setup plan",
     );
   };
   match PlatformFactory::shared() {
     Ok(platform) => platform.run_external_component_setup(plan),
-    Err(e) => ExternalComponentSetupResult::failed(component, e.to_string()),
+    Err(e) => ExternalComponentSetupResult::failed(
+      component,
+      SetupFailureStage::Other,
+      e.to_string(),
+    ),
   }
-}
-
-fn write_result_file(
-  path: &std::path::Path,
-  result: &ExternalComponentSetupResult,
-) -> std::io::Result<()> {
-  let json = serde_json::to_vec_pretty(result).map_err(std::io::Error::other)?;
-  std::fs::write(path, json)
 }
 
 #[cfg(test)]
@@ -136,13 +113,11 @@ mod tests {
   }
 
   #[test]
-  fn parses_external_component_setup_with_result_file() {
+  fn parses_external_component_setup() {
     let mode = parse_cli_mode([
       "hardware-visualizer.exe",
       "--external-component-setup",
       "pawnio",
-      "--result-file",
-      r"C:\Temp\result.json",
     ])
     .unwrap();
 
@@ -150,22 +125,8 @@ mod tests {
       mode,
       Some(CliMode::ExternalComponentSetup {
         component: ExternalComponent::Pawnio,
-        result_file: Some(PathBuf::from(r"C:\Temp\result.json")),
       })
     );
-  }
-
-  #[test]
-  fn result_file_is_optional_for_installer_callers() {
-    let mode = parse_cli_mode(["exe", "--external-component-setup", "pawnio"]).unwrap();
-
-    assert!(matches!(
-      mode,
-      Some(CliMode::ExternalComponentSetup {
-        component: ExternalComponent::Pawnio,
-        result_file: None,
-      })
-    ));
   }
 
   #[test]
@@ -177,15 +138,6 @@ mod tests {
     assert_eq!(
       parse_cli_mode(["exe", "--external-component-setup"]),
       Err(CliParseError::MissingValue(EXTERNAL_COMPONENT_SETUP_FLAG))
-    );
-    assert_eq!(
-      parse_cli_mode([
-        "exe",
-        "--external-component-setup",
-        "pawnio",
-        "--result-file"
-      ]),
-      Err(CliParseError::MissingValue(RESULT_FILE_FLAG))
     );
   }
 
@@ -200,15 +152,12 @@ mod tests {
   }
 
   #[test]
-  fn writes_the_result_file_as_json() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("result.json");
-    let result = ExternalComponentSetupResult::failed(ExternalComponent::Pawnio, "nope");
-
-    write_result_file(&path, &result).unwrap();
-
-    let parsed: ExternalComponentSetupResult =
-      serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-    assert_eq!(parsed, result);
+  fn a_component_without_a_plan_exits_with_the_generic_failure_code() {
+    assert_eq!(
+      run_cli_mode(CliMode::ExternalComponentSetup {
+        component: ExternalComponent::Smartctl,
+      }),
+      SetupFailureStage::Other.exit_code()
+    );
   }
 }

@@ -123,6 +123,7 @@ impl ExternalComponentSetupPlatform for LinuxPlatform {
   ) -> crate::external_component_setup::ExternalComponentSetupResult {
     crate::external_component_setup::ExternalComponentSetupResult::failed(
       plan.component,
+      crate::external_component_setup::SetupFailureStage::UnsupportedPlatform,
       "External Component Setup is available on Windows only.",
     )
   }

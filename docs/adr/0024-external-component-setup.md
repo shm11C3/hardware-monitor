@@ -20,9 +20,10 @@ later without a second design.
 ## Decision
 
 1. **Setup is an explicit user choice on every channel.** The Windows
-   installers offer External Component Setup as a per-component option that is
-   selected by default in an interactive install and can be deselected. The
-   Settings screen offers the same setup at any later time. A silent or
+   installers will offer External Component Setup as a per-component option
+   that is selected by default in an interactive install and can be
+   deselected (planned in #2118). The Settings screen offers the same setup
+   at any later time (the first implemented entry point). A silent or
    unattended install (`msiexec /qn`, NSIS `/S`, package managers) runs no
    setup unless the caller passes the documented property or flag, because
    nobody could see or decline the option. This keeps DP-03: an optional
@@ -35,17 +36,22 @@ later without a second design.
    dependency-style pull requests, and the module release follows the tag the
    sensor specification was verified against.
 3. **One executor for every entry point.** The application binary gains a
-   command-line mode that runs the setup plan for one component and exits with
-   a result. The Settings action launches that mode elevated through the
-   existing Windows elevation path and waits for it; the installer custom
-   action invokes the same mode from its already elevated context. Core owns
+   command-line mode that runs the setup plan for one component and reports
+   through its exit code only: a result file or pipe in a user-writable
+   location would let a same-user medium-integrity process redirect an
+   elevated write or forge the result. The Settings action launches that
+   mode elevated through the existing Windows elevation path and waits for
+   it; the planned installer custom action invokes the same mode from its
+   already elevated context. Core owns
    the plan, download, verification, and OS-level install steps behind the
    platform boundary; App owns the command-line dispatch, IPC, and UI.
 4. **Setup fills gaps and never removes.** The runtime installer runs only
-   when the runtime is absent. Module files are placed only when missing;
-   existing files are never overwritten or downgraded. Uninstalling
-   HardwareVisualizer never uninstalls PawnIO or deletes module files; an
-   interactive uninstall only tells the user that the component was kept.
+   when the runtime is positively known to be absent; an unreadable registry
+   or directory is reported as unknown state and blocks setup. Module files
+   are placed only when missing, atomically and without ever replacing an
+   existing file. Uninstalling HardwareVisualizer never uninstalls PawnIO or
+   deletes module files; an interactive uninstall will only tell the user
+   that the component was kept (planned in #2119).
 5. **A restart applies the result.** The PawnIO provider probes and caches its
    availability once per process, so the Settings flow tells the user to
    restart HardwareVisualizer after a successful setup rather than pretending
@@ -72,14 +78,15 @@ later without a second design.
 
 ## Consequences
 
-- HardwareVisualizer now uses the network for a user-initiated component
+- HardwareVisualizer would use the network for a user-initiated component
   download in addition to release updates and user-opened links. This remains
   within DP-01: no hardware or usage data leaves the machine.
 - The user documentation and the Windows external component checklist stop
   saying the app never installs components; they describe the pinned,
   verified, explicit setup instead.
-- The Windows installers gain custom dialogs and custom actions that must be
-  verified on a Windows machine each time the Tauri bundler templates change.
+- The Windows installers would gain custom dialogs and custom actions that
+  must be verified on a Windows machine each time the Tauri bundler templates
+  change.
 - Setup failure never fails the HardwareVisualizer installation and never
   changes collection results; the app keeps its existing fallbacks and
   External Component Guidance.

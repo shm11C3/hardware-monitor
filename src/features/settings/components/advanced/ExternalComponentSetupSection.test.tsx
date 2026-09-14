@@ -42,7 +42,12 @@ const status = (
 ): ExternalComponentSetupStatus => ({
   component: "pawnio",
   support: "supported",
-  runtime: { installed: false, version: null, installLocation: null },
+  runtime: {
+    state: "notInstalled",
+    version: null,
+    installLocation: null,
+    detail: null,
+  },
   moduleFiles: [
     { fileName: "IntelMSR.bin", present: false },
     { fileName: "RyzenSMU.bin", present: true },
@@ -52,15 +57,17 @@ const status = (
   pinnedRuntimeVersion: "2.2.0",
   pinnedModulesVersion: "0.2.8",
   complete: false,
+  setupBlocker: null,
   ...overrides,
 });
 
 const completeStatus = (): ExternalComponentSetupStatus =>
   status({
     runtime: {
-      installed: true,
+      state: "installed",
       version: "2.2.0",
       installLocation: "C:\\Program Files\\PawnIO",
+      detail: null,
     },
     moduleFiles: status().moduleFiles.map((file) => ({
       ...file,
@@ -74,9 +81,8 @@ const result = (
 ): ExternalComponentSetupResult => ({
   component: "pawnio",
   outcome: "installed",
+  failureStage: null,
   detail: null,
-  runtimeInstalled: true,
-  moduleFilesPlaced: ["IntelMSR.bin", "AMDFamily17.bin", "LpcIO.bin"],
   status: completeStatus(),
   ...overrides,
 });
@@ -136,6 +142,33 @@ describe("ExternalComponentSetupSection", () => {
     expect(screen.getByRole("button", { name: "Installed" })).toBeDisabled();
   });
 
+  it("blocks setup while the state is uncertain instead of assuming absence", async () => {
+    mocks.getExternalComponentSetupStatus.mockResolvedValue({
+      status: "ok",
+      data: status({
+        runtime: {
+          state: "unknown",
+          version: null,
+          installLocation: null,
+          detail: "RegOpenKeyExW failed with 5",
+        },
+        setupBlocker: "runtime state is unknown: RegOpenKeyExW failed with 5",
+      }),
+    });
+
+    render(<ExternalComponentSetupSection />);
+
+    expect(
+      await screen.findByText("The runtime state could not be determined."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Setup is unavailable until the state can be read: runtime state is unknown: RegOpenKeyExW failed with 5",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Install" })).toBeDisabled();
+  });
+
   it("runs setup, refreshes the state, and asks for a restart on success", async () => {
     const user = userEvent.setup();
     mocks.runExternalComponentSetup.mockResolvedValue({
@@ -174,12 +207,7 @@ describe("ExternalComponentSetupSection", () => {
     const user = userEvent.setup();
     mocks.runExternalComponentSetup.mockResolvedValue({
       status: "ok",
-      data: result({
-        outcome: "cancelled",
-        runtimeInstalled: false,
-        moduleFilesPlaced: [],
-        status: status(),
-      }),
+      data: result({ outcome: "cancelled", status: status() }),
     });
 
     render(<ExternalComponentSetupSection />);
@@ -195,15 +223,14 @@ describe("ExternalComponentSetupSection", () => {
     expect(mocks.error).not.toHaveBeenCalled();
   });
 
-  it("shows the failure detail in an error dialog", async () => {
+  it("explains a failure by its stage in an error dialog", async () => {
     const user = userEvent.setup();
     mocks.runExternalComponentSetup.mockResolvedValue({
       status: "ok",
       data: result({
         outcome: "failed",
-        detail: "PawnIO_setup.exe SHA-256 mismatch",
-        runtimeInstalled: false,
-        moduleFilesPlaced: [],
+        failureStage: "verifyRuntime",
+        detail: "the setup process exited with code 13",
         status: status(),
       }),
     });
@@ -214,7 +241,7 @@ describe("ExternalComponentSetupSection", () => {
 
     await waitFor(() => {
       expect(mocks.error).toHaveBeenCalledWith(
-        "Installation failed: PawnIO_setup.exe SHA-256 mismatch",
+        "Installation failed: The downloaded runtime installer did not match its expected digest. (the setup process exited with code 13)",
       );
     });
   });
@@ -223,7 +250,7 @@ describe("ExternalComponentSetupSection", () => {
     const user = userEvent.setup();
     mocks.runExternalComponentSetup.mockResolvedValue({
       status: "error",
-      error: "platform unavailable",
+      error: "External Component Setup for pawnio is already running",
     });
 
     render(<ExternalComponentSetupSection />);
@@ -232,7 +259,7 @@ describe("ExternalComponentSetupSection", () => {
 
     await waitFor(() => {
       expect(mocks.error).toHaveBeenCalledWith(
-        "Installation failed: platform unavailable",
+        "Installation failed: External Component Setup for pawnio is already running",
       );
     });
   });
