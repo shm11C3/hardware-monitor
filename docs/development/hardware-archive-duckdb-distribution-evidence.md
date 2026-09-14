@@ -130,7 +130,12 @@ and not evidence the feature builds there. CI never bundles an installer
 (`--no-bundle`).
 
 `Swatinem/rust-cache` uses `shared-key: "rust-workspace"`, `add-job-id-key:
-false` and `save-if` restricted to `develop`. Reading `src/config.ts` at the
+false` and `save-if` restricted to `develop`. (Since this evidence was
+gathered, the `duckdb-archive` jobs route the DuckDB C++ build through
+sccache; see
+[`local-build-cache.md`](local-build-cache.md#ci-caches-the-duckdb-c-build-with-sccache).
+The analysis below describes the rust-cache configuration as it was.)
+Reading `src/config.ts` at the
 pinned SHA `6323deb1`, `add-job-id-key: false` removes *only* the job id: the
 key always ends with `-${runnerOS}-${runnerArch}` ("to avoid cross-contamination
 of cache", per the source comment), and `add-rust-environment-hash-key` — on by

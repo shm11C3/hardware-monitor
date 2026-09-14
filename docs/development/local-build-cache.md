@@ -96,9 +96,10 @@ documentation recommends [sccache](https://github.com/mozilla/sccache), a
 compiler-invocation cache that keys by preprocessed source content rather than
 filesystem path, so it cannot repeat the correctness bug above. This is a
 **per-machine developer convenience, not a repository setting**: enabling it
-project-wide would break anyone's (and CI's) build the moment sccache is not
-on their `PATH`, so configure it only in your own `~/.cargo/config.toml`, never
-in this repository's:
+project-wide would break anyone's build the moment sccache is not on their
+`PATH`, so configure it only in your own `~/.cargo/config.toml`, never in this
+repository's. (CI enables it per job through workflow environment variables
+instead; see [below](#ci-caches-the-duckdb-c-build-with-sccache).)
 
 ```toml
 [build]
@@ -141,6 +142,39 @@ build-dir subtree.
 - To opt out for one command, set the environment variable
   `CARGO_BUILD_BUILD_DIR` (for example to `target`), which overrides the
   config file.
+
+## CI caches the DuckDB C++ build with sccache
+
+`.github/actions/cache-duckdb/action.yml` installs sccache
+(`mozilla-actions/sccache-action`) and exports `SCCACHE_GHA_ENABLED=true` and
+`RUSTC_WRAPPER=sccache`. The `ci.yml` jobs that compile with
+`--features duckdb-archive` (`lint-core`, `test-core`, `lint-tauri`) run it
+right after `setup-rust`. The `cc` crate treats `RUSTC_WRAPPER=sccache` as a
+C/C++ compiler wrapper, so every `cl.exe` / `c++` invocation of the bundled
+DuckDB build (326 translation units, about 9 minutes of the 13 to 14 minute
+cold build in run 34850128330) is keyed on preprocessed source, flags and
+compiler and served from the GitHub Actions cache. Non-incremental Rust
+dependency crates are cached the same way; workspace crates are passed
+through. sccache prints hit/miss statistics in its post step, which is the
+evidence surface for whether the cache is working.
+
+A dedicated `actions/cache` entry holding
+`target/debug/build/libduckdb-sys-*/out` was rejected: Cargo has no early
+cutoff, so a `run-build-script` unit is re-run whenever its
+`build-script-build` binary or any of that binary's dependencies (`cc`,
+`bindgen`, `syn`, `ureq`, ...) was rebuilt in the same invocation, and also
+whenever the binary's mtime is newer than the restored `output` file. The
+restored directory would survive only when the whole build-dependency closure
+is already fresh in `target/`, which is the case rust-cache already covers.
+
+Known limits: a Cargo.lock change inside libduckdb-sys's build-dependency
+closure changes the unit's metadata hash and therefore the absolute `OUT_DIR`
+that ends up in the preprocessed output, so the first run after such a bump
+recompiles DuckDB once. Entries written by a pull request are visible only to
+later runs of that pull request; entries written on `develop` are visible to
+every run. The action runs after rust-cache on purpose: rust-cache folds
+`RUST*` environment variables into its key, so exporting `RUSTC_WRAPPER`
+earlier would split the rust-cache key between jobs with and without sccache.
 
 ## Keeping disk usage bounded
 
