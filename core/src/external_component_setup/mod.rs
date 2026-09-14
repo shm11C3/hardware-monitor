@@ -245,12 +245,14 @@ pub enum SetupFailureStage {
   /// Every step ran, but the component is still not complete.
   Incomplete,
   UnsupportedPlatform,
+  /// The setup process panicked; the message went to its stderr only.
+  Panicked,
   /// A failure without a more specific stage, or an unrecognized exit code.
   Other,
 }
 
 impl SetupFailureStage {
-  const ALL: [Self; 13] = [
+  const ALL: [Self; 14] = [
     Self::StateUnknown,
     Self::StagingDirectory,
     Self::DownloadRuntime,
@@ -263,6 +265,7 @@ impl SetupFailureStage {
     Self::PlaceModules,
     Self::Incomplete,
     Self::UnsupportedPlatform,
+    Self::Panicked,
     Self::Other,
   ];
 
@@ -284,6 +287,7 @@ impl SetupFailureStage {
       Self::PlaceModules => 19,
       Self::Incomplete => 20,
       Self::UnsupportedPlatform => 21,
+      Self::Panicked => 22,
     }
   }
 

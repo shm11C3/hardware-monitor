@@ -789,6 +789,7 @@
             "placeModules": "The module files could not be placed in the install directory.",
             "incomplete": "Setup finished, but the component is still not complete.",
             "unsupportedPlatform": "Setup is not available on this platform.",
+            "panicked": "The setup process stopped unexpectedly.",
             "other": "Setup failed."
           },
           "restartDescription": "Restart HardwareVisualizer to start using the newly installed component.",

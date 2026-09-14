@@ -883,7 +883,7 @@ export type ExternalComponentRuntimeState = {
 	detail: string | null,
 };
 
-export type ExternalComponentSetupFailureStage = "stateUnknown" | "stagingDirectory" | "downloadRuntime" | "verifyRuntime" | "startInstaller" | "installerExit" | "downloadModules" | "verifyModules" | "archiveContents" | "placeModules" | "incomplete" | "unsupportedPlatform" | "other";
+export type ExternalComponentSetupFailureStage = "stateUnknown" | "stagingDirectory" | "downloadRuntime" | "verifyRuntime" | "startInstaller" | "installerExit" | "downloadModules" | "verifyModules" | "archiveContents" | "placeModules" | "incomplete" | "unsupportedPlatform" | "panicked" | "other";
 
 export type ExternalComponentSetupOutcome = "alreadyInstalled" | "installed" | "rebootRequired" | "cancelled" | "failed";
 

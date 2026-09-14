@@ -16,6 +16,7 @@ use hardviz_core::platform::factory::PlatformFactory;
 use hardviz_core::platform::traits::ElevatedProcessRun;
 
 use crate::cli::{EXTERNAL_COMPONENT_SETUP_FLAG, component_cli_id};
+use crate::log_warn;
 use crate::models::external_component_setup::ExternalComponentSetupResult;
 
 /// Components with a setup run in flight. One elevated setup per component at
@@ -106,10 +107,20 @@ pub fn run(component: ExternalComponent) -> Result<ExternalComponentSetupResult,
   Ok(match run {
     ElevatedProcessRun::Declined => ExternalComponentSetupResult::cancelled(after),
     ElevatedProcessRun::Exited { exit_code } => {
-      ExternalComponentSetupResult::from_outcome(
-        core_setup::ExternalComponentSetupOutcome::from_exit_code(exit_code),
-        after,
-      )
+      let outcome = core_setup::ExternalComponentSetupOutcome::from_exit_code(exit_code);
+      if let core_setup::ExternalComponentSetupOutcome::Failed { stage, detail } =
+        &outcome
+      {
+        log_warn!(
+          format!(
+            "external component setup for {} failed at {stage:?}: {detail}",
+            component_cli_id(component)
+          ),
+          "external_component_setup_service::run",
+          None::<&str>
+        );
+      }
+      ExternalComponentSetupResult::from_outcome(outcome, after)
     }
   })
 }

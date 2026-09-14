@@ -70,13 +70,32 @@ where
 pub fn run_cli_mode(mode: CliMode) -> i32 {
   match mode {
     CliMode::ExternalComponentSetup { component } => {
-      let result = run_external_component_setup(component);
-      if let ExternalComponentSetupOutcome::Failed { stage, detail } = &result.outcome {
+      // A panic must still become a meaningful exit code: the elevated child
+      // has no console, so the default exit status 101 would be the only
+      // trace. The default hook still prints the message to stderr for a
+      // caller that redirected it.
+      let outcome =
+        match std::panic::catch_unwind(|| run_external_component_setup(component)) {
+          Ok(result) => result.outcome,
+          Err(payload) => ExternalComponentSetupOutcome::failed(
+            SetupFailureStage::Panicked,
+            panic_message(payload.as_ref()),
+          ),
+        };
+      if let ExternalComponentSetupOutcome::Failed { stage, detail } = &outcome {
         eprintln!("external component setup failed at {stage:?}: {detail}");
       }
-      result.exit_code()
+      outcome.exit_code()
     }
   }
+}
+
+fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
+  payload
+    .downcast_ref::<&str>()
+    .map(|message| (*message).to_string())
+    .or_else(|| payload.downcast_ref::<String>().cloned())
+    .unwrap_or_else(|| "panic without a message".to_string())
 }
 
 fn run_external_component_setup(
@@ -149,6 +168,16 @@ mod tests {
         Some(component)
       );
     }
+  }
+
+  #[test]
+  fn panic_messages_are_extracted_from_str_and_string_payloads() {
+    let str_payload: Box<dyn std::any::Any + Send> = Box::new("boom");
+    assert_eq!(panic_message(str_payload.as_ref()), "boom");
+    let string_payload: Box<dyn std::any::Any + Send> = Box::new("bang".to_string());
+    assert_eq!(panic_message(string_payload.as_ref()), "bang");
+    let other: Box<dyn std::any::Any + Send> = Box::new(7u8);
+    assert_eq!(panic_message(other.as_ref()), "panic without a message");
   }
 
   #[test]

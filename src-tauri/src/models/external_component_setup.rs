@@ -81,6 +81,7 @@ pub enum ExternalComponentSetupFailureStage {
   PlaceModules,
   Incomplete,
   UnsupportedPlatform,
+  Panicked,
   Other,
 }
 
@@ -170,6 +171,7 @@ impl From<core_setup::SetupFailureStage> for ExternalComponentSetupFailureStage 
       core_setup::SetupFailureStage::PlaceModules => Self::PlaceModules,
       core_setup::SetupFailureStage::Incomplete => Self::Incomplete,
       core_setup::SetupFailureStage::UnsupportedPlatform => Self::UnsupportedPlatform,
+      core_setup::SetupFailureStage::Panicked => Self::Panicked,
       core_setup::SetupFailureStage::Other => Self::Other,
     }
   }
