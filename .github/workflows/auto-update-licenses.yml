@@ -36,6 +36,8 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           components: ""
+          cache-key: cargo-license
+          cache-targets: "false"
 
       - name: Install dependencies
         run: npm ci
