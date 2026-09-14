@@ -85,7 +85,7 @@ dxgi = "0.1.7"
 webview2-com = "0.38.2"
 # Keep this aligned with webview2-com; its COM interfaces implement this
 # windows-core version's Interface trait, not the newer version used elsewhere.
-windows-core = "0.61"
+windows-core = "0.62"
 winapi = { version = "0.3", features = ["dxgi", "setupapi", "devguid"] }
 windows = { version = "0.62.2", features = [
     "Data_Xml_Dom",
