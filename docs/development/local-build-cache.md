@@ -168,6 +168,10 @@ hash against GitHub's 10 GB per-repository cache limit; if `gh cache list`
 shows eviction thrash, drop `cache-targets` for low-value kinds before
 allowing pull requests to save.
 
+`publish.yml` only runs on tag pushes, where save-if is always false, so its
+rust-cache step reuses `tauri-build` (populated by `ci.yml`'s `test-build` job
+on `develop`) instead of a job-specific key nothing would ever save to.
+
 ## Keeping disk usage bounded
 
 The shared parent directory still accumulates one subtree per worktree you
