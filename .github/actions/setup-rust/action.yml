@@ -9,6 +9,23 @@ inputs:
     description: "Additional targets to install"
     required: false
     default: ""
+  cache-key:
+    description: >-
+      rust-cache key shared by jobs that compile the same crate set in the same
+      cargo mode (check/clippy vs build/test), profile, and feature set, for
+      example `core-test`. Keep it distinct per job kind: only default-branch
+      runs save, and the first job to finish with a given key is the only one
+      that saves it, so jobs with different artifact sets sharing one key
+      overwrite each other with entries the other cannot reuse. Jobs that never
+      save (PR-only) may reuse the key of the closest saving job.
+    required: true
+  cache-targets:
+    description: >-
+      Whether to cache the workspace `target/` directory. Set to "false" for
+      jobs that only run `cargo fmt`, `cargo deny`, or `cargo install` so the
+      entry stays registry/bin only.
+    required: false
+    default: "true"
 
 runs:
   using: "composite"
@@ -18,13 +35,32 @@ runs:
         toolchain: 1.93.0
         targets: ${{ inputs.targets }}
 
+    # .cargo/config.toml moves intermediate artifacts to
+    # $CARGO_HOME/build/shared/{workspace-path-hash} for local multi-worktree
+    # hygiene (docs/development/local-build-cache.md). rust-cache only saves
+    # and prunes the workspace `target/` it is told about, so with that setting
+    # a restored entry held the registry but no compiled crates and every job
+    # rebuilt from scratch. CI is a single checkout, so put the build dir back
+    # under target/ here instead of listing the hashed path as an extra cache
+    # directory: an extra directory is saved wholesale (workspace crates and
+    # test binaries included) and never pruned. Must run before rust-cache so
+    # the variable is part of its environment hash and its cargo metadata call.
+    - name: Keep Cargo build artifacts under target/ for rust-cache
+      run: echo 'CARGO_BUILD_BUILD_DIR={workspace-root}/target' >> "$GITHUB_ENV"
+      shell: bash
+
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       with:
+        # src-tauri is a member of the root workspace, so it has no target/ of its own.
         workspaces: |
           . -> target
-          ./src-tauri -> target
         add-job-id-key: "false"
-        shared-key: "rust-workspace"
+        shared-key: ${{ inputs.cache-key }}
+        cache-targets: ${{ inputs.cache-targets }}
+        # Only the default branch saves: each job kind and platform already
+        # costs one entry per lockfile hash, and letting every PR save too
+        # would churn through GitHub's 10 GB per-repository cache limit. PRs
+        # still get partial hits through rust-cache's restore-key prefix.
         save-if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
 
     - name: Install Rust components

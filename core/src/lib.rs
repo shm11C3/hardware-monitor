@@ -22,4 +22,7 @@ pub mod enums;
 
 pub mod models;
 
+/// External Component Setup: pinned catalog and setup execution.
+pub mod external_component_setup;
+
 pub mod utils;

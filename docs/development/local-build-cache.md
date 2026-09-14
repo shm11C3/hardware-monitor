@@ -143,6 +143,36 @@ build-dir subtree.
   `CARGO_BUILD_BUILD_DIR` (for example to `target`), which overrides the
   config file.
 
+## CI keeps the build dir under `target/`
+
+`.github/actions/setup-rust/action.yml` exports
+`CARGO_BUILD_BUILD_DIR={workspace-root}/target` before `Swatinem/rust-cache`
+runs, so on GitHub-hosted runners the stock layout applies and the repository
+setting above is local-only. rust-cache saves and prunes only the workspace
+`target/` directories it is told about; it does not read `build.build-dir`.
+After this setting landed, CI run 34850128330 (`test-core`, windows-latest)
+restored a 697 MB `develop` entry whose "Cache Paths" were `$CARGO_HOME`
+registry/git/bin plus `target/`, then compiled all 249 crates into
+`C:\Users\runneradmin\.cargo\build\shared\...\debug\deps` in 13 m 53 s: the
+entry held the registry but none of the compiled crates. Listing the hashed
+build dir as a rust-cache `cache-directories` entry was rejected because such
+directories are saved wholesale (workspace crates and test binaries included)
+and never pruned, and because `{workspace-path-hash}` ties the path to the
+runner's checkout location.
+
+The same action takes a required `cache-key` input, one per job kind
+(`core-test`, `tauri-lint`, ...). Only `develop` saves, and the first job to
+finish with a given key is the only one that saves it, so a key shared by a
+`clippy` job and a `test` job stores whichever finished first, which the other
+cannot reuse. Per-kind keys cost one entry per kind, platform, and lockfile
+hash against GitHub's 10 GB per-repository cache limit; if `gh cache list`
+shows eviction thrash, drop `cache-targets` for low-value kinds before
+allowing pull requests to save.
+
+`publish.yml` only runs on tag pushes, where save-if is always false, so its
+rust-cache step reuses `tauri-build` (populated by `ci.yml`'s `test-build` job
+on `develop`) instead of a job-specific key nothing would ever save to.
+
 ## CI caches the DuckDB C++ build with sccache
 
 `.github/actions/cache-duckdb/action.yml` installs sccache

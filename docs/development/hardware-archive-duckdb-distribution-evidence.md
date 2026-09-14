@@ -129,13 +129,15 @@ never mentions `duckdb-archive`, so that is feature-disabled release coverage
 and not evidence the feature builds there. CI never bundles an installer
 (`--no-bundle`).
 
-`Swatinem/rust-cache` uses `shared-key: "rust-workspace"`, `add-job-id-key:
-false` and `save-if` restricted to `develop`. (Since this evidence was
-gathered, the `duckdb-archive` jobs route the DuckDB C++ build through
-sccache; see
-[`local-build-cache.md`](local-build-cache.md#ci-caches-the-duckdb-c-build-with-sccache).
-The analysis below describes the rust-cache configuration as it was.)
-Reading `src/config.ts` at the
+`Swatinem/rust-cache` used, at the time of this evidence, `shared-key:
+"rust-workspace"`, `add-job-id-key: false` and `save-if` restricted to
+`develop`. (The action has since moved to one `cache-key` per job kind and
+pins the Cargo build dir under `target/` in CI, and the `duckdb-archive` jobs
+now route the DuckDB C++ build through sccache's local disk cache; see
+[`local-build-cache.md`](local-build-cache.md#ci-keeps-the-build-dir-under-target)
+and [its sccache section](local-build-cache.md#ci-caches-the-duckdb-c-build-with-sccache).
+The analysis below describes the configuration this evidence was gathered
+under.) Reading `src/config.ts` at the
 pinned SHA `6323deb1`, `add-job-id-key: false` removes *only* the job id: the
 key always ends with `-${runnerOS}-${runnerArch}` ("to avoid cross-contamination
 of cache", per the source comment), and `add-rust-environment-hash-key` — on by

@@ -3,6 +3,7 @@ pub mod background_image;
 pub mod cooling_insight;
 pub mod environmental_sensors;
 pub mod external_component_guidance;
+pub mod external_component_setup;
 pub mod hardware;
 pub mod hardware_archive;
 pub mod settings;

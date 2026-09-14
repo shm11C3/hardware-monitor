@@ -203,6 +203,8 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           components: rustfmt
+          cache-key: format
+          cache-targets: "false"
 
       - name: Check Rust formatting
         run: cargo fmt --all -- --check
@@ -228,6 +230,8 @@ jobs:
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
+        with:
+          cache-key: core-lint
 
       - name: Cache DuckDB build
         uses: ./.github/actions/cache-duckdb
@@ -260,6 +264,7 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           components: ""
+          cache-key: core-test
 
       - name: Cache DuckDB build
         uses: ./.github/actions/cache-duckdb
@@ -290,6 +295,8 @@ jobs:
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
+        with:
+          cache-key: tauri-lint
 
       - name: Cache DuckDB build
         uses: ./.github/actions/cache-duckdb
@@ -325,6 +332,7 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           components: ""
+          cache-key: tauri-test
 
       - name: Install cargo-llvm-cov
         if: matrix.platform == 'ubuntu-22.04'
@@ -386,6 +394,8 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           components: ""
+          # PR-only job, so it never saves; reuse the closest saved check-mode entry.
+          cache-key: tauri-lint
 
       - name: Prepare frontendDist placeholder
         shell: bash
@@ -414,6 +424,7 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           components: ""
+          cache-key: tauri-bindings
 
       - name: Prepare frontendDist placeholder
         shell: bash
@@ -521,6 +532,7 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           components: ""
+          cache-key: tauri-build
 
       - name: Wait for toolchain setup
         wait-all: true
@@ -731,6 +743,9 @@ jobs:
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
+        with:
+          cache-key: tauri-driver
+          cache-targets: "false"
 
       - name: Install tauri-driver
         run: cargo install tauri-driver --locked --version 2.0.6
@@ -806,6 +821,8 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           components: ""
+          cache-key: cargo-deny
+          cache-targets: "false"
 
       - name: Install cargo-deny
         run: cargo install cargo-deny --version 0.19.4 --locked

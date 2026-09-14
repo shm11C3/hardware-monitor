@@ -121,6 +121,13 @@ jobs:
         with:
           components: ""
           targets: ${{ matrix.rust-targets || '' }}
+          # Reuse the key ci.yml's test-build job populates on develop pushes.
+          # publish.yml only runs on tag pushes (see the `on:` block above), so
+          # save-if (default-branch only) is always false here: a dedicated
+          # `publish` key could never be saved to and would restore nothing,
+          # and since these jobs never save, sharing tauri-build read-only
+          # cannot cause the matrix legs to overwrite each other's entry.
+          cache-key: tauri-build
 
       - name: Generate licenses.json
         run: npx license-checker --production --json > licenses.json
