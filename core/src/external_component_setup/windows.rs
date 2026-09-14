@@ -273,9 +273,10 @@ fn read_registry_string(key: HKEY, value_name: &str) -> Option<String> {
     return None;
   }
 
-  let units = buffer[..size as usize]
-    .chunks_exact(2)
-    .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+  let (pairs, _) = buffer[..size as usize].as_chunks::<2>();
+  let units = pairs
+    .iter()
+    .map(|pair| u16::from_le_bytes(*pair))
     .collect::<Vec<_>>();
   let end = units
     .iter()
