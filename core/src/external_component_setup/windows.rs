@@ -338,15 +338,7 @@ impl StagingDirectory {
   fn create() -> Result<Self, String> {
     let system_root = std::env::var_os("SystemRoot")
       .ok_or_else(|| "SystemRoot is not set".to_string())?;
-    let mut random = [0u8; 16];
-    getrandom::fill(&mut random).map_err(|e| format!("random name failed: {e}"))?;
-    let name = format!(
-      "hardviz-external-component-setup-{}",
-      random
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect::<String>()
-    );
+    let name = format!("hardviz-external-component-setup-{}", random_hex::<16>()?);
     let path = PathBuf::from(system_root).join("Temp").join(name);
 
     let sddl = wide_null(STAGING_DIRECTORY_SDDL);
@@ -550,7 +542,13 @@ fn publish_file_no_clobber(
   contents: &[u8],
 ) -> Result<bool, String> {
   let target = directory.join(file_name);
-  let partial = directory.join(format!("{file_name}{PARTIAL_SUFFIX}"));
+  // Unique per attempt: a partial left behind by an interrupted run must not
+  // block later attempts, and a partial another process is writing must not
+  // be touched.
+  let partial = directory.join(format!(
+    "{file_name}{PARTIAL_SUFFIX}.{}",
+    random_hex::<8>()?
+  ));
 
   let mut file = fs::OpenOptions::new()
     .write(true)
@@ -660,6 +658,12 @@ fn find_named_file(
   }
 
   Ok(None)
+}
+
+fn random_hex<const N: usize>() -> Result<String, String> {
+  let mut random = [0u8; N];
+  getrandom::fill(&mut random).map_err(|e| format!("random name failed: {e}"))?;
+  Ok(random.iter().map(|b| format!("{b:02x}")).collect())
 }
 
 fn wide_null(value: &str) -> Vec<u16> {
