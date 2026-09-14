@@ -141,9 +141,19 @@ services instead of reaching into providers directly.
 # Build only the core crate
 cargo build -p hardviz-core
 
-# Run Core tests without spinning up a Tauri runtime
-cargo test -p hardviz-core
+# Run Core tests without spinning up a Tauri runtime (CI parity)
+cargo nextest run -p hardviz-core --features duckdb-archive
 ```
+
+CI runs the Core tests through [cargo-nextest](https://nexte.st) with the
+`ci` profile from `.config/nextest.toml`. nextest runs every test in its own
+process, so the DuckDB integration binaries under `core/tests/` execute in
+parallel while the process-wide database path each of them initializes stays
+private to the test. Install it once with `cargo install cargo-nextest --locked`.
+
+Plain `cargo test -p hardviz-core --features duckdb-archive` still works as a
+fallback. It shares one process per test binary, so it runs the integration
+tests serially and takes several minutes longer.
 
 Core is also covered by the workspace-wide `cargo tauri-fmt` /
 `cargo tauri-lint` / `cargo tauri-test` aliases defined in
