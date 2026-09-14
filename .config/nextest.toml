@@ -1,0 +1,32 @@
+# cargo-nextest configuration for the Rust workspace.
+#
+# nextest runs every test in its own process, so the process-wide state the
+# Core integration tests rely on (`db::init`'s `OnceLock` path and the
+# per-binary `OnceCell` fixtures) is private to each test instead of shared
+# across a binary. That is what lets the DuckDB integration binaries under
+# `core/tests/` run in parallel; each test already writes into its own
+# `tempfile::tempdir()`.
+#
+# Local: `cargo nextest run -p hardviz-core --features duckdb-archive`
+# CI:    `cargo nextest run -p hardviz-core --features duckdb-archive --profile ci`
+
+[profile.default]
+# The slowest DuckDB test (a cancelled 5e9-row scan) finishes well under a
+# minute; report anything slower as slow, and kill it after 4 periods.
+slow-timeout = { period = "60s", terminate-after = 4 }
+
+[profile.ci]
+fail-fast = false
+retries = 0
+slow-timeout = { period = "60s", terminate-after = 4 }
+
+[profile.ci.junit]
+path = "junit.xml"
+
+# `persistence_decoupling` measures publisher tick counts over wall-clock
+# windows of a few hundred milliseconds. DuckDB binaries saturate every core
+# while they run, so these tests get the whole runner to themselves instead of
+# being starved by a neighbouring conversion.
+[[profile.default.overrides]]
+filter = 'binary(persistence_decoupling)'
+threads-required = "num-test-threads"
