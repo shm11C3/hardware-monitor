@@ -35,6 +35,8 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           components: ""
+          cache-key: auto-update-tauri
+          cache-targets: "false"
 
       - name: Install cargo-binstall
         run: curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/0b24824336e2b3800b0f89d9e08b2c08bfa3dcdd/install-from-binstall-release.sh | bash

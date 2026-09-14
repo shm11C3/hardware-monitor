@@ -121,6 +121,7 @@ jobs:
         with:
           components: ""
           targets: ${{ matrix.rust-targets || '' }}
+          cache-key: publish
 
       - name: Generate licenses.json
         run: npx license-checker --production --json > licenses.json
