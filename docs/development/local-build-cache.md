@@ -169,9 +169,11 @@ hash against GitHub's 10 GB per-repository cache limit; if `gh cache list`
 shows eviction thrash, drop `cache-targets` for low-value kinds before
 allowing pull requests to save.
 
-`publish.yml` only runs on tag pushes, where save-if is always false, so its
-rust-cache step reuses `tauri-build` (populated by `ci.yml`'s `test-build` job
-on `develop`) instead of a job-specific key nothing would ever save to.
+`publish.yml` runs on tag pushes and manual `workflow_dispatch`; save-if is
+false for a tag push (not a branch ref) but a manual dispatch on `develop`
+does satisfy it. Either way its rust-cache step reuses `tauri-build`
+(populated by `ci.yml`'s `test-build` job on `develop`) instead of a
+job-specific key that a tag-triggered run could never save to.
 
 ## CI caches the DuckDB C++ build with sccache
 
@@ -227,9 +229,9 @@ closure changes the unit's metadata hash and therefore the absolute `OUT_DIR`
 that ends up in the preprocessed output, so the first run after such a bump
 recompiles DuckDB once. The wrapping `actions/cache` key includes the
 workspace Cargo.lock hash, so each distinct lockfile state gets its own
-archive, while its `restore-keys` prefix still restores the nearest older
-archive so unrelated Cargo.lock churn does not force a cold sccache
-directory. Saves are not restricted to `develop`: because the key changes
+archive, while its `restore-keys` prefix still restores the most recently
+created matching archive so unrelated Cargo.lock churn does not force a cold
+sccache directory. Saves are not restricted to `develop`: because the key changes
 only when Cargo.lock changes rather than on every run, a branch whose
 lockfile matches `develop` reaches the same key and skips its own save, so
 pull requests saving does not multiply entries per run; `SCCACHE_CACHE_SIZE`

@@ -66,8 +66,8 @@ description: >-
 # first run after such a bump recompiles DuckDB once and repopulates the
 # cache. The wrapping `actions/cache` key includes the workspace Cargo.lock
 # hash so each distinct lockfile state gets its own archive; the `restore-keys`
-# prefix still restores the nearest older archive so unrelated Cargo.lock
-# churn does not force a cold sccache directory. Saves are not restricted to
+# prefix still restores the most recently created matching archive so
+# unrelated Cargo.lock churn does not force a cold sccache directory. Saves are not restricted to
 # the default branch: because the key already changes only when Cargo.lock
 # changes (not on every run), a branch whose lockfile matches `develop`
 # reaches the same key and skips its own save, so allowing pull requests to
