@@ -53,8 +53,10 @@ duckdb = { version = "=1.10505.0", default-features = false, features = [
 # External Component Setup (ADR 0024) downloads pinned upstream release
 # assets and extracts module files. The TLS stack mirrors what
 # tauri-plugin-updater already compiles into the App (rustls + ring), so no
-# second TLS implementation enters the binary; `rustls` is listed directly so
-# the crypto provider is present when `hardviz-core` is built alone.
+# second TLS implementation enters the binary. `rustls` is listed directly for
+# its `ring` provider: with `rustls-no-provider`, reqwest does not pick a
+# provider from crate features, so the setup code installs it explicitly
+# before building the client (see external_component_setup::windows).
 reqwest = { version = "0.13.3", default-features = false, features = [
     "blocking",
     "rustls-no-provider",

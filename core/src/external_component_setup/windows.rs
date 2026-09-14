@@ -571,6 +571,24 @@ fn publish_file_no_clobber(
   }
 }
 
+/// Build the HTTP client for artifact downloads.
+///
+/// reqwest is compiled with `rustls-no-provider`, which does not fall back to
+/// the rustls crate-feature provider: the process must have a default
+/// `CryptoProvider` installed before the first client is built, otherwise the
+/// client's event-loop thread panics and takes the setup process down with
+/// exit status 101. The GUI app never installs one either (its updater
+/// installs its own only when used), so this boundary installs the `ring`
+/// provider itself. A second installation returns `Err`, which is the
+/// already-installed case and is fine.
+fn download_client() -> Result<reqwest::blocking::Client, reqwest::Error> {
+  let _ = rustls::crypto::ring::default_provider().install_default();
+  reqwest::blocking::Client::builder()
+    .timeout(DOWNLOAD_TIMEOUT)
+    .user_agent(concat!("HardwareVisualizer/", env!("CARGO_PKG_VERSION")))
+    .build()
+}
+
 enum DownloadFailure {
   Transfer,
   Verification,
@@ -584,16 +602,12 @@ fn download_verified(
     "external_component_setup::download_verified",
     None::<&str>
   );
-  let client = reqwest::blocking::Client::builder()
-    .timeout(DOWNLOAD_TIMEOUT)
-    .user_agent(concat!("HardwareVisualizer/", env!("CARGO_PKG_VERSION")))
-    .build()
-    .map_err(|e| {
-      (
-        DownloadFailure::Transfer,
-        format!("failed to build the download client: {e}"),
-      )
-    })?;
+  let client = download_client().map_err(|e| {
+    (
+      DownloadFailure::Transfer,
+      format!("failed to build the download client: {e}"),
+    )
+  })?;
   let response = client
     .get(artifact.url)
     .send()
@@ -672,4 +686,20 @@ fn wide_null(value: &str) -> Vec<u16> {
 
 fn os_wide_null(value: &OsStr) -> Vec<u16> {
   value.encode_wide().chain(std::iter::once(0)).collect()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  /// The client must be constructible in a process that never installed a
+  /// rustls provider itself; without the installation in `download_client`
+  /// this panics on the client's event-loop thread. No request is sent.
+  #[test]
+  fn download_client_builds_without_a_preinstalled_crypto_provider() {
+    let client = download_client().expect("download client must build");
+    drop(client);
+    // Idempotent: a second call must not fail on the already-installed provider.
+    download_client().expect("download client must build again");
+  }
 }

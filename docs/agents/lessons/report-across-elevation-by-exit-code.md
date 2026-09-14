@@ -25,3 +25,12 @@ child will execute under an administrator-only directory it created itself.
 Treat an unreadable registry key or directory as unknown state that blocks the
 action, not as evidence of absence, and publish files atomically with a
 no-clobber link so a partial or concurrent write never becomes the final file.
+
+A process that runs outside the Tauri app (the setup child) also runs without
+the app's initialization. reqwest built with `rustls-no-provider` requires a
+process-level rustls `CryptoProvider` to be installed before the first client
+is built; nothing installs one for the child, so the client's event-loop
+thread panicked and the child exited with 101 on the maintainer's machine.
+Install the provider at the boundary that builds the client, and prove such
+boundaries with a test that builds the real client in-process without sending
+a request.
