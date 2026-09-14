@@ -82,7 +82,7 @@ required-features = ["bindings-export"]
 [target.'cfg(windows)'.dependencies]
 wmi = "0.18.4"
 dxgi = "0.1.7"
-webview2-com = "0.38.2"
+webview2-com = "0.39.1"
 # Keep this aligned with webview2-com; its COM interfaces implement this
 # windows-core version's Interface trait, not the newer version used elsewhere.
 windows-core = "0.61"
