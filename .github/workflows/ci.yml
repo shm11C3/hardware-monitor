@@ -90,6 +90,15 @@ jobs:
               - '.github/scripts/**'
             cargo-license-config:
               - 'src-tauri/deny.toml'
+              # Inputs to the DuckDB bundled-library notice check. core/ and
+              # src-tauri/Cargo.toml also reach this job through backend-deps;
+              # they are named here too because the duckdb dependency's
+              # features decide which vendored C/C++ libraries the notice must
+              # cover, not just which crates are built.
+              - 'core/Cargo.toml'
+              - 'src-tauri/Cargo.toml'
+              - 'docs/licenses/manual/**'
+              - '.github/scripts/check-duckdb-license-version.ts'
               - '.github/actions/setup-rust/**'
               - '.github/workflows/ci.yml'
             actions:

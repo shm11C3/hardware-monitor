@@ -4,6 +4,8 @@ Covered `duckdb` version: `1.10505.0` (DuckDB 1.5.5)
 
 Covered libduckdb-sys version: `1.10505.0`
 
+Covered duckdb features: `bundled`
+
 Source: `libduckdb-sys-1.10505.0/duckdb.tar.gz`, `third_party/`
 
 This notice covers the C and C++ libraries compiled into the bundled DuckDB
@@ -12,11 +14,49 @@ engine. The published tarball contains no separate `LICENSE`, `COPYING`, or
 from the vendored source headers. The source archive must be re-reviewed when
 the pinned `libduckdb-sys` version changes.
 
+Which libraries are compiled depends on the features Cargo resolves for the
+`duckdb` package in a `duckdb-archive` build, recorded above, so the archive
+must also be re-reviewed when those change. The covered list is the resolved
+set, not the dependency declaration: a feature can also be turned on by
+forwarding from a `[features]` entry. Under the covered feature set the `cc` build backend compiles the
+`base` section of `duckdb/manifest.json` together with the unconditionally
+linked `core_functions` extension; `brotli`, `lz4`, `snappy`, `thrift` and the
+`parquet` extension sources belong to the `parquet` / `json` sections, are not
+built, and are therefore not listed here.
+
+Some entries below are header-only libraries. They contribute no `.cpp` file of
+their own to the manifest, but their headers sit on `base.include_dirs` and are
+included by DuckDB sources that are compiled, so their code ships in the binary
+and each entry names an including source.
+
 ## DuckDB
 
 - License: MIT
 - Copyright: 2021-2026 Stichting DuckDB Foundation
 - Source: `libduckdb-sys/LICENSE`
+
+## concurrentqueue
+
+- License: BSD-2-Clause
+- Copyright: 2013-2016 Cameron Desrochers
+- Source header: `third_party/concurrentqueue/concurrentqueue.h`
+
+Header-only. `src/parallel/task_scheduler.cpp` includes `concurrentqueue.h`, so
+the queue implementation is compiled into the engine. The source header calls
+the terms a “Simplified BSD license” and carries the two-clause redistribution
+conditions reproduced below.
+
+## fast_float
+
+- License: MIT
+- Copyright: the vendored copy states no copyright line; it credits Daniel
+  Lemire and João Paulo Magalhaes, with contributions from Eugene Golushkov,
+  Maksim Kita, Marcin Wojdyr, Neal Richardson, Tim Paine and Fabio Pellacini
+- Source header: `third_party/fast_float/fast_float/fast_float.h`
+
+Header-only. `src/include/duckdb/common/operator/double_cast_operator.hpp`
+includes `fast_float/fast_float.h`, so the float parser is compiled into the
+engine. The source header carries the MIT permission and warranty disclaimer.
 
 ## fastpforlib
 
@@ -46,6 +86,20 @@ redistributed without repeating the copyright and permission notices.
 The source header includes the MIT permission, warranty disclaimer, and the
 requirement to retain the copyright and permission notices.
 
+## httplib
+
+- License: MIT
+- Copyright: 2025 Yuji Hirose
+- Source header: `third_party/httplib/httplib.hpp`
+
+Header-only. `src/main/http/http_util.cpp` includes `httplib.hpp` unless
+`DUCKDB_DISABLE_BUILTIN_HTTPLIB` is defined, and the `cc` build backend in
+`libduckdb-sys` defines neither that macro nor the
+`DISABLE_DUCKDB_REMOTE_INSTALL` / `DUCKDB_DISABLE_EXTENSION_LOAD` macros that
+would set it, so the client is compiled into the engine. The vendored copy is
+cpp-httplib v0.27.0 with `std::regex` replaced by RE2. The source header
+carries the copyright line and “MIT License”.
+
 ## hyperloglog
 
 - License: BSD-3-Clause
@@ -54,6 +108,16 @@ requirement to retain the copyright and permission notices.
 
 The source header includes the BSD-3-Clause redistribution conditions and
 disclaimer for the Redis HyperLogLog implementation.
+
+## jaro_winkler
+
+- License: MIT
+- Copyright: 2022 Max Bachmann
+- Source header: `third_party/jaro_winkler/jaro_winkler.hpp`
+
+Header-only. `src/common/string_util.cpp` includes `jaro_winkler.hpp`, so the
+similarity implementation is compiled into the engine. The source header states
+its terms as `SPDX-License-Identifier: MIT` above the copyright line.
 
 ## libpg_query
 
@@ -142,6 +206,28 @@ copyright lines above. The source header's public-domain dedication is
 reproduced below; this does not classify the complete miniz implementation as
 public domain.
 
+## pcg
+
+- License: Apache-2.0 OR MIT, at the user's choice. This distribution uses the
+  MIT arm of the dual license.
+- Copyright: 2014-2019 Melissa O'Neill and the PCG Project contributors
+- Source header: `third_party/pcg/pcg_random.hpp`
+
+Header-only. `src/common/random_engine.cpp` includes `pcg_random.hpp`, so the
+generator is compiled into the engine. The source header states
+`SPDX-License-Identifier: (Apache-2.0 OR MIT)` and names both license files,
+neither of which the archive vendors.
+
+## pdqsort
+
+- License: Zlib
+- Copyright: 2021 Orson Peters
+- Source header: `third_party/pdqsort/pdqsort.h`
+
+Header-only. `src/common/sort/sorted_run_merger.cpp` includes `pdqsort.h`, so
+the sort is compiled into the engine. The source header carries the full Zlib
+text reproduced below.
+
 ## re2
 
 - License: BSD-3-Clause, with additional Unicode-data terms
@@ -162,6 +248,17 @@ all copies of any software which is or includes a copy or modification of this
 software and in all copies of the supporting documentation for such software.
 ```
 
+## ska_sort
+
+- License: BSL-1.0
+- Copyright: Malte Skarupke 2016
+- Source header: `third_party/ska_sort/ska_sort.hpp`
+
+Header-only. `src/common/sort/sorted_run.cpp` includes `ska_sort.hpp`, so the
+radix sort is compiled into the engine. The source header references the Boost
+Software License by URL; the archive does not vendor its text, so the canonical
+text is reproduced below.
+
 ## skiplist
 
 - License: MIT
@@ -169,6 +266,18 @@ software and in all copies of the supporting documentation for such software.
 - Source header: `third_party/skiplist/SkipList.h`
 
 The source header includes the MIT permission and warranty disclaimer.
+
+## tdigest
+
+- License: Apache-2.0
+- Copyright: licensed to Derrick R. Burns under one or more contributor license
+  agreements
+- Source header: `third_party/tdigest/t_digest.hpp`
+
+Header-only. `extension/core_functions/aggregate/holistic/approximate_quantile.cpp`
+includes `t_digest.hpp`, and `core_functions` is linked unconditionally by the
+`cc` build backend, so the digest is compiled into the engine. The source header
+carries the standard Apache-2.0 boilerplate notice.
 
 ## utf8proc
 
@@ -182,6 +291,17 @@ The source header includes the MIT permission and disclaimer. It also states
 that the library contains derived data from modified Unicode data files and
 points to <https://www.unicode.org/Public/UNIDATA/> and the data-file copyright
 statement.
+
+## vergesort
+
+- License: MIT
+- Copyright: 2015-2020 Morwenn
+- Source header: `third_party/vergesort/vergesort.h`
+
+Header-only. `src/common/sort/sorted_run.cpp` and
+`src/common/sort/sorted_run_merger.cpp` include `vergesort.h`, so the sort is
+compiled into the engine. The source header carries “The MIT License (MIT)”
+with the permission and warranty disclaimer.
 
 ## yyjson
 
@@ -243,8 +363,9 @@ SOFTWARE.
 
 ## Apache License 2.0
 
-The Apache-2.0 components (`fastpforlib` and the selected `mbedtls` license
-arm) use this text:
+The Apache-2.0 components (`fastpforlib`, `tdigest`, and the selected `mbedtls`
+license arm) use this text. `pcg` offers the same arm but is taken under its
+MIT arm above:
 
 ```text
                                  Apache License
@@ -484,6 +605,99 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 ```
 
+## Common BSD-2-Clause license text
+
+`concurrentqueue` is the only BSD-2-Clause component. Its vendored header
+carries this text:
+
+```text
+Simplified BSD license:
+Copyright (c) 2013-2016, Cameron Desrochers.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+- Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+- Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+## Zlib license text
+
+`pdqsort` is the only Zlib component. Its vendored header carries this text:
+
+```text
+pdqsort.h - Pattern-defeating quicksort.
+
+Copyright (c) 2021 Orson Peters
+
+This software is provided 'as-is', without any express or implied warranty. In no event will the
+authors be held liable for any damages arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose, including commercial
+applications, and to alter it and redistribute it freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not claim that you wrote the
+   original software. If you use this software in a product, an acknowledgment in the product
+   documentation would be appreciated but is not required.
+
+2. Altered source versions must be plainly marked as such, and must not be misrepresented as
+   being the original software.
+
+3. This notice may not be removed or altered from any source distribution.
+```
+
+## Boost Software License 1.0 text
+
+`ska_sort` is the only BSL-1.0 component. Its vendored header references the
+license by URL rather than carrying it, so the canonical text is reproduced
+here. The header itself reads:
+
+```text
+         Copyright Malte Skarupke 2016.
+Distributed under the Boost Software License, Version 1.0.
+   (See http://www.boost.org/LICENSE_1_0.txt)
+```
+
+```text
+Boost Software License - Version 1.0 - August 17th, 2003
+
+Permission is hereby granted, free of charge, to any person or organization
+obtaining a copy of the software and accompanying documentation covered by
+this license (the "Software") to use, reproduce, display, distribute,
+execute, and transmit the Software, and to prepare derivative works of the
+Software, and to permit third-parties to whom the Software is furnished to
+do so, all subject to the following:
+
+The copyright notices in the Software and this entire statement, including
+the above license grant, this restriction and the following disclaimer,
+must be included in all copies of the Software, in whole or in part, and
+all derivative works of the Software, unless such copies or derivative
+works are solely in the form of machine-executable object code generated by
+a source language processor.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
+SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
+FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
 ## Additional source-header notices
 
 The following notices are included where the vendored source carries terms in
@@ -588,9 +802,19 @@ Please notice the copyright statement in the file "utf8proc_data.c".
 
 ## Refresh procedure
 
-When `libduckdb-sys` is upgraded, extract the new `duckdb.tar.gz`, compare all
-compiled `third_party/` libraries and their headers with this entry, and update
-the covered versions, copyright lines, license text, and extra-data notices.
+When `libduckdb-sys` is upgraded, or the features Cargo resolves for `duckdb`
+change, extract the new `duckdb.tar.gz`, re-derive the
+compiled set from `duckdb/manifest.json` (`base.cpp_files` and
+`base.include_dirs`, plus the section for every enabled extension feature),
+compare all compiled `third_party/` libraries and their headers with this
+entry, and update the covered versions, the covered feature list, copyright
+lines, license text, and extra-data notices. The covered feature list is the
+`features` array of the `duckdb` node in
+`cargo metadata --format-version 1 --features duckdb-archive --locked`,
+sorted; `.github/scripts/check-duckdb-license-version.ts` reads the same
+value. Header-only libraries are found
+through `base.include_dirs`, not `base.cpp_files`; check which of their headers
+compiled sources include.
 Then run `cargo license --features duckdb-archive --json`,
 `cargo metadata --features duckdb-archive --format-version 1`,
 `node --experimental-strip-types .github/scripts/generate-licenses.ts tmp duckdb-archive`,
