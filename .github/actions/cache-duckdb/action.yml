@@ -1,0 +1,112 @@
+name: "Cache DuckDB build"
+description: >-
+  Compiler-level cache for the bundled DuckDB C++ build (libduckdb-sys) and
+  for non-incremental Rust dependency crates, using sccache with its local
+  disk cache backend persisted via actions/cache. Use after
+  ./.github/actions/setup-rust in jobs that compile with
+  `--features duckdb-archive`.
+
+# Why sccache and not an `actions/cache` entry holding the crate's build-script
+# `out/` directory (`target/debug/build/libduckdb-sys-*/out` plus the matching
+# `.fingerprint` entry):
+#
+# Cargo has no early cutoff in its fingerprinting. A `run-build-script` unit is
+# re-run whenever the `build-script-build` binary it depends on was rebuilt in
+# the same invocation (`FsStatus::StaleDepFingerprint`), and that binary is
+# rebuilt whenever any of its own dependencies (`cc`, `bindgen`, `syn`, `ureq`,
+# ...) is rebuilt. Even when both are fresh, a `build-script-build` whose mtime
+# is newer than the restored `output` file marks the unit stale
+# (`StaleItem::ChangedFile`), which happens as soon as the two come from
+# caches captured at different times. Restoring only the DuckDB `out/`
+# therefore keeps it fresh only when the whole build-dependency closure is
+# already fresh in `target/`, which is exactly the case where rust-cache keeps
+# it anyway. sccache keys each `cl.exe` / `c++` invocation on preprocessed
+# source, flags and compiler, so the DuckDB objects come from the cache even
+# when Cargo decides to re-run the build script, and whether or not rust-cache
+# had an entry.
+#
+# Why sccache's local disk cache and not its GitHub Actions ("ghac") backend:
+#
+# A first version of this action set `SCCACHE_GHA_ENABLED=true`, which routes
+# every cache write through opendal's GitHub Actions Cache Service client as
+# an individual, real-time PUT issued from inside the compile request.
+# GitHub rate-limits that API per *workflow run*, shared across every job in
+# it, and sccache's `GHACache::build` installs no retry layer, so a
+# rate-limited write is not retried, it is dropped and counted as a write
+# error. This repository runs `duckdb-archive` in three job kinds across
+# three platforms (up to nine concurrent writers in one workflow run), and
+# verification on run 34865702849 confirmed the predicted failure mode: 0
+# cache hits and effectively 100% write errors in every job (window example:
+# 325 compile requests, 0 hits, 239 write errors), with `test-core
+# (windows-latest)` finishing slower than the pre-sccache baseline. This
+# matches a confirmed, unfixed upstream defect
+# (https://github.com/mozilla/sccache/issues/2821); a 2023 attempt to add the
+# missing retry layer (https://github.com/mozilla/sccache/pull/1700) was
+# closed unmerged for accumulated conflicts, so there is no near-term fix to
+# wait for.
+#
+# sccache defaults to a local disk cache when no remote backend is configured
+# (see https://github.com/mozilla/sccache/blob/main/docs/Local.md). Pointing
+# `SCCACHE_DIR` at a fixed path and wrapping that single directory with an
+# ordinary `actions/cache` step reduces persistence to one archive upload per
+# job at job end, the same mechanism `setup-rust`'s rust-cache step and this
+# repository's AppRun/WiX caches already use successfully. It is not subject
+# to the per-write rate limit because there is no per-object live write: the
+# job compiles against a local directory, and only the finished directory is
+# archived once.
+#
+# The `cc` crate (1.2.67 in Cargo.lock) treats `RUSTC_WRAPPER=sccache` as a
+# C/C++ compiler wrapper (`rustc_wrapper_fallback`), so no `CC`/`CXX` override
+# is needed and the same variable also caches rustc output for dependency
+# crates (workspace crates build incrementally and are passed through).
+#
+# Known miss: when a build-dependency of libduckdb-sys changes in Cargo.lock,
+# the unit's metadata hash changes, DuckDB's sources are extracted under a new
+# `OUT_DIR`, and that absolute path is part of the preprocessed output. The
+# first run after such a bump recompiles DuckDB once and repopulates the
+# cache. The wrapping `actions/cache` key includes the workspace Cargo.lock
+# hash so each distinct lockfile state gets its own archive; the `restore-keys`
+# prefix still restores the most recently created matching archive so
+# unrelated Cargo.lock churn does not force a cold sccache directory. Saves are not restricted to
+# the default branch: because the key already changes only when Cargo.lock
+# changes (not on every run), a branch whose lockfile matches `develop`
+# reaches the same key and skips its own save, so allowing pull requests to
+# save does not multiply entries per run. Watch `gh cache list` if
+# `SCCACHE_CACHE_SIZE` (capped below) still lets this grow faster than
+# expected against GitHub's 10 GB per-repository limit.
+#
+# Ordering: run this after setup-rust on purpose. rust-cache folds `RUST*`
+# environment variables into its key, so exporting `RUSTC_WRAPPER` earlier
+# would split the rust-cache key between jobs that use sccache and jobs that
+# do not.
+
+inputs:
+  cache-key:
+    description: >-
+      Identifier for the calling job kind (e.g. core-test, core-lint,
+      tauri-lint). Keeps this job's sccache directory from colliding with a
+      sibling job kind's on the same platform.
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install sccache
+      uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+      with:
+        version: "v0.17.0"
+
+    - name: Point sccache at a local directory
+      shell: bash
+      run: |
+        echo "SCCACHE_DIR=${{ runner.temp }}/sccache" >> "$GITHUB_ENV"
+        echo "SCCACHE_CACHE_SIZE=1G" >> "$GITHUB_ENV"
+        echo "RUSTC_WRAPPER=sccache" >> "$GITHUB_ENV"
+
+    - name: Cache sccache directory
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/sccache
+        key: sccache-${{ inputs.cache-key }}-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+        restore-keys: |
+          sccache-${{ inputs.cache-key }}-${{ runner.os }}-

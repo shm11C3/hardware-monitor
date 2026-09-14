@@ -96,9 +96,10 @@ documentation recommends [sccache](https://github.com/mozilla/sccache), a
 compiler-invocation cache that keys by preprocessed source content rather than
 filesystem path, so it cannot repeat the correctness bug above. This is a
 **per-machine developer convenience, not a repository setting**: enabling it
-project-wide would break anyone's (and CI's) build the moment sccache is not
-on their `PATH`, so configure it only in your own `~/.cargo/config.toml`, never
-in this repository's:
+project-wide would break anyone's build the moment sccache is not on their
+`PATH`, so configure it only in your own `~/.cargo/config.toml`, never in this
+repository's. (CI enables it per job through workflow environment variables
+instead; see [below](#ci-caches-the-duckdb-c-build-with-sccache).)
 
 ```toml
 [build]
@@ -168,9 +169,77 @@ hash against GitHub's 10 GB per-repository cache limit; if `gh cache list`
 shows eviction thrash, drop `cache-targets` for low-value kinds before
 allowing pull requests to save.
 
-`publish.yml` only runs on tag pushes, where save-if is always false, so its
-rust-cache step reuses `tauri-build` (populated by `ci.yml`'s `test-build` job
-on `develop`) instead of a job-specific key nothing would ever save to.
+`publish.yml` runs on tag pushes and manual `workflow_dispatch`; save-if is
+false for a tag push (not a branch ref) but a manual dispatch on `develop`
+does satisfy it. Either way its rust-cache step reuses `tauri-build`
+(populated by `ci.yml`'s `test-build` job on `develop`) instead of a
+job-specific key that a tag-triggered run could never save to.
+
+## CI caches the DuckDB C++ build with sccache
+
+`.github/actions/cache-duckdb/action.yml` installs sccache
+(`mozilla-actions/sccache-action`) and exports `RUSTC_WRAPPER=sccache`. The
+`ci.yml` jobs that compile with `--features duckdb-archive` (`lint-core`,
+`test-core`, `lint-tauri`) run it right after `setup-rust`. The `cc` crate
+treats `RUSTC_WRAPPER=sccache` as a C/C++ compiler wrapper, so every `cl.exe`
+/ `c++` invocation of the bundled DuckDB build (326 translation units, about
+9 minutes of the 13 to 14 minute cold build in run 34850128330) is keyed on
+preprocessed source, flags and compiler. Non-incremental Rust dependency
+crates are cached the same way; workspace crates are passed through. sccache
+prints hit/miss statistics in its post step, which is the evidence surface
+for whether the cache is working.
+
+A dedicated `actions/cache` entry holding
+`target/debug/build/libduckdb-sys-*/out` was rejected: Cargo has no early
+cutoff, so a `run-build-script` unit is re-run whenever its
+`build-script-build` binary or any of that binary's dependencies (`cc`,
+`bindgen`, `syn`, `ureq`, ...) was rebuilt in the same invocation, and also
+whenever the binary's mtime is newer than the restored `output` file. The
+restored directory would survive only when the whole build-dependency closure
+is already fresh in `target/`, which is the case rust-cache already covers.
+
+A first version of this action set `SCCACHE_GHA_ENABLED=true`, routing every
+cache write through GitHub's Actions Cache Service as an individual real-time
+PUT issued from inside the compile request. That service rate-limits writes
+per *workflow run*, shared across every job in it, and sccache's GHA backend
+installs no retry layer, so a rate-limited write is dropped and counted as a
+write error rather than retried
+([mozilla/sccache#2821](https://github.com/mozilla/sccache/issues/2821), open
+and unfixed; a 2023 attempt to add the missing retry layer,
+[mozilla/sccache#1700](https://github.com/mozilla/sccache/pull/1700), was
+closed unmerged for accumulated conflicts). This repository runs
+`duckdb-archive` in three job kinds across three platforms, up to nine
+concurrent writers in one workflow run. Verification on run 34865702849
+confirmed the predicted failure mode in every one of those jobs: 0 cache hits
+and effectively 100% write errors (for example `test-core (windows-latest)`:
+325 compile requests, 0 hits, 239 write errors), and that job finished slower
+than the pre-sccache baseline.
+
+The action now uses sccache's default local disk cache
+([docs/Local.md](https://github.com/mozilla/sccache/blob/main/docs/Local.md))
+instead: `SCCACHE_DIR` points at a fixed directory under `runner.temp`, and a
+plain `actions/cache` step persists that one directory, the same mechanism
+`setup-rust`'s rust-cache step and this repository's AppRun/WiX caches already
+use. Persistence becomes one archive upload per job at job end instead of
+hundreds of live per-object writes, so it is not subject to the per-write
+rate limit.
+
+Known limits: a Cargo.lock change inside libduckdb-sys's build-dependency
+closure changes the unit's metadata hash and therefore the absolute `OUT_DIR`
+that ends up in the preprocessed output, so the first run after such a bump
+recompiles DuckDB once. The wrapping `actions/cache` key includes the
+workspace Cargo.lock hash, so each distinct lockfile state gets its own
+archive, while its `restore-keys` prefix still restores the most recently
+created matching archive so unrelated Cargo.lock churn does not force a cold
+sccache directory. Saves are not restricted to `develop`: because the key changes
+only when Cargo.lock changes rather than on every run, a branch whose
+lockfile matches `develop` reaches the same key and skips its own save, so
+pull requests saving does not multiply entries per run; `SCCACHE_CACHE_SIZE`
+is capped at 1G per job to bound growth, watch `gh cache list` if it still
+grows faster than expected. The action runs after rust-cache on purpose:
+rust-cache folds `RUST*` environment variables into its key, so exporting
+`RUSTC_WRAPPER` earlier would split the rust-cache key between jobs with and
+without sccache.
 
 ## Keeping disk usage bounded
 

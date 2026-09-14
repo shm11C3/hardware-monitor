@@ -132,8 +132,10 @@ and not evidence the feature builds there. CI never bundles an installer
 `Swatinem/rust-cache` used, at the time of this evidence, `shared-key:
 "rust-workspace"`, `add-job-id-key: false` and `save-if` restricted to
 `develop`. (The action has since moved to one `cache-key` per job kind and
-pins the Cargo build dir under `target/` in CI; see
-[`local-build-cache.md`](local-build-cache.md#ci-keeps-the-build-dir-under-target).
+pins the Cargo build dir under `target/` in CI, and the `duckdb-archive` jobs
+now route the DuckDB C++ build through sccache's local disk cache; see
+[`local-build-cache.md`](local-build-cache.md#ci-keeps-the-build-dir-under-target)
+and [its sccache section](local-build-cache.md#ci-caches-the-duckdb-c-build-with-sccache).
 The analysis below describes the configuration this evidence was gathered
 under.) Reading `src/config.ts` at the
 pinned SHA `6323deb1`, `add-job-id-key: false` removes *only* the job id: the
