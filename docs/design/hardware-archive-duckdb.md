@@ -356,6 +356,33 @@ Conversion is the one moment the whole archive is read, so that is where such
 rows are counted - `NativeTableReport::unconvertible_timestamps`, per table,
 informational and never a refusal.
 
+**The Storage Health family, and the collation that is not a collation.** The
+Storage Health list is ordered by severity and then by
+`display_name COLLATE NOCASE`. DuckDB has a collation named `NOCASE`, and it is
+not SQLite's: SQLite folds only the 26 ASCII letters and compares the result
+byte-wise, while DuckDB folds case across Unicode. Asked to order the same
+device names, SQLite answers `Ábc, Älpha, ábc, älpha` and DuckDB's `NOCASE`
+answers `Ábc, ábc, Älpha, älpha` - so a disk whose OS-reported name carries a
+non-ASCII letter would appear in a different place depending on which engine
+answered. The native query therefore orders by SQLite's own folding, spelled as
+a `translate` of `A-Z` to `a-z` over which DuckDB's byte-wise VARCHAR
+comparison reproduces `sqlite3StrNICmp` exactly. The direction is load-bearing
+and was measured rather than chosen: folding to upper case instead sorts `_`
+after every letter, and SQLite sorts it before `a`. Ties under the key remain
+unordered in both engines, as they always were.
+
+Two smaller Storage Health results are worth recording. `storage_health_daily_records.id`
+is `AUTOINCREMENT`, and SQLite advances `sqlite_sequence` even when an upsert
+lands on `DO UPDATE` - measured at 1 to 2 on a conflicting upsert, with the next
+inserted row receiving 3 rather than the discarded 2 - so the native writer
+allocates an id on every record and burns the same ones. And the SQLite reader's
+tolerance of a missing `storage_health_daily_records` table is deliberately not
+carried over: it exists because a database predating the storage-health
+migration genuinely has no records, whereas finalization creates every table in
+the stable schema and refuses a candidate that does not match, so the same
+error natively would mean the file is not the schema it claims to be. Reporting
+that as "this disk has no history" would hide a defect behind an empty list.
+
 ### Reconciliation and durable authority selection
 
 Finalization copies one pinned snapshot, and the application keeps writing to
