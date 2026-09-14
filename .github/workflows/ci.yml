@@ -261,8 +261,16 @@ jobs:
           components: ""
           cache-key: core-test
 
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2.87.8
+        with:
+          tool: cargo-nextest
+
+      # nextest runs each test in its own process, so the DuckDB integration
+      # binaries under core/tests/ run in parallel without sharing the
+      # process-wide database path. Scheduling rules live in .config/nextest.toml.
       - name: Run Core tests
-        run: cargo test -p hardviz-core --features duckdb-archive -- --test-threads=1 --nocapture
+        run: cargo nextest run -p hardviz-core --features duckdb-archive --profile ci
 
   #
   # Tauri lint and clippy
