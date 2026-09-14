@@ -16,9 +16,10 @@ Measured on macOS 26.6.2 arm64 (Apple M4, 10 cores, 24 GiB) at
 implies: the feature already compiles and runs in CI on Windows x64, Linux x64
 and macOS arm64, so what is left is macOS x64 (no feature-enabled job; its
 release build has the feature disabled), the absence of
-any job that links an application binary or installer with the feature, and a
-license gate and notice generator that both run with default features and so
-never see the DuckDB tree. Durability is unchanged — the engine issues a real
+any job that links an application binary or installer with the feature. The
+license gate and notice generator, which both ran with default features and so
+never saw the DuckDB tree, were fixed in #2111 (see "License and packaging").
+Durability is unchanged — the engine issues a real
 per-commit flush on all three platforms, but only app-crash evidence exists.
 
 ## Measured
@@ -50,9 +51,12 @@ implausible, and itself the evidence that contention dominated.
 Dependency growth: 432 → 473 crates, **41 added** (at the measured commit;
 `-e normal,build` omits proc-macro edges, so the real graph is wider — see the
 licence section). `ureq`, `zip`, `zopfli` and `zlib-rs` enter only as *build*
-dependencies of `libduckdb-sys`; the `arrow-*` crates link in. Because `core/Cargo.toml` uses `default-features = false,
-features = ["bundled"]`, only `core_functions` is linked (not `json` or
-`parquet`): 280 translation units, 12 vendored C/C++ libraries.
+dependencies of `libduckdb-sys`; the `arrow-*` crates link in. Because
+`core/Cargo.toml` uses `default-features = false, features = ["bundled"]`, the
+`cc` backend compiles the manifest's `base` section together with the
+always-enabled `core_functions` extension, and neither `json` nor `parquet`:
+280 translation units, 12 vendored C/C++ libraries with sources of their own
+(see the licence section for the 9 header-only ones this count missed).
 
 **Not measured.** `cargo build --release -p hardware_visualizer --features
 custom-protocol,duckdb-archive` failed with `No space left on device (os error
@@ -65,46 +69,83 @@ Windows x64, Linux x64 and macOS x64 are unmeasured on every axis.
 
 ## License and packaging
 
-`libduckdb-sys` and `duckdb` are MIT (Stichting DuckDB Foundation). The license
-gate does not see them: `deny.toml` sets `[graph] all-features = false`, and
-with default features `cargo metadata` returns no `duckdb` node at all.
-`.github/scripts/generate-licenses.ts` shares the blind spot, invoking `cargo
-license` and `cargo metadata` without features.
+`libduckdb-sys` and `duckdb` are MIT (Stichting DuckDB Foundation).
+
+### Tooling state before #2139 (measured 2026-09-12)
+
+Everything in this subsection is the pre-fix measurement. It is kept because the
+exit codes are the evidence the fix was needed; it does not describe the
+repository today. For the current state see "Tooling state after #2139" below.
+
+The license gate did not see the DuckDB crates: `deny.toml` set `[graph]
+all-features = false`, and with default features `cargo metadata` returned no
+`duckdb` node at all. `.github/scripts/generate-licenses.ts` shared the blind
+spot, invoking `cargo license` and `cargo metadata` without features.
 
 Running the gate both ways locally with cargo-deny 0.19.4 (the version CI
-installs) shows this is not merely a coverage gap. Without the feature it exits
-0 (`licenses ok`, matching CI today); **with `--features duckdb-archive` it
-exits 4** — `tiny-keccak 2.0.2` is `CC0-1.0`, which is not on the allow list,
-reached via `ahash → const-random → const-random-macro` under
-`arrow-array → arrow → duckdb`. An earlier revision of this document predicted
-the check "would pass if it ran"; that prediction was wrong. It came from the 41
-crates `cargo tree -e normal,build` enumerates, a listing that omits proc-macro
-edges and so never shows `tiny-keccak`, while cargo-deny walks the full graph.
-Enabling the feature in a build the license job evaluates would therefore
-**fail** it until `CC0-1.0` is allowed or that path is avoided — and cargo-deny
-still says nothing about the vendored C/C++ either way.
+installs) showed this was not merely a coverage gap. Without the feature it
+exited 0 (`licenses ok`, matching CI at the time); **with `--features
+duckdb-archive` it exited 4** — `tiny-keccak 2.0.2` is `CC0-1.0`, which was not
+on the allow list, reached via `ahash → const-random → const-random-macro`
+under `arrow-array → arrow → duckdb`. An earlier revision of this document
+predicted the check "would pass if it ran"; that prediction was wrong. It came
+from the 41 crates `cargo tree -e normal,build` enumerates, a listing that omits
+proc-macro edges and so never shows `tiny-keccak`, while cargo-deny walks the
+full graph. Enabling the feature in a build the license job evaluated would
+therefore have **failed** it until `CC0-1.0` was allowed or that path avoided —
+and cargo-deny still says nothing about the vendored C/C++ either way.
+
+### Packaging
 
 Notices do reach users: `publish.yml` regenerates `tmp/THIRD_PARTY_NOTICES.md`
 just before `tauri-action`, and `tauri.conf.json` bundles it as a resource
 beside `LICENSE`; the same file is also a release asset. The committed copy is a
 29-byte placeholder.
 
-The deeper gap is that crate metadata cannot describe the vendored C++. The
-`duckdb.tar.gz` ships **no** `LICENSE`, `COPYING` or `NOTICE` file, yet 12
-libraries compile into the binary — MIT, Apache-2.0, BSD-3-Clause, the
-PostgreSQL License, a Bison skeleton under GPL-2.0-or-later *with* its special
-exception, and two dual-licensed libraries (`mbedtls`, `zstd`). Each offers a
-GPL-3.0-compatible arm, so nothing conflicts with the application's
-GPL-3.0-or-later licence, but all carry attribution obligations that no tool
-here satisfies. This is a reading of source headers, not a legal review.
+### Vendored C/C++ attribution
 
-Required changes, **not applied**: evaluate the feature in `deny.toml`, and
-resolve the measured `CC0-1.0` rejection before doing so; collect
-notice metadata with the feature set the release builds; add a manual notice
-under `docs/licenses/manual/` covering DuckDB and those 12 libraries — that is
-the directory `generate-licenses.ts` reads fragments from, whereas
-`docs/licenses/<platform>/` holds generated output and would be overwritten.
-Separately, the bundled build compiles
+Crate metadata cannot describe the vendored C++, and that is unchanged by any
+tooling fix. The
+`duckdb.tar.gz` ships **no** `LICENSE`, `COPYING` or `NOTICE` file, yet 21
+libraries compile into the binary — MIT, Apache-2.0, BSD-3-Clause, BSD-2-Clause,
+Zlib, BSL-1.0, the Unlicense, the PostgreSQL License, a Bison skeleton under
+GPL-2.0-or-later *with* its special exception, and three dual-licensed libraries
+(`mbedtls`, `zstd`, `pcg`). Each offers a GPL-3.0-compatible arm, so nothing
+conflicts with the application's GPL-3.0-or-later licence, but all carry
+attribution obligations that no tool here satisfies. This is a reading of source
+headers, not a legal review.
+
+An earlier revision of this section counted 12 libraries. That was the set with
+`.cpp` files of their own in `duckdb/manifest.json`; it missed 9 header-only
+libraries (`concurrentqueue`, `fast_float`, `httplib`, `jaro_winkler`, `pcg`,
+`pdqsort`, `ska_sort`, `tdigest`, `vergesort`) that reach the binary because
+compiled DuckDB sources include their headers — for example
+`src/parallel/task_scheduler.cpp` includes `concurrentqueue.h`, and the
+always-enabled `core_functions` `approximate_quantile.cpp` includes
+`t_digest.hpp`. `brotli`, `lz4`, `snappy` and `thrift` remain out of scope:
+they belong to the `parquet`/`json` manifest sections, which this feature set
+does not build.
+
+### Tooling state after #2139
+
+This is the current state; it supersedes "Tooling state before #2139" above.
+`deny.toml` now sets `[graph] features =
+["duckdb-archive"]`, so every run — CI or local — evaluates the shipping graph,
+with a crate-scoped `CC0-1.0` exception for `tiny-keccak` resolving the measured
+rejection; `generate-licenses.ts` passes the same feature to `cargo license` and
+`cargo metadata`, which adds 37 crates (including `duckdb`, `libduckdb-sys`,
+`arrow` and `tiny-keccak`) to the generated notices; and
+`docs/licenses/manual/duckdb-bundled-c-cpp.md` carries the attribution for the
+21 bundled C/C++ libraries, guarded by
+`.github/scripts/check-duckdb-notice.ts`, which fails CI when the pinned
+`duckdb` / `libduckdb-sys` version in `Cargo.lock` or the `duckdb` dependency's
+feature configuration in `core/Cargo.toml` moves past what the entry records —
+a feature change compiles a different set of vendored libraries at unchanged
+versions.
+
+### Extension autoload defaults
+
+Unrelated to the license work: the bundled build compiles
 with `DUCKDB_EXTENSION_AUTOINSTALL_DEFAULT=1` and `..._AUTOLOAD_DEFAULT=1`,
 countered only at open time by `enable_autoload_extension(false)` and `SET
 enable_external_access = false` — worth an explicit decision against the

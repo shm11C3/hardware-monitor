@@ -215,7 +215,7 @@
         "MIT/Apache-2.0": 8,
         "Zlib": 1
       },
-      "verdict": "Every added crate's expression is already on the src-tauri/deny.toml allow list."
+      "verdict": "Every added crate's expression is already on the src-tauri/deny.toml allow list. CORRECTION (2026-09-15): this enumeration came from cargo tree -e normal,build, which omits proc-macro edges, so it missed tiny-keccak 2.0.2 (CC0-1.0). cargo-deny does see it and rejected it; see repository_tooling.before_2139.cargo_deny.executed_locally and resolution_2026_09_15."
     },
     "vendored_cpp_licenses": {
       "method": "Extracted libduckdb-sys-1.10505.0/duckdb.tar.gz into the agent scratch directory (never into the repository) and read the source headers. The tarball ships NO LICENSE, COPYING or NOTICE files: `find third_party -maxdepth 2 -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'NOTICE*'` returns nothing.",
@@ -233,67 +233,75 @@
         "yyjson": "MIT",
         "zstd": "BSD-3-Clause OR GPL-2.0 (dual, user's choice)"
       },
+      "header_only_libraries_compiled": {
+        "concurrentqueue": "BSD-2-Clause",
+        "fast_float": "MIT",
+        "httplib": "MIT",
+        "jaro_winkler": "MIT",
+        "pcg": "Apache-2.0 OR MIT",
+        "pdqsort": "Zlib",
+        "ska_sort": "BSL-1.0",
+        "tdigest": "Apache-2.0",
+        "vergesort": "MIT"
+      },
       "not_compiled_in_this_configuration": [
         "brotli",
-        "concurrentqueue",
-        "fast_float",
-        "httplib",
-        "jaro_winkler",
         "lz4",
         "parquet",
-        "pcg",
-        "pdqsort",
-        "ska_sort",
         "snappy",
-        "tdigest",
-        "thrift",
-        "vergesort"
+        "thrift"
       ],
+      "correction_2026_09_15": "This section previously listed concurrentqueue, fast_float, httplib, jaro_winkler, pcg, pdqsort, ska_sort, tdigest and vergesort as not compiled, because none of them owns a cpp_files entry in duckdb/manifest.json. They ARE compiled in: their headers sit on base.include_dirs and compiled DuckDB sources include them - src/parallel/task_scheduler.cpp includes concurrentqueue.h; src/common/sort/sorted_run.cpp includes ska_sort.hpp and vergesort.h; src/common/random_engine.cpp includes pcg_random.hpp; src/common/string_util.cpp includes jaro_winkler.hpp; src/common/operator/double_cast_operator.hpp includes fast_float/fast_float.h; src/main/http/http_util.cpp includes httplib.hpp and build_bundled_cc.rs defines no DUCKDB_DISABLE_BUILTIN_HTTPLIB; extension/core_functions/aggregate/holistic/approximate_quantile.cpp includes t_digest.hpp, and core_functions is always enabled. The compiled set is therefore 21 libraries, not 12. brotli, lz4, snappy, thrift and the parquet extension sources stay out because they belong to the parquet/json manifest sections, which this feature set does not build. Attribution recorded in docs/licenses/manual/duckdb-bundled-c-cpp.md (#2111).",
       "gpl_compatibility": "The application is GPL-3.0-or-later (ADR 0020). Every compiled library offers a GPLv3-compatible arm: Apache-2.0 for mbedtls, BSD-3-Clause for zstd, the Bison special exception for the libpg_query skeleton, and permissive terms for the rest. No GPL-incompatible term was found. This is a source-header reading, not legal advice."
     },
     "repository_tooling": {
-      "cargo_deny": {
-        "job": ".github/workflows/ci.yml job license-check-cargo (windows-latest, ubuntu-22.04, macos-latest)",
-        "command": "cargo deny --manifest-path Cargo.toml check --config src-tauri/deny.toml licenses",
-        "config": "src-tauri/deny.toml, [graph] all-features = false, no-default-features = false",
-        "finding": "The DuckDB tree is invisible to this gate today. With default features, `cargo metadata --offline --locked` returns no duckdb or libduckdb-sys node in resolve.nodes and no such entry in packages (verified). Because the config does not set all-features, enabling the duckdb-archive feature in product code would ship 41 crates the license gate never evaluated.",
-        "executed_locally": {
-          "tool": "cargo-deny 0.19.4, the version CI installs",
-          "without_feature": {
-            "command": "cargo deny --manifest-path Cargo.toml check --config src-tauri/deny.toml licenses",
-            "exit_code": 0,
-            "result": "licenses ok - matches what CI does today"
-          },
-          "with_feature": {
-            "command": "cargo deny --manifest-path Cargo.toml --features duckdb-archive check --config src-tauri/deny.toml licenses",
-            "exit_code": 4,
-            "result": "licenses FAILED",
-            "rejection": "error[rejected]: tiny-keccak 2.0.2 is CC0-1.0, which is not on the deny.toml allow list. Path: tiny-keccak <- const-random-macro <- const-random <- ahash <- arrow-array <- arrow <- duckdb <- hardviz-core <- hardware_visualizer."
-          },
-          "correction": "An earlier revision of this artifact predicted that the gate 'would pass if it ran'. That prediction was WRONG and has been replaced with the executed result. It was derived from the 41 crates that cargo tree -e normal,build enumerates, which omits proc-macro edges - tiny-keccak does not appear in that listing at all, while cargo-deny walks the full graph and finds it.",
-          "consequence": "Enabling duckdb-archive in a build the license job evaluates would FAIL license-check-cargo until CC0-1.0 is allowed or the dependency is avoided. cargo-deny still says nothing about the 12 vendored C/C++ libraries either way."
+      "resolution_2026_09_15": "#2111 applied the required changes. src-tauri/deny.toml sets [graph] features = [\"duckdb-archive\"] so every cargo-deny run evaluates the shipping graph, with a crate-scoped exceptions entry allowing CC0-1.0 for tiny-keccak; `cargo deny --offline --all-features check licenses` now exits 0 where it exited 4. generate-licenses.ts passes --features duckdb-archive to both cargo license and cargo metadata, adding 37 crates (duckdb, libduckdb-sys, the arrow crates and tiny-keccak among them) to the generated notices on macOS arm64. docs/licenses/manual/duckdb-bundled-c-cpp.md attributes the 21 bundled C/C++ libraries with the license texts, and .github/scripts/check-duckdb-notice.ts (CI job license-check-duckdb-notice) fails when the pinned duckdb / libduckdb-sys version in Cargo.lock, or the duckdb dependency feature configuration in core/Cargo.toml, differs from what that entry records.",
+      "before_2139": {
+        "state": "Pre-fix evidence, measured 2026-09-12 at commit 1839986f. These records describe the repository BEFORE #2111 / PR #2139 and are kept because the exit codes are the evidence the fix was needed. The current state is resolution_2026_09_15 above; where the two disagree, this block is the historical one.",
+        "cargo_deny": {
+          "job": ".github/workflows/ci.yml job license-check-cargo (windows-latest, ubuntu-22.04, macos-latest)",
+          "command": "cargo deny --manifest-path Cargo.toml check --config src-tauri/deny.toml licenses",
+          "config": "src-tauri/deny.toml, [graph] all-features = false, no-default-features = false",
+          "finding": "The DuckDB tree is invisible to this gate today. With default features, `cargo metadata --offline --locked` returns no duckdb or libduckdb-sys node in resolve.nodes and no such entry in packages (verified). Because the config does not set all-features, enabling the duckdb-archive feature in product code would ship 41 crates the license gate never evaluated.",
+          "executed_locally": {
+            "tool": "cargo-deny 0.19.4, the version CI installs",
+            "without_feature": {
+              "command": "cargo deny --manifest-path Cargo.toml check --config src-tauri/deny.toml licenses",
+              "exit_code": 0,
+              "result": "licenses ok - matches what CI does today"
+            },
+            "with_feature": {
+              "command": "cargo deny --manifest-path Cargo.toml --features duckdb-archive check --config src-tauri/deny.toml licenses",
+              "exit_code": 4,
+              "result": "licenses FAILED",
+              "rejection": "error[rejected]: tiny-keccak 2.0.2 is CC0-1.0, which is not on the deny.toml allow list. Path: tiny-keccak <- const-random-macro <- const-random <- ahash <- arrow-array <- arrow <- duckdb <- hardviz-core <- hardware_visualizer."
+            },
+            "correction": "An earlier revision of this artifact predicted that the gate 'would pass if it ran'. That prediction was WRONG and has been replaced with the executed result. It was derived from the 41 crates that cargo tree -e normal,build enumerates, which omits proc-macro edges - tiny-keccak does not appear in that listing at all, while cargo-deny walks the full graph and finds it.",
+            "consequence": "Enabling duckdb-archive in a build the license job evaluates would FAIL license-check-cargo until CC0-1.0 is allowed or the dependency is avoided. cargo-deny still says nothing about the 12 vendored C/C++ libraries either way."
+          }
+        },
+        "third_party_notice_generation": {
+          "script": ".github/scripts/generate-licenses.ts",
+          "workflows": [
+            ".github/workflows/auto-update-licenses.yml (scheduled, matrix: windows-latest, ubuntu-22.04 and macos-latest; each uploads licenses-<platform> and the merge job commits them under docs/licenses/<platform>/)",
+            ".github/workflows/publish.yml (per release target, uploads THIRD_PARTY_NOTICES_<os>.md as a release asset)"
+          ],
+          "how_notices_ship": "Notices DO ship inside the installers. publish.yml regenerates ./tmp/THIRD_PARTY_NOTICES.md immediately before the tauri-action build step, and src-tauri/tauri.conf.json declares '../tmp/THIRD_PARTY_NOTICES.md' as the bundle resource 'THIRD_PARTY_NOTICES.md' alongside LICENSE, LICENSE_INFORMATION.md and MIT-pre-relicense.txt. The same file is then also uploaded as a per-target release asset. The version committed in the repository is a 29-byte 'dummy' placeholder; only the release build carries real content.",
+          "findings": [
+            "The generator runs `cargo license --json` and `cargo metadata --format-version 1` with DEFAULT features, so duckdb, libduckdb-sys and the arrow crates would be absent from the notices even after the feature is enabled in product code.",
+            "Even once included, cargo-license reports only libduckdb-sys's crate-level `MIT`, so the 12 vendored C/C++ libraries above would remain unattributed.",
+            "The generator filtered on a crate's own target kinds until #2104; it now walks resolve.nodes[].deps[].dep_kinds, which is correct. The default-feature gap above is present in both versions and is unaffected by that fix."
+          ]
         }
-      },
-      "third_party_notice_generation": {
-        "script": ".github/scripts/generate-licenses.ts",
-        "workflows": [
-          ".github/workflows/auto-update-licenses.yml (scheduled, matrix: windows-latest, ubuntu-22.04 and macos-latest; each uploads licenses-<platform> and the merge job commits them under docs/licenses/<platform>/)",
-          ".github/workflows/publish.yml (per release target, uploads THIRD_PARTY_NOTICES_<os>.md as a release asset)"
-        ],
-        "how_notices_ship": "Notices DO ship inside the installers. publish.yml regenerates ./tmp/THIRD_PARTY_NOTICES.md immediately before the tauri-action build step, and src-tauri/tauri.conf.json declares '../tmp/THIRD_PARTY_NOTICES.md' as the bundle resource 'THIRD_PARTY_NOTICES.md' alongside LICENSE, LICENSE_INFORMATION.md and MIT-pre-relicense.txt. The same file is then also uploaded as a per-target release asset. The version committed in the repository is a 29-byte 'dummy' placeholder; only the release build carries real content.",
-        "findings": [
-          "The generator runs `cargo license --json` and `cargo metadata --format-version 1` with DEFAULT features, so duckdb, libduckdb-sys and the arrow crates would be absent from the notices even after the feature is enabled in product code.",
-          "Even once included, cargo-license reports only libduckdb-sys's crate-level `MIT`, so the 12 vendored C/C++ libraries above would remain unattributed.",
-          "The generator filtered on a crate's own target kinds until #2104; it now walks resolve.nodes[].deps[].dep_kinds, which is correct. The default-feature gap above is present in both versions and is unaffected by that fix."
-        ]
       }
     },
-    "required_changes_not_applied": [
+    "required_changes_before_2139": [
       "Decide the feature's shipping status first. If duckdb-archive is ever enabled in a release build, src-tauri/deny.toml must evaluate it (either [graph] all-features = true, or an explicit features list) so license-check-cargo covers the tree.",
       "Resolve the measured CC0-1.0 rejection before that: with the feature enabled cargo-deny exits 4 on tiny-keccak 2.0.2, so the allow list needs CC0-1.0 or the ahash/const-random path needs avoiding.",
       "Add a manual notice under docs/licenses/manual/ covering DuckDB and the 12 compiled C/C++ libraries, because no automated tool can derive them from crate metadata. That is the directory generate-licenses.ts actually reads fragments from; docs/licenses/<platform>/ holds generated output and would be overwritten.",
       "Make generate-licenses.ts collect metadata with the feature set the release actually builds, rather than default features.",
-      "Nothing in this lane changed any of the above."
+      "Nothing in this lane changed any of the above.",
+      "STATUS: all four were applied in #2111 (PR #2139). See B_license_and_packaging.repository_tooling.resolution_2026_09_15 for what the repository does now; the entries above are the pre-fix record."
     ],
     "product_note": "build_bundled_cc.rs compiles with DUCKDB_EXTENSION_AUTOINSTALL_DEFAULT=1 and DUCKDB_EXTENSION_AUTOLOAD_DEFAULT=1. The runtime owner counters this at open time with enable_autoload_extension(false) and SET enable_external_access = false (core/src/infrastructure/database/native_database/runtime.rs, mod.rs). The compile-time default being on is worth an explicit decision against the no-outbound-telemetry principle."
   },

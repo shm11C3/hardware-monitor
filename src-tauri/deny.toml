@@ -48,7 +48,15 @@ all-features = false
 no-default-features = false
 # If set, these feature will be enabled when collecting metadata. If `--features`
 # is specified on the cmd line they will take precedence over this option.
-#features = []
+#
+# `duckdb-archive` is off by default, so without this the whole bundled DuckDB
+# tree (duckdb, libduckdb-sys, arrow, ...) is absent from the graph and the
+# license check silently passes over dependencies that ship in a
+# duckdb-archive build. Declared here rather than as a CLI flag so local runs
+# and CI evaluate the same graph; `--all-features` would additionally pull in
+# the build-only `bindings-export` / `custom-protocol` features, which do not
+# describe what we ship.
+features = ["duckdb-archive"]
 
 # The output table provides options for how/if diagnostics are outputted
 [output]
@@ -118,6 +126,11 @@ exceptions = [
     # above still governs third-party dependencies.
     { allow = ["GPL-3.0-or-later"], crate = "hardviz-core" },
     { allow = ["GPL-3.0-or-later"], crate = "hardware_visualizer" },
+    # Reached only through the duckdb-archive feature
+    # (duckdb -> arrow -> ahash -> const-random -> tiny-keccak). CC0-1.0 is a
+    # public-domain dedication and imposes no obligation, but it stays
+    # crate-scoped so a future CC0-1.0 dependency still has to be reviewed.
+    { allow = ["CC0-1.0"], crate = "tiny-keccak" },
 ]
 
 # Some crates don't have (easily) machine readable licensing information,

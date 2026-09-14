@@ -140,15 +140,28 @@ try {
 // ====================
 //
 try {
-  const cargoJson = execSync("cargo license --json", {
-    encoding: "utf8",
-  });
+  // Optional Cargo features that are enabled in shipped builds. Without them
+  // `cargo license` / `cargo metadata` resolve the default feature set, in
+  // which the whole bundled DuckDB tree (duckdb, libduckdb-sys, arrow, ...)
+  // is absent, so its crates never reach THIRD_PARTY_NOTICES (#2111).
+  // Keep aligned with `[graph] features` in src-tauri/deny.toml.
+  const shippedFeatures = "duckdb-archive";
+
+  const cargoJson = execSync(
+    `cargo license --json --features ${shippedFeatures}`,
+    {
+      encoding: "utf8",
+    },
+  );
   const cargoData: CargoLicenseInfo[] = JSON.parse(cargoJson);
 
-  const metadataJson = execSync("cargo metadata --format-version 1", {
-    encoding: "utf8",
-    maxBuffer: 100 * 1024 * 1024,
-  });
+  const metadataJson = execSync(
+    `cargo metadata --format-version 1 --features ${shippedFeatures}`,
+    {
+      encoding: "utf8",
+      maxBuffer: 100 * 1024 * 1024,
+    },
+  );
   const metadata: CargoMetadata = JSON.parse(metadataJson);
 
   // Keep only crates reachable from a workspace member through a "normal"

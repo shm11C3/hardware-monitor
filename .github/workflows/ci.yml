@@ -23,6 +23,7 @@ jobs:
       frontend-deps-changed: ${{ steps.changes.outputs.frontend-deps }}
       backend-deps-changed: ${{ steps.changes.outputs.backend-deps }}
       cargo-license-config-changed: ${{ steps.changes.outputs.cargo-license-config }}
+      duckdb-notice-changed: ${{ steps.changes.outputs.duckdb-notice }}
       tauri-deps-changed: ${{ steps.tauri-deps.outputs.changed }}
       actions-changed: ${{ steps.changes.outputs.actions }}
       unclassified-changed: ${{ steps.unclassified.outputs.unclassified }}
@@ -91,6 +92,13 @@ jobs:
             cargo-license-config:
               - 'src-tauri/deny.toml'
               - '.github/actions/setup-rust/**'
+              - '.github/workflows/ci.yml'
+            duckdb-notice:
+              - 'Cargo.lock'
+              - 'core/Cargo.toml'
+              - 'src-tauri/Cargo.toml'
+              - 'docs/licenses/manual/**'
+              - '.github/scripts/check-duckdb-notice.ts'
               - '.github/workflows/ci.yml'
             actions:
               - '.github/workflows/**'
@@ -798,6 +806,23 @@ jobs:
       - name: Check Rust licenses
         run: cargo deny --manifest-path Cargo.toml check --config src-tauri/deny.toml licenses
 
+  # The C/C++ libraries bundled inside libduckdb-sys ship no LICENSE files, so
+  # no Rust-side tool can see them and docs/licenses/manual/ is the only place
+  # they are attributed. Keep that entry honest about the pinned version.
+  license-check-duckdb-notice:
+    needs: change-detection
+    if: needs.change-detection.outputs.is-push == 'true' || needs.change-detection.outputs.unclassified-changed == 'true' || needs.change-detection.outputs.duckdb-notice-changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: ./.github/actions/setup-node
+
+      - name: Check bundled DuckDB attribution
+        run: node --experimental-strip-types .github/scripts/check-duckdb-notice.ts
+
   #
   # Final merge gate: Strict checks for required jobs = success, unnecessary jobs = skipped
   #
@@ -823,6 +848,7 @@ jobs:
       - build-frontend
       - license-check-npm
       - license-check-cargo
+      - license-check-duckdb-notice
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
