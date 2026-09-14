@@ -305,15 +305,18 @@ fn is_missing_table_error(error: &sqlx::Error) -> bool {
   error.to_string().contains("no such table")
 }
 
-fn to_i64(value: Option<u64>) -> Option<i64> {
+/// `pub(crate)` so the native Storage Health family reuses this rule rather
+/// than restating it: an id too large for a signed 64-bit integer is stored
+/// as NULL, which is what SQLite would have received.
+pub(crate) fn to_i64(value: Option<u64>) -> Option<i64> {
   value.and_then(|v| i64::try_from(v).ok())
 }
 
-fn from_i64(value: Option<i64>) -> Option<u64> {
+pub(crate) fn from_i64(value: Option<i64>) -> Option<u64> {
   value.and_then(|v| u64::try_from(v).ok())
 }
 
-fn parse_health_status(value: &str) -> StorageHealthStatus {
+pub(crate) fn parse_health_status(value: &str) -> StorageHealthStatus {
   match value {
     "good" => StorageHealthStatus::Good,
     "warning" => StorageHealthStatus::Warning,
@@ -322,7 +325,7 @@ fn parse_health_status(value: &str) -> StorageHealthStatus {
   }
 }
 
-fn parse_warning_level(value: &str) -> StorageWarningLevel {
+pub(crate) fn parse_warning_level(value: &str) -> StorageWarningLevel {
   match value {
     "none" => StorageWarningLevel::None,
     "warning" => StorageWarningLevel::Warning,

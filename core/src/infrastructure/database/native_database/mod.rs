@@ -32,6 +32,7 @@ mod runtime;
 mod schema;
 mod selection;
 mod series;
+pub mod storage_health;
 mod stored_text;
 mod write_stamp;
 

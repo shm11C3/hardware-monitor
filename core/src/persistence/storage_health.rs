@@ -400,7 +400,18 @@ fn warning_rank(level: &StorageWarningLevel) -> u8 {
   }
 }
 
-pub(crate) fn storage_device_id(
+/// The Storage Health device identity: `storage:hmac-sha256:v1:<64 hex>`,
+/// keyed by the user's own identity hash key so a serial number never reaches
+/// the database.
+///
+/// Public, rather than `pub(crate)`, because it is the one value a test may
+/// not invent. The archive backends join, upsert and order on this id, and a
+/// fixture that seeded a short unprefixed string would certify a backend
+/// against an identity shape production never produces - the failure mode
+/// `.agents/skills/verify-identity-contracts/SKILL.md` exists to prevent. The
+/// differential DuckDB fixture derives every device id through this function
+/// for that reason.
+pub fn storage_device_id(
   disk: &SmartDiskInfo,
   identity_hash_key: &[u8; STORAGE_HEALTH_IDENTITY_HASH_KEY_BYTES],
 ) -> String {
