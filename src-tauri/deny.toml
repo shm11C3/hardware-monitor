@@ -118,6 +118,9 @@ exceptions = [
     # above still governs third-party dependencies.
     { allow = ["GPL-3.0-or-later"], crate = "hardviz-core" },
     { allow = ["GPL-3.0-or-later"], crate = "hardware_visualizer" },
+    # DuckDB's Arrow dependency reaches tiny-keccak through const-random. CC0
+    # is accepted only for this crate rather than for every dependency.
+    { allow = ["CC0-1.0"], crate = "tiny-keccak" },
 ]
 
 # Some crates don't have (easily) machine readable licensing information,

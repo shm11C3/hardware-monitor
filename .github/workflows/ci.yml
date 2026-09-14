@@ -795,8 +795,11 @@ jobs:
       - name: Install cargo-deny
         run: cargo install cargo-deny --version 0.19.4 --locked
 
+      - name: Check DuckDB license notice version
+        run: node --experimental-strip-types .github/scripts/check-duckdb-license-version.ts
+
       - name: Check Rust licenses
-        run: cargo deny --manifest-path Cargo.toml check --config src-tauri/deny.toml licenses
+        run: cargo deny --manifest-path Cargo.toml --features duckdb-archive check --config src-tauri/deny.toml licenses
 
   #
   # Final merge gate: Strict checks for required jobs = success, unnecessary jobs = skipped

@@ -53,9 +53,16 @@ type CargoResolveDep = {
 // Argument processing
 // ==========================
 const target = process.argv[2]; // "linux" or "windows"
+const feature = process.argv[3];
 if (!target || !["linux", "windows", "macos", "tmp"].includes(target)) {
   console.error(
-    "Usage: node --experimental-strip-types script.ts <linux|windows|macos|tmp>",
+    "Usage: node --experimental-strip-types script.ts <linux|windows|macos|tmp> [duckdb-archive]",
+  );
+  process.exit(1);
+}
+if (feature && feature !== "duckdb-archive") {
+  console.error(
+    "Usage: node --experimental-strip-types script.ts <linux|windows|macos|tmp> [duckdb-archive]",
   );
   process.exit(1);
 }
@@ -140,15 +147,19 @@ try {
 // ====================
 //
 try {
-  const cargoJson = execSync("cargo license --json", {
+  const cargoFeatureArgs = feature ? ` --features ${feature}` : "";
+  const cargoJson = execSync(`cargo license${cargoFeatureArgs} --json`, {
     encoding: "utf8",
   });
   const cargoData: CargoLicenseInfo[] = JSON.parse(cargoJson);
 
-  const metadataJson = execSync("cargo metadata --format-version 1", {
-    encoding: "utf8",
-    maxBuffer: 100 * 1024 * 1024,
-  });
+  const metadataJson = execSync(
+    `cargo metadata${cargoFeatureArgs} --format-version 1`,
+    {
+      encoding: "utf8",
+      maxBuffer: 100 * 1024 * 1024,
+    },
+  );
   const metadata: CargoMetadata = JSON.parse(metadataJson);
 
   // Keep only crates reachable from a workspace member through a "normal"
@@ -222,6 +233,7 @@ try {
   }
 } catch (e) {
   console.error("❌ Failed to collect Rust licenses:", e);
+  throw e;
 }
 
 const manualDir = path.resolve("./docs/licenses/manual");
@@ -236,6 +248,10 @@ const appendManualNotices = () => {
 
   const files = readdirSync(manualDir)
     .filter((f) => f.endsWith(".md"))
+    .filter(
+      (f) =>
+        feature === "duckdb-archive" || f !== "duckdb-bundled-libraries.md",
+    )
     .sort();
 
   if (files.length === 0) return "";
