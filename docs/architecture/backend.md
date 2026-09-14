@@ -698,8 +698,9 @@ cargo nextest run -p hardviz-core --features duckdb-archive
 
 `test-core` in CI uses cargo-nextest with the `ci` profile from
 `.config/nextest.toml` so the DuckDB integration binaries run in parallel.
-`cargo test -p hardviz-core` remains a slower serial fallback when nextest is
-not installed. See [`core/README.md`](../../core/README.md#build--test).
+`cargo test -p hardviz-core --features duckdb-archive` remains a slower serial
+fallback when nextest is not installed. See
+[`core/README.md`](../../core/README.md#build--test).
 
 Frontend and TypeScript checks are run from the repository root:
 
