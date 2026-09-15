@@ -4,7 +4,7 @@ inputs:
   safe-chain-version:
     description: "safe-chain version to install (pinned by default)"
     required: false
-    default: "1.5.15"
+    default: "1.5.20"
 
 runs:
   using: "composite"
